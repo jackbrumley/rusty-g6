@@ -10,6 +10,15 @@ const REQUEST_COMMIT: u16 = 0x1103;
 const INTERMEDIATE: u16 = 0x0196;
 const PAYLOAD_SIZE: usize = 64;
 
+// Read command codes (discovered from USB capture)
+const CMD_STATUS_QUERY: u8 = 0x05;
+const CMD_QUERY_10: u8 = 0x10;
+const CMD_QUERY_15: u8 = 0x15;
+const CMD_QUERY_20: u8 = 0x20;
+const CMD_QUERY_30: u8 = 0x30;
+const CMD_QUERY_39: u8 = 0x39;
+const CMD_QUERY_3A: u8 = 0x3a;
+
 // Feature hex codes (for toggles)
 const FEATURE_SURROUND: u8 = 0x00;
 const FEATURE_CRYSTALIZER: u8 = 0x07;
@@ -231,4 +240,85 @@ pub fn build_output_toggle(current: OutputDevice) -> Vec<Vec<u8>> {
         OutputDevice::Headphones => build_output_speakers(),
         OutputDevice::Speakers => build_output_headphones(),
     }
+}
+
+// ============================================================================
+// READ COMMANDS - Discovered from USB capture analysis
+// ============================================================================
+
+/// Build a simple read command (just prefix + command byte + padding)
+fn build_read_command(cmd: u8) -> Vec<u8> {
+    let mut command = Vec::with_capacity(PAYLOAD_SIZE);
+    command.push(PREFIX);
+    command.push(cmd);
+    command.resize(PAYLOAD_SIZE, 0x00);
+    command
+}
+
+/// Build a read command with parameters
+fn build_read_command_with_params(cmd: u8, param1: u8, param2: u8) -> Vec<u8> {
+    let mut command = Vec::with_capacity(PAYLOAD_SIZE);
+    command.push(PREFIX);
+    command.push(cmd);
+    command.push(param1);
+    command.push(param2);
+    command.resize(PAYLOAD_SIZE, 0x00);
+    command
+}
+
+/// Build command 0x05 - General status query
+/// This appears to be the primary device status read command
+pub fn build_status_query() -> Vec<u8> {
+    build_read_command(CMD_STATUS_QUERY)
+}
+
+/// Build command 0x10
+pub fn build_query_10() -> Vec<u8> {
+    build_read_command(CMD_QUERY_10)
+}
+
+/// Build command 0x15 with parameter
+pub fn build_query_15() -> Vec<u8> {
+    build_read_command_with_params(CMD_QUERY_15, 0x01, 0x00)
+}
+
+/// Build command 0x20
+pub fn build_query_20() -> Vec<u8> {
+    build_read_command(CMD_QUERY_20)
+}
+
+/// Build command 0x30
+pub fn build_query_30() -> Vec<u8> {
+    build_read_command(CMD_QUERY_30)
+}
+
+/// Build command 0x39 with parameters
+pub fn build_query_39() -> Vec<u8> {
+    build_read_command_with_params(CMD_QUERY_39, 0x01, 0x04)
+}
+
+/// Build command 0x3a variant 1 (param: 02 09)
+pub fn build_query_3a_variant1() -> Vec<u8> {
+    build_read_command_with_params(CMD_QUERY_3A, 0x02, 0x09)
+}
+
+/// Build command 0x3a variant 2 (param: 01 07)
+pub fn build_query_3a_variant2() -> Vec<u8> {
+    build_read_command_with_params(CMD_QUERY_3A, 0x01, 0x07)
+}
+
+/// Build full device state read sequence
+/// This sends all the read commands in the order the Creative software uses
+pub fn build_full_device_read_sequence() -> Vec<Vec<u8>> {
+    vec![
+        build_status_query(),        // 0x05
+        build_query_10(),             // 0x10
+        build_query_20(),             // 0x20
+        build_query_30(),             // 0x30
+        build_query_15(),             // 0x15 with param
+        build_query_3a_variant1(),    // 0x3a 02 09
+        build_status_query(),         // 0x05 again
+        build_query_39(),             // 0x39 01 04
+        build_query_3a_variant2(),    // 0x3a 01 07
+    ]
 }

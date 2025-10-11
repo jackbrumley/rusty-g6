@@ -133,6 +133,54 @@ fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn read_device_state(state: State<AppState>) -> Result<String, String> {
+    eprintln!("=== Read Device State Called ===");
+    let manager = state.device_manager.lock().unwrap();
+    
+    match manager.read_device_state() {
+        Ok(response) => {
+            let hex_string = response.iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
+            eprintln!("Device state response: {}", hex_string);
+            Ok(hex_string)
+        }
+        Err(e) => {
+            eprintln!("Read device state error: {}", e);
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+fn read_full_device_state(state: State<AppState>) -> Result<Vec<(String, String)>, String> {
+    eprintln!("=== Read Full Device State Called ===");
+    let manager = state.device_manager.lock().unwrap();
+    
+    match manager.read_full_device_state() {
+        Ok(results) => {
+            let formatted: Vec<(String, String)> = results.iter()
+                .map(|(name, data)| {
+                    let hex_string = data.iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    (name.clone(), hex_string)
+                })
+                .collect();
+            
+            eprintln!("Read {} command responses", formatted.len());
+            Ok(formatted)
+        }
+        Err(e) => {
+            eprintln!("Read full device state error: {}", e);
+            Err(e.to_string())
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logging
@@ -160,6 +208,8 @@ pub fn run() {
             set_smart_volume,
             set_dialog_plus,
             list_usb_devices,
+            read_device_state,
+            read_full_device_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

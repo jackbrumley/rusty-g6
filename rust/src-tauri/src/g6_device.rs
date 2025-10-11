@@ -96,6 +96,38 @@ impl G6DeviceManager {
                 info!("Device: {} {}", manufacturer, product);
                 
                 *self.device.lock().unwrap() = Some(device);
+                
+                // CRITICAL: Read device state immediately after connection!
+                // This is when reads work perfectly (before any writes).
+                // Like the official Creative software, we read once on connect
+                // then maintain state internally after that.
+                drop(api); // Release API lock before reading
+                
+                eprintln!("\n------------------------------------------------------------");
+                eprintln!("AUTO-READING DEVICE STATE ON CONNECT...");
+                eprintln!("------------------------------------------------------------");
+                
+                match self.read_device_state() {
+                    Ok(state) => {
+                        info!("Successfully read initial device state: {:02x?}", &state[0..16]);
+                        
+                        // Parse the device state and update current settings
+                        if let Err(e) = self.parse_and_update_settings(&state) {
+                            error!("Failed to parse device state: {}", e);
+                            eprintln!("⚠ Warning: Could not parse device state");
+                        } else {
+                            eprintln!("✓ Device state parsed and settings updated");
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to read initial device state: {}", e);
+                        eprintln!("⚠ Warning: Could not read device state on connect");
+                        // Don't fail connection, just log the error
+                    }
+                }
+                
+                eprintln!("------------------------------------------------------------\n");
+                
                 Ok(())
             }
             Err(e) => {
@@ -111,6 +143,81 @@ impl G6DeviceManager {
         info!("Disconnected from G6 device");
     }
 
+    /// Send a single read command and get response
+    fn send_read_command(&self, command: Vec<u8>) -> Result<Vec<u8>> {
+        let device_guard = self.device.lock().unwrap();
+        
+        let device = device_guard.as_ref()
+            .context("Device not connected")?;
+        
+        eprintln!("Sending read command: {} bytes - {:02x?}", 
+                 command.len(), 
+                 &command[0..std::cmp::min(8, command.len())]);
+        
+        // Prepend 0x00 as report_id
+        let mut data_with_report_id = vec![0x00];
+        data_with_report_id.extend_from_slice(&command);
+        
+        // Send the command using write (interrupt endpoint)
+        match device.write(&data_with_report_id) {
+            Ok(bytes_written) => {
+                eprintln!("  ✓ Wrote {} bytes", bytes_written);
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!("Failed to write read command: {}", e));
+            }
+        }
+        
+        // Read the response using read_timeout (interrupt endpoint)
+        let mut response = vec![0u8; 64];
+        match device.read_timeout(&mut response, 1000) {
+            Ok(bytes_read) => {
+                eprintln!("  ✓ Read {} bytes response: {:02x?}", 
+                         bytes_read,
+                         &response[0..std::cmp::min(16, bytes_read)]);
+                Ok(response)
+            }
+            Err(e) => {
+                Err(anyhow::anyhow!("Failed to read device response: {}", e))
+            }
+        }
+    }
+
+    /// Drain the response buffer after write operations
+    /// After ANY write, the device enters a buffering mode where it returns
+    /// status messages followed by cached previous responses. We need to drain
+    /// these buffered responses before we can get clean reads.
+    fn drain_response_buffer(&self) -> Result<()> {
+        eprintln!("Draining response buffer...");
+        
+        let dummy_cmd = g6_protocol::build_status_query();
+        
+        // Send multiple dummy reads to drain the buffer
+        // Based on testing, we need ~10 reads to fully drain
+        for i in 0..12 {
+            match self.send_read_command(dummy_cmd.clone()) {
+                Ok(response) => {
+                    // Check if response properly echoes our command (byte 1 = 0x05)
+                    if response.len() > 1 && response[0] == 0x5a && response[1] == 0x05 {
+                        eprintln!("  Buffer drained after {} reads (got proper echo)", i + 1);
+                        return Ok(());
+                    }
+                    eprintln!("  Drain read {}: {:02x?}", i + 1, &response[0..4]);
+                }
+                Err(e) => {
+                    error!("Error draining buffer: {}", e);
+                    // Continue anyway
+                }
+            }
+            
+            // Small delay between drain reads
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        
+        eprintln!("  Buffer drain complete (sent 12 dummy reads)");
+        Ok(())
+    }
+
     /// Send commands to the G6 device (DATA + COMMIT pair)
     fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<()> {
         let device_guard = self.device.lock().unwrap();
@@ -118,7 +225,9 @@ impl G6DeviceManager {
         let device = device_guard.as_ref()
             .context("Device not connected")?;
         
-        eprintln!("Sending {} commands to G6 device", commands.len());
+        eprintln!("\n============================================================");
+        eprintln!("WRITING {} COMMANDS TO DEVICE", commands.len());
+        eprintln!("============================================================");
         
         for (i, command) in commands.iter().enumerate() {
             eprintln!("Command {}/{}: {} bytes - {:02x?}", 
@@ -147,7 +256,21 @@ impl G6DeviceManager {
             }
         }
         
-        eprintln!("All commands sent successfully");
+        eprintln!("✓ All commands sent successfully\n");
+        
+        // Release the device lock before draining buffer (drain needs to acquire it)
+        drop(device_guard);
+        
+        // CRITICAL: Drain the response buffer after ANY write operation
+        // The device enters a buffering mode after writes where it returns
+        // status updates followed by cached responses. We must drain these
+        // before any subsequent reads will work properly.
+        eprintln!("------------------------------------------------------------");
+        eprintln!("DRAINING RESPONSE BUFFER...");
+        eprintln!("------------------------------------------------------------");
+        self.drain_response_buffer()?;
+        eprintln!("============================================================\n");
+        
         Ok(())
     }
 
@@ -268,6 +391,165 @@ impl G6DeviceManager {
         settings.dialog_plus_enabled = enabled;
         settings.dialog_plus_value = value;
         info!("Dialog Plus set to {:?} with value {}", enabled, value);
+        Ok(())
+    }
+
+    /// Read device state using the reliable 0x05 status query
+    /// This command consistently returns clean data without buffering issues
+    pub fn read_device_state(&self) -> Result<Vec<u8>> {
+        info!("Reading device state...");
+        
+        eprintln!("\n============================================================");
+        eprintln!("READING DEVICE STATE (0x05)");
+        eprintln!("============================================================");
+        
+        // Pre-drain to clear any pending buffered data
+        eprintln!("Pre-draining buffer...");
+        self.drain_response_buffer()?;
+        
+        // CRITICAL: Read TWICE and use the second response
+        // First read might still get buffered data even after drain
+        let cmd = g6_protocol::build_status_query();
+        
+        eprintln!("First read (might be buffered)...");
+        let _first = self.send_read_command(cmd.clone())?;
+        
+        eprintln!("Second read (should be clean)...");
+        let response = self.send_read_command(cmd)?;
+        
+        // Verify we got a proper echo
+        if response.len() > 1 && response[0] == 0x5a && response[1] == 0x05 {
+            eprintln!("✓ Got clean response: {:02x?}", &response[0..16]);
+        } else {
+            eprintln!("⚠ Warning: Response doesn't echo command: {:02x?}", &response[0..16]);
+        }
+        
+        eprintln!("============================================================\n");
+        
+        info!("Received device state response: {:02x?}", &response[0..16]);
+        Ok(response)
+    }
+
+    /// Read full device state using all discovered commands
+    /// Returns a vector of (command_name, response) tuples
+    pub fn read_full_device_state(&self) -> Result<Vec<(String, Vec<u8>)>> {
+        info!("Reading full device state with all commands...");
+        
+        eprintln!("\n============================================================");
+        eprintln!("READING FULL DEVICE STATE");
+        eprintln!("============================================================");
+        
+        // CRITICAL: Drain buffer BEFORE reading to clear any pending data
+        eprintln!("Pre-draining buffer before reads...");
+        self.drain_response_buffer()?;
+        
+        let mut results = Vec::new();
+        
+        // Send each command and collect responses
+        let commands = vec![
+            ("0x05_status", g6_protocol::build_status_query()),
+            ("0x10", g6_protocol::build_query_10()),
+            ("0x20", g6_protocol::build_query_20()),
+            ("0x30", g6_protocol::build_query_30()),
+            ("0x15", g6_protocol::build_query_15()),
+            ("0x3a_v1", g6_protocol::build_query_3a_variant1()),
+            ("0x05_status_repeat", g6_protocol::build_status_query()),
+            ("0x39", g6_protocol::build_query_39()),
+            ("0x3a_v2", g6_protocol::build_query_3a_variant2()),
+        ];
+        
+        for (name, cmd) in commands {
+            match self.send_read_command(cmd) {
+                Ok(response) => {
+                    eprintln!("{}: {:02x?}", name, &response[0..16]);
+                    results.push((name.to_string(), response));
+                }
+                Err(e) => {
+                    error!("Failed to read {}: {}", name, e);
+                    // Continue with other commands even if one fails
+                }
+            }
+            
+            // Small delay between commands
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        
+        eprintln!("============================================================\n");
+        info!("Read {} responses", results.len());
+        Ok(results)
+    }
+
+    /// Parse device state response and update current settings
+    /// Response format: [5a 05 04 1f ...]
+    /// Byte 3 (0x1f = 0b00011111) contains effect enable flags
+    fn parse_and_update_settings(&self, response: &[u8]) -> Result<()> {
+        if response.len() < 4 {
+            return Err(anyhow::anyhow!("Response too short"));
+        }
+        
+        // Verify response header
+        if response[0] != 0x5a || response[1] != 0x05 {
+            return Err(anyhow::anyhow!("Invalid response header"));
+        }
+        
+        // Byte 3 contains effect flags (bit field)
+        let flags = response[3];
+        
+        eprintln!("Parsing device state flags: 0x{:02x} (0b{:08b})", flags, flags);
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        
+        // Parse bit flags (testing hypothesis from analysis)
+        // Bit 0: Surround
+        // Bit 1: Crystalizer  
+        // Bit 2: Bass
+        // Bit 3: Smart Volume
+        // Bit 4: Dialog Plus
+        
+        settings.surround_enabled = if flags & 0x01 != 0 { 
+            eprintln!("  Bit 0 (Surround): ENABLED");
+            EffectState::Enabled 
+        } else { 
+            eprintln!("  Bit 0 (Surround): DISABLED");
+            EffectState::Disabled 
+        };
+        
+        settings.crystalizer_enabled = if flags & 0x02 != 0 { 
+            eprintln!("  Bit 1 (Crystalizer): ENABLED");
+            EffectState::Enabled 
+        } else { 
+            eprintln!("  Bit 1 (Crystalizer): DISABLED");
+            EffectState::Disabled 
+        };
+        
+        settings.bass_enabled = if flags & 0x04 != 0 { 
+            eprintln!("  Bit 2 (Bass): ENABLED");
+            EffectState::Enabled 
+        } else { 
+            eprintln!("  Bit 2 (Bass): DISABLED");
+            EffectState::Disabled 
+        };
+        
+        settings.smart_volume_enabled = if flags & 0x08 != 0 { 
+            eprintln!("  Bit 3 (Smart Volume): ENABLED");
+            EffectState::Enabled 
+        } else { 
+            eprintln!("  Bit 3 (Smart Volume): DISABLED");
+            EffectState::Disabled 
+        };
+        
+        settings.dialog_plus_enabled = if flags & 0x10 != 0 { 
+            eprintln!("  Bit 4 (Dialog Plus): ENABLED");
+            EffectState::Enabled 
+        } else { 
+            eprintln!("  Bit 4 (Dialog Plus): DISABLED");
+            EffectState::Disabled 
+        };
+        
+        // Note: We don't get effect VALUES (0-100) from this command
+        // Those would require other commands or we maintain them from last writes
+        
+        info!("Settings updated from device state");
         Ok(())
     }
 
