@@ -2,6 +2,9 @@ mod g6_spec;
 mod g6_device;
 mod g6_protocol;
 
+#[cfg(target_os = "linux")]
+mod alsa_mic_setup;
+
 use g6_device::G6DeviceManager;
 use g6_spec::{G6Settings, OutputDevice, EffectState};
 use std::sync::Mutex;
@@ -181,6 +184,50 @@ fn read_full_device_state(state: State<AppState>) -> Result<Vec<(String, String)
     }
 }
 
+// Microphone setup commands (Linux only)
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn setup_microphone() -> Result<String, String> {
+    eprintln!("=== Setup Microphone Called ===");
+    
+    match alsa_mic_setup::setup_g6_microphone() {
+        Ok(result) => {
+            eprintln!("Microphone setup result: {}", result.message);
+            if result.success {
+                Ok(result.message)
+            } else {
+                Err(result.message)
+            }
+        }
+        Err(e) => {
+            eprintln!("Microphone setup error: {}", e);
+            Err(format!("Failed to setup microphone: {}", e))
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn get_microphone_status() -> Result<String, String> {
+    match alsa_mic_setup::get_mic_status() {
+        Ok(status) => Ok(status),
+        Err(e) => Err(format!("Failed to get microphone status: {}", e))
+    }
+}
+
+// Stub commands for non-Linux platforms
+#[cfg(not(target_os = "linux"))]
+#[tauri::command]
+fn setup_microphone() -> Result<String, String> {
+    Err("Microphone setup is only available on Linux".to_string())
+}
+
+#[cfg(not(target_os = "linux"))]
+#[tauri::command]
+fn get_microphone_status() -> Result<String, String> {
+    Err("Microphone status is only available on Linux".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logging
@@ -210,6 +257,8 @@ pub fn run() {
             list_usb_devices,
             read_device_state,
             read_full_device_state,
+            setup_microphone,
+            get_microphone_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

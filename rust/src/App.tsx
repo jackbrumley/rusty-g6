@@ -21,7 +21,9 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
   const [settings, setSettings] = useState<G6Settings | null>(null);
-  const [activeTab, setActiveTab] = useState<"main" | "debug">("main");
+  const [activeTab, setActiveTab] = useState<"main" | "microphone" | "debug">("main");
+  const [micStatus, setMicStatus] = useState<string>("");
+  const [micSetupInProgress, setMicSetupInProgress] = useState(false);
 
   // Check connection status on mount
   useEffect(() => {
@@ -120,6 +122,32 @@ function App() {
     }
   }
 
+  async function setupMicrophone() {
+    setMicSetupInProgress(true);
+    setMicStatus("Setting up microphone...");
+    
+    try {
+      const result = await invoke<string>("setup_microphone");
+      setMicStatus(result);
+      console.log("Microphone setup successful:", result);
+    } catch (error) {
+      const errorMsg = `Failed to setup microphone: ${error}`;
+      setMicStatus(errorMsg);
+      console.error(errorMsg);
+    } finally {
+      setMicSetupInProgress(false);
+    }
+  }
+
+  async function getMicrophoneStatus() {
+    try {
+      const status = await invoke<string>("get_microphone_status");
+      setMicStatus(status);
+    } catch (error) {
+      setMicStatus(`Failed to get status: ${error}`);
+    }
+  }
+
   return (
     <main class="container">
       <header>
@@ -133,6 +161,12 @@ function App() {
           onClick={() => setActiveTab("main")}
         >
           Main
+        </button>
+        <button 
+          class={`tab-button ${activeTab === "microphone" ? "active" : ""}`}
+          onClick={() => setActiveTab("microphone")}
+        >
+          Microphone (Linux)
         </button>
         <button 
           class={`tab-button ${activeTab === "debug" ? "active" : ""}`}
@@ -252,6 +286,15 @@ function App() {
         </div>
       )}
 
+      {activeTab === "microphone" && (
+        <MicrophoneTab 
+          micStatus={micStatus}
+          micSetupInProgress={micSetupInProgress}
+          onSetupMicrophone={setupMicrophone}
+          onGetStatus={getMicrophoneStatus}
+        />
+      )}
+
       {activeTab === "debug" && (
         <DebugTab connected={connected} />
       )}
@@ -323,6 +366,68 @@ function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
         <span class="slider-value">{localValue}</span>
       </div>
     </div>
+  );
+}
+
+interface MicrophoneTabProps {
+  micStatus: string;
+  micSetupInProgress: boolean;
+  onSetupMicrophone: () => void;
+  onGetStatus: () => void;
+}
+
+function MicrophoneTab({ micStatus, micSetupInProgress, onSetupMicrophone, onGetStatus }: MicrophoneTabProps) {
+  return (
+    <section class="microphone-section">
+      <h2>Microphone Setup (Linux Only)</h2>
+      
+      <div class="info-panel">
+        <p><strong>About Microphone Setup:</strong></p>
+        <p>
+          On Linux, the SoundBlaster X G6 requires manual ALSA configuration to enable 
+          the external microphone input. This needs to be done each time after rebooting.
+        </p>
+        <p class="info-note">
+          This feature automates the following steps:
+        </p>
+        <ol>
+          <li>Enable External Mic capture in ALSA</li>
+          <li>Set PCM Capture Source to External Mic</li>
+          <li>Set reasonable input gain (50%)</li>
+        </ol>
+      </div>
+
+      <div class="microphone-controls">
+        <button 
+          onClick={onSetupMicrophone} 
+          disabled={micSetupInProgress}
+          class="btn-primary"
+        >
+          {micSetupInProgress ? "Setting up..." : "Setup Microphone"}
+        </button>
+        
+        <button 
+          onClick={onGetStatus}
+          class="btn-secondary"
+        >
+          Check Status
+        </button>
+      </div>
+
+      {micStatus && (
+        <div class="microphone-result">
+          <h3>Result:</h3>
+          <pre>{micStatus}</pre>
+        </div>
+      )}
+
+      <div class="info-panel" style="margin-top: 20px;">
+        <p class="info-note">
+          <strong>Note:</strong> These settings are temporary and will reset after a reboot. 
+          Once we verify this works reliably, we can add an option to auto-configure on app startup.
+        </p>
+      </div>
+    </section>
   );
 }
 
