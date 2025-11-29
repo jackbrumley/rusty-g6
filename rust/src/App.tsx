@@ -102,6 +102,16 @@ function App() {
     }
   }
 
+  async function configureMicrophone() {
+    try {
+      setStatus("Configuring microphone...");
+      const result = await invoke<string>("configure_microphone");
+      setStatus(result);
+    } catch (error) {
+      setStatus(`Failed to configure microphone: ${error}`);
+    }
+  }
+
   async function setEffect(
     effectName: string,
     enabled: "Enabled" | "Disabled",
@@ -148,6 +158,16 @@ function App() {
 
       {connected && settings && (
         <>
+          <section class="input-section">
+            <h2>Input</h2>
+            <div class="input-control">
+              <p class="input-description">Configure microphone capture settings</p>
+              <button onClick={configureMicrophone} class="btn-toggle">
+                Configure Microphone
+              </button>
+            </div>
+          </section>
+
           <section class="output-section">
             <h2>Output</h2>
             <div class="output-control">
@@ -158,10 +178,9 @@ function App() {
                 Toggle Output
               </button>
             </div>
-          </section>
 
-          <section class="effects-section">
-            <h2>Audio Effects</h2>
+            <div class="effects-list">
+              <h3>Audio Effects</h3>
 
             <EffectControl
               name="Surround"
@@ -211,18 +230,19 @@ function App() {
               }
             />
 
-            <EffectControl
-              name="Dialog Plus"
-              enabled={settings.dialog_plus_enabled === "Enabled"}
-              value={settings.dialog_plus_value}
-              onChange={(enabled, value) =>
-                setEffect(
-                  "dialog_plus",
-                  enabled ? "Enabled" : "Disabled",
-                  value
-                )
-              }
-            />
+              <EffectControl
+                name="Dialog Plus"
+                enabled={settings.dialog_plus_enabled === "Enabled"}
+                value={settings.dialog_plus_value}
+                onChange={(enabled, value) =>
+                  setEffect(
+                    "dialog_plus",
+                    enabled ? "Enabled" : "Disabled",
+                    value
+                  )
+                }
+              />
+            </div>
           </section>
         </>
       )}

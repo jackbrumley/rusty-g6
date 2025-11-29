@@ -133,6 +133,71 @@ fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn configure_microphone() -> Result<String, String> {
+    use std::process::Command;
+    
+    eprintln!("=== Configuring G6 Microphone ===");
+    
+    // Try different possible card names
+    let card_names = vec![
+        "Sound BlasterX G6",
+        "G6",
+        "SoundBlasterXG6",
+    ];
+    
+    let mut last_error = String::new();
+    
+    for card_name in &card_names {
+        eprintln!("Trying card name: {}", card_name);
+        
+        // Try to set Line In capture
+        match Command::new("amixer")
+            .args(&["-c", card_name, "sset", "Line In", "cap"])
+            .output()
+        {
+            Ok(output) if output.status.success() => {
+                eprintln!("✓ Line In capture enabled");
+                
+                // Set External Mic capture
+                if let Ok(output) = Command::new("amixer")
+                    .args(&["-c", card_name, "sset", "External Mic", "cap"])
+                    .output()
+                {
+                    if output.status.success() {
+                        eprintln!("✓ External Mic capture enabled");
+                        
+                        // Set PCM Capture Source to External Mic
+                        if let Ok(output) = Command::new("amixer")
+                            .args(&["-c", card_name, "cset", "name=PCM Capture Source", "External Mic"])
+                            .output()
+                        {
+                            if output.status.success() {
+                                eprintln!("✓ PCM Capture Source set to External Mic");
+                                return Ok(format!("Microphone configured successfully on '{}'", card_name));
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(output) => {
+                last_error = format!("Card '{}' found but configuration failed", card_name);
+                eprintln!("{}", last_error);
+            }
+            Err(e) => {
+                last_error = format!("Error with card '{}': {}", card_name, e);
+                eprintln!("{}", last_error);
+            }
+        }
+    }
+    
+    // If we got here, all attempts failed
+    Err(format!(
+        "Failed to configure microphone. Make sure 'amixer' is installed and the G6 is connected. Last error: {}",
+        last_error
+    ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logging
@@ -160,6 +225,7 @@ pub fn run() {
             set_smart_volume,
             set_dialog_plus,
             list_usb_devices,
+            configure_microphone,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

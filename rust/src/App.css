@@ -165,9 +165,9 @@ button {
 
 .output-control {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 15px;
 }
 
 .current-output {
@@ -178,18 +178,44 @@ button {
   color: var(--primary-color);
 }
 
-/* Effects Section */
-.effects-section {
+.effects-list {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+.effects-list h3 {
+  margin-bottom: 12px;
+  color: var(--text-color);
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+/* Input Section */
+.input-section {
   background: var(--card-bg);
   border-radius: var(--border-radius);
   padding: 12px;
+  margin-bottom: 12px;
   border: 1px solid var(--border-color);
 }
 
-.effects-section h2 {
-  margin-bottom: 12px;
+.input-section h2 {
+  margin-bottom: 10px;
   color: var(--text-color);
   font-size: 1.2rem;
+}
+
+.input-control {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.input-description {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+  margin: 0;
 }
 
 /* Effect Control */
