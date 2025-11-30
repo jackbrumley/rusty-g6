@@ -132,10 +132,10 @@ body {
 
 /* Compact Buttons */
 .btn-compact {
-  padding: 4px 12px;
+  padding: 6px 16px;
   border: none;
   border-radius: var(--border-radius);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: var(--transition);
   font-weight: 600;
@@ -458,4 +458,17 @@ input:checked + .toggle-slider:before {
 
 .container::-webkit-scrollbar-thumb:hover {
   background: var(--secondary-color);
+}
+
+/* App Version */
+.app-version {
+  position: fixed;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  user-select: none;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  pointer-events: none;
 }

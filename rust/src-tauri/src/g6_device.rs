@@ -7,6 +7,8 @@ use anyhow::{Context, Result};
 use hidapi::{HidApi, HidDevice};
 use log::{debug, error, info};
 use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::fs;
 
 /// G6 Device Manager
 pub struct G6DeviceManager {
@@ -165,6 +167,9 @@ impl G6DeviceManager {
         };
         self.current_settings.lock().unwrap().output = new_output;
         
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Output toggled to {:?}", new_output);
         Ok(())
     }
@@ -177,6 +182,10 @@ impl G6DeviceManager {
         };
         self.send_commands(commands)?;
         self.current_settings.lock().unwrap().output = output;
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Output set to {:?}", output);
         Ok(())
     }
@@ -195,6 +204,11 @@ impl G6DeviceManager {
         let mut settings = self.current_settings.lock().unwrap();
         settings.surround_enabled = enabled;
         settings.surround_value = value;
+        drop(settings); // Release lock before saving
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Surround set to {:?} with value {}", enabled, value);
         Ok(())
     }
@@ -213,6 +227,11 @@ impl G6DeviceManager {
         let mut settings = self.current_settings.lock().unwrap();
         settings.crystalizer_enabled = enabled;
         settings.crystalizer_value = value;
+        drop(settings); // Release lock before saving
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Crystalizer set to {:?} with value {}", enabled, value);
         Ok(())
     }
@@ -231,6 +250,11 @@ impl G6DeviceManager {
         let mut settings = self.current_settings.lock().unwrap();
         settings.bass_enabled = enabled;
         settings.bass_value = value;
+        drop(settings); // Release lock before saving
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Bass set to {:?} with value {}", enabled, value);
         Ok(())
     }
@@ -249,6 +273,11 @@ impl G6DeviceManager {
         let mut settings = self.current_settings.lock().unwrap();
         settings.smart_volume_enabled = enabled;
         settings.smart_volume_value = value;
+        drop(settings); // Release lock before saving
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Smart Volume set to {:?} with value {}", enabled, value);
         Ok(())
     }
@@ -267,6 +296,11 @@ impl G6DeviceManager {
         let mut settings = self.current_settings.lock().unwrap();
         settings.dialog_plus_enabled = enabled;
         settings.dialog_plus_value = value;
+        drop(settings); // Release lock before saving
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
         info!("Dialog Plus set to {:?} with value {}", enabled, value);
         Ok(())
     }
@@ -274,6 +308,177 @@ impl G6DeviceManager {
     /// Get current settings
     pub fn get_settings(&self) -> G6Settings {
         self.current_settings.lock().unwrap().clone()
+    }
+
+    /// Get the path to the config file
+    fn get_config_path() -> Result<PathBuf> {
+        let config_dir = dirs::config_dir()
+            .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
+        
+        let app_config_dir = config_dir.join("rusty-g6");
+        
+        // Create the directory if it doesn't exist
+        if !app_config_dir.exists() {
+            fs::create_dir_all(&app_config_dir)
+                .context("Failed to create config directory")?;
+        }
+        
+        Ok(app_config_dir.join("g6_settings.json"))
+    }
+
+    /// Save current settings to disk
+    pub fn save_settings_to_disk(&self) -> Result<()> {
+        let settings = self.current_settings.lock().unwrap().clone();
+        let config_path = Self::get_config_path()?;
+        
+        let json = serde_json::to_string_pretty(&settings)
+            .context("Failed to serialize settings")?;
+        
+        fs::write(&config_path, json)
+            .context("Failed to write config file")?;
+        
+        info!("Settings saved to {:?}", config_path);
+        Ok(())
+    }
+
+    /// Load settings from disk
+    pub fn load_settings_from_disk(&self) -> Result<G6Settings> {
+        let config_path = Self::get_config_path()?;
+        
+        if !config_path.exists() {
+            info!("No config file found, using defaults");
+            return Ok(G6Settings::default());
+        }
+        
+        let json = fs::read_to_string(&config_path)
+            .context("Failed to read config file")?;
+        
+        let settings: G6Settings = serde_json::from_str(&json)
+            .context("Failed to parse config file")?;
+        
+        info!("Settings loaded from {:?}", config_path);
+        Ok(settings)
+    }
+
+    /// Apply all settings from config to the device
+    pub fn apply_all_settings(&self) -> Result<()> {
+        info!("Applying all settings to device...");
+        
+        // Load settings from disk
+        let settings = self.load_settings_from_disk()?;
+        
+        // Update in-memory settings
+        *self.current_settings.lock().unwrap() = settings.clone();
+        
+        // Apply all settings to device (without individual saves)
+        self.set_output_internal(settings.output)?;
+        self.set_surround_internal(settings.surround_enabled, settings.surround_value)?;
+        self.set_crystalizer_internal(settings.crystalizer_enabled, settings.crystalizer_value)?;
+        self.set_bass_internal(settings.bass_enabled, settings.bass_value)?;
+        self.set_smart_volume_internal(settings.smart_volume_enabled, settings.smart_volume_value)?;
+        self.set_dialog_plus_internal(settings.dialog_plus_enabled, settings.dialog_plus_value)?;
+        
+        // Save once at the end
+        self.save_settings_to_disk()?;
+        
+        info!("All settings applied successfully");
+        Ok(())
+    }
+
+    /// Internal method to set output without saving
+    fn set_output_internal(&self, output: OutputDevice) -> Result<()> {
+        let commands = match output {
+            OutputDevice::Headphones => g6_protocol::build_output_headphones(),
+            OutputDevice::Speakers => g6_protocol::build_output_speakers(),
+        };
+        self.send_commands(commands)?;
+        self.current_settings.lock().unwrap().output = output;
+        Ok(())
+    }
+
+    /// Internal method to set surround without saving
+    fn set_surround_internal(&self, enabled: EffectState, value: u8) -> Result<()> {
+        validate_effect_value(value)?;
+        
+        let enabled_bool = matches!(enabled, EffectState::Enabled);
+        let toggle_commands = g6_protocol::build_surround_toggle(enabled_bool);
+        let slider_commands = g6_protocol::build_surround_slider(value);
+        
+        self.send_commands(toggle_commands)?;
+        self.send_commands(slider_commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.surround_enabled = enabled;
+        settings.surround_value = value;
+        Ok(())
+    }
+
+    /// Internal method to set crystalizer without saving
+    fn set_crystalizer_internal(&self, enabled: EffectState, value: u8) -> Result<()> {
+        validate_effect_value(value)?;
+        
+        let enabled_bool = matches!(enabled, EffectState::Enabled);
+        let toggle_commands = g6_protocol::build_crystalizer_toggle(enabled_bool);
+        let slider_commands = g6_protocol::build_crystalizer_slider(value);
+        
+        self.send_commands(toggle_commands)?;
+        self.send_commands(slider_commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.crystalizer_enabled = enabled;
+        settings.crystalizer_value = value;
+        Ok(())
+    }
+
+    /// Internal method to set bass without saving
+    fn set_bass_internal(&self, enabled: EffectState, value: u8) -> Result<()> {
+        validate_effect_value(value)?;
+        
+        let enabled_bool = matches!(enabled, EffectState::Enabled);
+        let toggle_commands = g6_protocol::build_bass_toggle(enabled_bool);
+        let slider_commands = g6_protocol::build_bass_slider(value);
+        
+        self.send_commands(toggle_commands)?;
+        self.send_commands(slider_commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.bass_enabled = enabled;
+        settings.bass_value = value;
+        Ok(())
+    }
+
+    /// Internal method to set smart volume without saving
+    fn set_smart_volume_internal(&self, enabled: EffectState, value: u8) -> Result<()> {
+        validate_effect_value(value)?;
+        
+        let enabled_bool = matches!(enabled, EffectState::Enabled);
+        let toggle_commands = g6_protocol::build_smart_volume_toggle(enabled_bool);
+        let slider_commands = g6_protocol::build_smart_volume_slider(value);
+        
+        self.send_commands(toggle_commands)?;
+        self.send_commands(slider_commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.smart_volume_enabled = enabled;
+        settings.smart_volume_value = value;
+        Ok(())
+    }
+
+    /// Internal method to set dialog plus without saving
+    fn set_dialog_plus_internal(&self, enabled: EffectState, value: u8) -> Result<()> {
+        validate_effect_value(value)?;
+        
+        let enabled_bool = matches!(enabled, EffectState::Enabled);
+        let toggle_commands = g6_protocol::build_dialog_plus_toggle(enabled_bool);
+        let slider_commands = g6_protocol::build_dialog_plus_slider(value);
+        
+        self.send_commands(toggle_commands)?;
+        self.send_commands(slider_commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.dialog_plus_enabled = enabled;
+        settings.dialog_plus_value = value;
+        Ok(())
     }
 
     /// List all connected HID devices (for debugging)

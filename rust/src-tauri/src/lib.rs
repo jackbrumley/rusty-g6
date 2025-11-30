@@ -30,11 +30,21 @@ fn connect_device(state: State<AppState>) -> Result<String, String> {
         Err(e) => eprintln!("Failed to list devices: {}", e),
     }
     
+    // Connect to the device
     manager.connect()
-        .map(|_| "Connected successfully".to_string())
         .map_err(|e| {
             eprintln!("Connection error: {}", e);
             e.to_string()
+        })?;
+    
+    // Apply all saved settings to the device
+    manager.apply_all_settings()
+        .map(|_| "Connected and settings applied successfully".to_string())
+        .map_err(|e| {
+            eprintln!("Failed to apply settings: {}", e);
+            // Device is connected but settings failed - still report success
+            // but mention the issue
+            format!("Connected but failed to apply settings: {}", e)
         })
 }
 
@@ -134,6 +144,11 @@ fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 fn configure_microphone() -> Result<String, String> {
     use std::process::Command;
     
@@ -225,6 +240,7 @@ pub fn run() {
             set_smart_volume,
             set_dialog_plus,
             list_usb_devices,
+            get_app_version,
             configure_microphone,
         ])
         .run(tauri::generate_context!())

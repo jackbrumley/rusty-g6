@@ -160,6 +160,19 @@ Rusty G6 is built with modern, performant technologies:
 
 *Screenshots will be added as the UI is developed*
 
+## 🎖️ Credits & Attribution
+
+This project would not exist without the groundbreaking reverse engineering work by **[Nils Skowasch](https://github.com/nils-skowasch)**.
+
+His [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project:
+- 🔬 Reverse-engineered the complete USB HID protocol for the G6
+- 📋 Documented all audio effect commands and their hex values  
+- 🔑 Provided the foundation for all community G6 control software
+
+**Rusty G6 directly uses** Nils's protocol documentation for all USB communication. We are essentially a GUI wrapper around his excellent reverse engineering work.
+
+**If you find this project useful, please also star and support the [original CLI project](https://github.com/nils-skowasch/soundblaster-x-g6-cli)!** 🌟
+
 ## 📚 Technical Details
 
 Rusty G6 uses the USB HID protocol to communicate with the SoundBlaster X G6. The USB protocol implementation is based on reverse engineering work documented in the [soundblaster-x-g6-cli project](https://github.com/nils-skowasch/soundblaster-x-g6-cli).
@@ -170,7 +183,11 @@ Key technical specifications:
 - **Interface Class**: HID (Human Interface Device)
 - **Communication Method**: USB Interrupt transfers
 
-For detailed USB protocol information, see the original CLI project's [USB specification documentation](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-spec.txt).
+### Protocol Documentation
+
+- **[Rusty G6 USB Protocol Implementation](docs/usb-protocol.md)** - Our implementation details, code examples, and what we've implemented
+- **[Original USB Specification](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-spec.txt)** - Nils Skowasch's authoritative hex command reference
+- **[USB Protocol Background](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-protocol.md)** - General USB protocol information
 
 ## 🤝 Contributing
 

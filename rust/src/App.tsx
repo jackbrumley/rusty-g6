@@ -28,13 +28,25 @@ function App() {
   const [status, setStatus] = useState("Disconnected");
   const [settings, setSettings] = useState<G6Settings | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [appVersion, setAppVersion] = useState<string>("");
 
   // Check connection status on mount
   useEffect(() => {
     checkConnection();
     // List all USB devices for debugging
     listUsbDevices();
+    // Load app version
+    loadVersion();
   }, []);
+
+  async function loadVersion() {
+    try {
+      const version = await invoke<string>("get_app_version");
+      setAppVersion(version);
+    } catch (error) {
+      console.error("Failed to get app version:", error);
+    }
+  }
 
   async function listUsbDevices() {
     try {
@@ -224,7 +236,7 @@ function App() {
               <div class="section-line">
                 <span class="section-label">Input:</span>
                 <button onClick={configureMicrophone} class="btn-compact">
-                  Configure Microphone
+                  Setup Mic
                 </button>
               </div>
             </section>
@@ -316,6 +328,11 @@ function App() {
           </div>
         )}
       </main>
+      
+      {/* Version display */}
+      {appVersion && (
+        <div class="app-version">v{appVersion}</div>
+      )}
     </div>
   );
 }
