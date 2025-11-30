@@ -1,0 +1,13 @@
+Package: rusty-g6
+Version: 1.0.0
+Section: sound
+Priority: optional
+Architecture: amd64
+Depends: libusb-1.0-0
+Maintainer: Jack Brumley
+Description: Cross-platform GUI for SoundBlaster X G6 control
+ Rusty G6 is a modern, user-friendly graphical interface for controlling
+ SoundBlaster X G6 audio device features on Linux and Windows.
+ .
+ Features include output control, surround sound, crystalizer, bass boost,
+ smart volume, dialog plus, and microphone configuration for Linux.

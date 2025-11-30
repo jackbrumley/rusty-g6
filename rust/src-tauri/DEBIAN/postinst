@@ -1,0 +1,16 @@
+#!/bin/bash
+# Post-installation script for Rusty G6
+
+set -e
+
+# Create udev rule for SoundBlaster X G6 USB access
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", TAG+="uaccess"' > /etc/udev/rules.d/50-soundblaster-x-g6.rules
+
+# Reload udev rules
+udevadm control --reload-rules
+udevadm trigger
+
+echo "Rusty G6 installed successfully!"
+echo "USB permissions configured for SoundBlaster X G6"
+
+exit 0

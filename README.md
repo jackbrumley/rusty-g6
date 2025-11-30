@@ -41,26 +41,43 @@ The only existing solution is [soundblaster-x-g6-cli](https://github.com/nils-sk
 
 ## Installation
 
-### Prerequisites
+All Linux packages automatically install dependencies and configure USB permissions. No manual setup required!
 
-**Linux** - Install libusb and create udev rule:
+### Debian/Ubuntu/Mint
+
 ```bash
-# Debian/Ubuntu
-sudo apt-get install libusb-1.0-0-dev
-
-# Create udev rule
-echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/50-soundblaster-x-g6.rules
-sudo udevadm control --reload-rules && sudo udevadm trigger
+# Download the .deb package from releases
+sudo apt install ./rusty-g6_0.1.0_amd64.deb
 ```
 
-**Windows** - No additional setup required.
+The package automatically:
+- Installs libusb dependency
+- Creates udev rule for USB access
+- Configures permissions
+
+### Fedora/RHEL/CentOS
+
+```bash
+# Download the .rpm package from releases
+sudo dnf install rusty-g6-0.1.0-1.x86_64.rpm
+```
+
+### Arch/Manjaro/SteamOS
+
+```bash
+# Install from AUR
+yay -S rusty-g6-bin
+# or
+paru -S rusty-g6-bin
+```
+
+### Windows
+
+Download and run the `.msi` installer. No additional setup required.
 
 ### Download
 
 **[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
-
-- **Linux**: `.deb`, `.AppImage`, or standalone binary
-- **Windows**: `.msi` installer or `.exe`
 
 ### Building from Source
 

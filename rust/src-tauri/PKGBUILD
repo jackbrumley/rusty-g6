@@ -1,0 +1,37 @@
+# Maintainer: Jack Brumley <your-email@example.com>
+pkgname=rusty-g6-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Cross-platform GUI for SoundBlaster X G6 control"
+arch=('x86_64')
+url="https://github.com/jackbrumley/rusty-g6"
+license=('MIT')
+depends=('libusb')
+provides=('rusty-g6')
+conflicts=('rusty-g6')
+source=("rusty-g6-${pkgver}-x86_64::https://github.com/jackbrumley/rusty-g6/releases/download/v${pkgver}/rusty-g6")
+sha256sums=('SKIP')  # Update with actual checksum after release
+
+package() {
+    # Install binary
+    install -Dm755 "${srcdir}/rusty-g6-${pkgver}-x86_64" "${pkgdir}/usr/bin/rusty-g6"
+}
+
+post_install() {
+    # Create udev rule for SoundBlaster X G6 USB access
+    echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", TAG+="uaccess"' > /etc/udev/rules.d/50-soundblaster-x-g6.rules
+    
+    # Reload udev rules
+    udevadm control --reload-rules
+    udevadm trigger
+    
+    echo "Rusty G6 installed successfully!"
+    echo "USB permissions configured for SoundBlaster X G6"
+}
+
+post_remove() {
+    # Remove udev rule on uninstall
+    rm -f /etc/udev/rules.d/50-soundblaster-x-g6.rules
+    udevadm control --reload-rules
+    udevadm trigger
+}
