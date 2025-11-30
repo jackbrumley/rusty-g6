@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 interface G6Settings {
@@ -17,10 +18,16 @@ interface G6Settings {
   dialog_plus_value: number;
 }
 
+interface ToastMessage {
+  message: string;
+  type: "success" | "error" | "info";
+}
+
 function App() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
   const [settings, setSettings] = useState<G6Settings | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   // Check connection status on mount
   useEffect(() => {
@@ -107,8 +114,22 @@ function App() {
       setStatus("Configuring microphone...");
       const result = await invoke<string>("configure_microphone");
       setStatus(result);
+      
+      // Show toast with instructions
+      setToast({
+        message: 'Microphone configured! Now set your system default input device to "Digital Input (S/PDIF) Sound BlasterX G6"',
+        type: "info"
+      });
+      
+      // Auto-dismiss toast after 8 seconds
+      setTimeout(() => setToast(null), 8000);
     } catch (error) {
       setStatus(`Failed to configure microphone: ${error}`);
+      setToast({
+        message: `Failed to configure microphone: ${error}`,
+        type: "error"
+      });
+      setTimeout(() => setToast(null), 5000);
     }
   }
 
@@ -129,58 +150,97 @@ function App() {
     }
   }
 
+  const handleMinimize = async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.minimize();
+    } catch (error) {
+      console.error('Failed to minimize window:', error);
+    }
+  };
+
+  const handleClose = async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.close();
+    } catch (error) {
+      console.error('Failed to close window:', error);
+    }
+  };
+
+  const handleTitleBarMouseDown = async (e: MouseEvent) => {
+    if (e.button === 0 && !(e.target as HTMLElement).closest('.title-bar-button')) {
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.startDragging();
+      } catch (error) {
+        console.error('Failed to start dragging:', error);
+      }
+    }
+  };
+
   return (
-    <main class="container">
-      <header>
-        <h1>Rusty G6</h1>
-        <p class="subtitle">SoundBlaster X G6 Control Panel</p>
-      </header>
-
-      <section class="status-section">
-        <div class="status-bar">
-          <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
-            {connected ? "●" : "○"}
-          </span>
-          <span class="status-text">{status}</span>
+    <div class="app">
+      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+      
+      {/* Custom Title Bar */}
+      <div class="title-bar" onMouseDown={handleTitleBarMouseDown}>
+        <div class="title-bar-title">Rusty G6</div>
+        <div class="title-bar-subtitle">SoundBlaster X G6 Control Panel</div>
+        <div class="title-bar-controls">
+          <button class="title-bar-button minimize" onClick={handleMinimize} title="Minimize">
+            ─
+          </button>
+          <button class="title-bar-button close" onClick={handleClose} title="Close">
+            ✕
+          </button>
         </div>
-        <div class="connection-buttons">
-          {!connected ? (
-            <button onClick={connectDevice} class="btn-primary">
-              Connect Device
-            </button>
-          ) : (
-            <button onClick={disconnectDevice} class="btn-secondary">
-              Disconnect
-            </button>
-          )}
-        </div>
-      </section>
+      </div>
 
-      {connected && settings && (
-        <>
-          <section class="input-section">
-            <h2>Input</h2>
-            <div class="input-control">
-              <p class="input-description">Configure microphone capture settings</p>
-              <button onClick={configureMicrophone} class="btn-toggle">
-                Configure Microphone
+      <main class="container">
+        {/* Status Section - Compact horizontal layout */}
+        <section class="status-section">
+          <div class="status-line">
+            <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
+              {connected ? "●" : "○"}
+            </span>
+            <span class="status-text">{status}</span>
+            {!connected ? (
+              <button onClick={connectDevice} class="btn-compact btn-primary">
+                Connect
               </button>
-            </div>
-          </section>
+            ) : (
+              <button onClick={disconnectDevice} class="btn-compact btn-secondary">
+                Disconnect
+              </button>
+            )}
+          </div>
+        </section>
 
-          <section class="output-section">
-            <h2>Output</h2>
-            <div class="output-control">
-              <div class="current-output">
-                Current: <strong>{settings.output}</strong>
+        {connected && settings && (
+          <>
+            {/* Input Section - Horizontal layout */}
+            <section class="input-section compact">
+              <div class="section-line">
+                <span class="section-label">Input:</span>
+                <button onClick={configureMicrophone} class="btn-compact">
+                  Configure Microphone
+                </button>
               </div>
-              <button onClick={toggleOutput} class="btn-toggle">
-                Toggle Output
-              </button>
-            </div>
+            </section>
 
-            <div class="effects-list">
-              <h3>Audio Effects</h3>
+            {/* Output Section - Horizontal layout */}
+            <section class="output-section compact">
+              <div class="section-line">
+                <span class="section-label">Output:</span>
+                <span class="section-value">{settings.output}</span>
+                <button onClick={toggleOutput} class="btn-compact">
+                  Toggle Output
+                </button>
+              </div>
+              
+              <div class="effects-list">
+                <h3>Audio Effects</h3>
 
             <EffectControl
               name="Surround"
@@ -247,15 +307,16 @@ function App() {
         </>
       )}
 
-      {!connected && (
-        <div class="info-panel">
-          <p>Connect your SoundBlaster X G6 device to begin.</p>
-          <p class="info-note">
-            Make sure the device is plugged in and drivers are installed.
-          </p>
-        </div>
-      )}
-    </main>
+        {!connected && (
+          <div class="info-panel">
+            <p>Connect your SoundBlaster X G6 device to begin.</p>
+            <p class="info-note">
+              Make sure the device is plugged in and drivers are installed.
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
 
@@ -297,30 +358,48 @@ function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
   };
 
   return (
-    <div class="effect-control">
-      <div class="effect-header">
-        <h3>{name}</h3>
-        <label class="toggle-switch">
-          <input
-            type="checkbox"
-            checked={localEnabled}
-            onChange={handleToggle}
-          />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <div class="effect-slider">
+    <div class="effect-control compact">
+      <span class="effect-name">{name}</span>
+      <label class="toggle-switch">
         <input
-          type="range"
-          min="0"
-          max="100"
-          value={localValue}
-          onInput={handleSliderInput}
-          onChange={handleSliderChange}
-          disabled={!localEnabled}
-          class="slider"
+          type="checkbox"
+          checked={localEnabled}
+          onChange={handleToggle}
         />
-        <span class="slider-value">{localValue}</span>
+        <span class="toggle-slider"></span>
+      </label>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={localValue}
+        onInput={handleSliderInput}
+        onChange={handleSliderChange}
+        disabled={!localEnabled}
+        class="slider"
+      />
+      <span class="slider-value">{localValue}</span>
+    </div>
+  );
+}
+
+interface ToastProps {
+  message: string;
+  type: "success" | "error" | "info";
+  onDismiss: () => void;
+}
+
+function Toast({ message, type, onDismiss }: ToastProps) {
+  return (
+    <div class={`toast toast-${type}`}>
+      <div class="toast-content">
+        <span class="toast-icon">
+          {type === "success" && "✓"}
+          {type === "error" && "✕"}
+          {type === "info" && "ℹ"}
+        </span>
+        <p class="toast-message">{message}</p>
+        <button class="toast-close" onClick={onDismiss}>×</button>
       </div>
     </div>
   );

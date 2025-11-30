@@ -12,13 +12,28 @@
   "app": {
     "windows": [
       {
-        "title": "rusty-g6",
-        "width": 800,
-        "height": 600
+        "title": "Rusty G6",
+        "width": 420,
+        "height": 680,
+        "resizable": false,
+        "center": true,
+        "decorations": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "main-capability",
+          "windows": ["main"],
+          "permissions": [
+            "core:default",
+            "core:window:allow-start-dragging",
+            "core:window:allow-minimize",
+            "core:window:allow-close"
+          ]
+        }
+      ]
     }
   },
   "bundle": {
