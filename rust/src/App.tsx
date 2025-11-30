@@ -29,9 +29,14 @@ function App() {
   const [settings, setSettings] = useState<G6Settings | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
+  const [isLinux, setIsLinux] = useState(true);
 
   // Check connection status on mount
   useEffect(() => {
+    // Detect OS from user agent
+    const userAgent = navigator.userAgent.toLowerCase();
+    setIsLinux(userAgent.includes('linux'));
+    
     checkConnection();
     // List all USB devices for debugging
     listUsbDevices();
@@ -235,7 +240,12 @@ function App() {
             <section class="input-section compact">
               <div class="section-line">
                 <span class="section-label">Input:</span>
-                <button onClick={configureMicrophone} class="btn-compact">
+                <button 
+                  onClick={configureMicrophone} 
+                  class="btn-compact"
+                  disabled={!isLinux}
+                  title={isLinux ? "Configure ALSA mixer for microphone input" : "Not required on Windows - microphone works automatically"}
+                >
                   Setup Mic
                 </button>
               </div>

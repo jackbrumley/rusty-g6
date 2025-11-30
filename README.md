@@ -1,229 +1,102 @@
+
+![Rusty G6 Logo](rust/src-tauri/icons/128x128.png)
+
 # Rusty G6
 
 **Cross-platform GUI for SoundBlaster X G6 control**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](https://github.com/jackbrumley/rusty-g6)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)](https://github.com/jackbrumley/rusty-g6)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri-24C8DB)](https://tauri.app/)
 
-*A modern, user-friendly graphical interface for controlling your SoundBlaster X G6 audio device across all platforms*
+*Modern GUI for controlling SoundBlaster X G6 features on Linux and Windows*
 
 ---
 
-## 🎯 Overview
+## Features
 
-Rusty G6 is a cross-platform GUI application that brings full device control to the [SoundBlaster X G6](https://de.creative.com/p/sound-blaster/sound-blasterx-g6). Creative provides excellent software for Windows, but offers **absolutely no support for Linux or macOS**. While the device functions as a basic USB audio interface on these platforms, all advanced features (surround sound, bass boost, output switching, etc.) are completely inaccessible without third-party tools.
-
-The only existing solution is the community-created [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) command-line tool. Rusty G6 builds on that pioneering work to provide the first graphical interface for controlling the G6 outside of Windows.
-
-**Why Rusty G6?**
-- 🐧 **Linux Support** - The FIRST GUI tool for controlling G6 features on Linux
-- 🌐 **Cross-Platform** - Works on Linux, Windows, and macOS with a consistent experience
-- 🎨 **User-Friendly** - No command-line knowledge required - just click and adjust
-- 🔓 **Open Source** - Free software built on community reverse engineering efforts
-- ⚡ **Lightweight** - Fast, native performance with minimal resource usage
-
-## ✨ Features
-
-Rusty G6 provides full control over your SoundBlaster X G6 device settings:
-
-### Audio Output
-- **Output Toggle** - Quickly switch between Speakers and Headphones
-- **Output Selection** - Directly set the desired output device
-
-### Sound Effects & Processing
+- **Output Control** - Switch between Speakers and Headphones
 - **Surround Sound** - Enable/disable and adjust intensity (0-100)
-- **Crystalizer** - Enable/disable and control clarity enhancement (0-100)
-- **Bass Boost** - Enable/disable and adjust bass levels (0-100)
-- **Smart Volume** - Enable/disable and set volume normalization (0-100)
-  - Special presets: Night mode and Loud mode
-- **Dialog Plus** - Enable/disable and enhance voice clarity (0-100)
+- **Crystalizer** - Control clarity enhancement (0-100)
+- **Bass Boost** - Adjust bass levels (0-100)
+- **Smart Volume** - Volume normalization with Night/Loud presets (0-100)
+- **Dialog Plus** - Voice clarity enhancement (0-100)
+- **Microphone Setup** - One-click microphone configuration for Linux
+- **Settings Persistence** - Preferences saved automatically
+- **System Tray** - Minimize to tray, quick access via tray icon
 
-### User Experience
-- **Real-time Visual Feedback** - See current settings at a glance
-- **Intuitive Controls** - Sliders and toggles for easy adjustments
-- **Settings Persistence** - Your preferences are saved automatically
-- **Live Updates** - Changes apply immediately to your device
+## Why Rusty G6?
 
-## ⚠️ Important Disclaimer
+Creative provides excellent Windows software but offers no support for Linux or macOS. While the G6 functions as a basic USB audio interface on these platforms, all advanced features are completely inaccessible.
 
-This software communicates directly with USB hardware. While it has been developed with care and is based on reverse-engineered USB protocols from the [soundblaster-x-g6-cli project](https://github.com/nils-skowasch/soundblaster-x-g6-cli), **USE THIS SOFTWARE AT YOUR OWN RISK**. 
+The only existing solution is [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) - a command-line tool. Rusty G6 is the first graphical interface for controlling the G6 outside of Windows.
 
-The authors are not responsible for any damages to your system or device. It is recommended to:
-- Ensure your device firmware is up to date
-- Test settings gradually rather than making extreme changes
-- Keep the Windows software available for firmware updates
+## Screenshots
 
-## 🔧 Firmware Compatibility
+![Screenshot 1](docs/screenshots/screenshot-1.png)
 
-This software is designed and tested with SoundBlaster X G6 devices running:
-**Firmware version: 2.1.201208.1030**
+![Screenshot 2](docs/screenshots/screenshot-2.png)
 
-While it may work with other firmware versions, compatibility is not guaranteed. You can update your firmware using:
-- **Windows**: [SoundBlaster Command](https://support.creative.com/Products/ProductDetails.aspx?prodID=21383&prodName=Sound%20Blaster)
-- **Linux**: Windows VM with USB passthrough (QEMU/KVM with virt-manager)
+![Screenshot 3](docs/screenshots/screenshot-3.png)
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
-#### All Platforms
-- SoundBlaster X G6 device
-- USB connection to your computer
-
-#### Linux
-Install libusb development libraries:
+**Linux** - Install libusb and create udev rule:
 ```bash
 # Debian/Ubuntu
 sudo apt-get install libusb-1.0-0-dev
 
-# Fedora/RHEL
-sudo dnf install libusb1-devel
-
-# Arch
-sudo pacman -S libusb
+# Create udev rule
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/50-soundblaster-x-g6.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-Create a udev rule to allow user access to the device. Create `/etc/udev/rules.d/50-soundblaster-x-g6.rules` with:
-```
-SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", TAG+="uaccess"
-```
+**Windows** - No additional setup required.
 
-Apply the rule:
-```bash
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-```
+### Download
 
-#### Windows
-No additional setup required. The application will handle USB communication natively.
+**[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
 
-#### macOS
-May require granting USB device access permissions when first running the application.
-
-### Download & Install
-
-Ready-to-use binaries will be available for all supported platforms:
-
-**[📥 Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
-
-- **Linux**: `.deb` package, `.AppImage`, or standalone binary
-- **Windows**: `.msi` installer or standalone `.exe`
-- **macOS**: `.dmg` disk image
+- **Linux**: `.deb`, `.AppImage`, or standalone binary
+- **Windows**: `.msi` installer or `.exe`
 
 ### Building from Source
 
-See [BUILD.md](docs/BUILD.md) for detailed build instructions.
+See [docs/build-guide.md](docs/build-guide.md) for build instructions.
 
-## 💻 Technology Stack
+## Disclaimer
 
-Rusty G6 is built with modern, performant technologies:
+This software communicates directly with USB hardware using reverse-engineered protocols. **Use at your own risk.** The authors are not responsible for any damages to your system or device.
 
-- **[Tauri](https://tauri.app/)** - Secure, fast, and lightweight desktop framework
-- **[Rust](https://www.rust-lang.org/)** - Systems programming for USB communication and backend logic
-- **[React](https://reactjs.org/)** - Modern UI framework for the frontend
-- **[rusb/hidapi](https://github.com/libusb/libusb)** - USB Human Interface Device communication
+## Technology
 
-## 🗺️ Roadmap
+- **[Tauri](https://tauri.app/)** - Desktop framework
+- **[Rust](https://www.rust-lang.org/)** - Backend and USB communication
+- **[Preact](https://preactjs.com/)** - Frontend UI
+- **[rusb/hidapi](https://github.com/libusb/libusb)** - USB HID communication
 
-### Current Status
-- ⏳ **Early Development** - Planning and initial implementation phase
+## Technical Details
 
-### Planned Features
-
-#### Phase 1: Core Functionality (MVP)
-- [ ] Basic USB device detection and connection
-- [ ] Output toggle (Speakers/Headphones)
-- [ ] Simple GUI with basic controls
-- [ ] Settings persistence
-
-#### Phase 2: Full Feature Parity
-- [ ] All audio effect controls (Surround, Crystalizer, Bass, etc.)
-- [ ] Real-time status display
-- [ ] Preset management
-- [ ] Settings import/export
-
-#### Phase 3: Enhanced Experience
-- [ ] System tray integration
-- [ ] Keyboard shortcuts
-- [ ] Multiple device support
-- [ ] Advanced preset system
-- [ ] Device firmware information display
-
-#### Phase 4: Polish & Distribution
-- [ ] Comprehensive user documentation
-- [ ] Platform-specific installers
-- [ ] Auto-update functionality
-- [ ] Flatpak/Snap/AUR packaging for Linux
-
-## 🎨 Screenshots
-
-*Screenshots will be added as the UI is developed*
-
-## 🎖️ Credits & Attribution
-
-This project would not exist without the groundbreaking reverse engineering work by **[Nils Skowasch](https://github.com/nils-skowasch)**.
-
-His [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project:
-- 🔬 Reverse-engineered the complete USB HID protocol for the G6
-- 📋 Documented all audio effect commands and their hex values  
-- 🔑 Provided the foundation for all community G6 control software
-
-**Rusty G6 directly uses** Nils's protocol documentation for all USB communication. We are essentially a GUI wrapper around his excellent reverse engineering work.
-
-**If you find this project useful, please also star and support the [original CLI project](https://github.com/nils-skowasch/soundblaster-x-g6-cli)!** 🌟
-
-## 📚 Technical Details
-
-Rusty G6 uses the USB HID protocol to communicate with the SoundBlaster X G6. The USB protocol implementation is based on reverse engineering work documented in the [soundblaster-x-g6-cli project](https://github.com/nils-skowasch/soundblaster-x-g6-cli).
-
-Key technical specifications:
 - **USB Vendor ID**: `041e` (Creative Technology Ltd)
 - **USB Product ID**: `3256` (Sound Blaster X G6)
-- **Interface Class**: HID (Human Interface Device)
-- **Communication Method**: USB Interrupt transfers
+- **Protocol**: USB HID with interrupt transfers
 
-### Protocol Documentation
+### Documentation
 
-- **[Rusty G6 USB Protocol Implementation](docs/usb-protocol.md)** - Our implementation details, code examples, and what we've implemented
-- **[Original USB Specification](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-spec.txt)** - Nils Skowasch's authoritative hex command reference
-- **[USB Protocol Background](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-protocol.md)** - General USB protocol information
+- **[USB Protocol Implementation](docs/usb-protocol.md)** - Our implementation details
+- **[Original USB Specification](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-spec.txt)** - Hex command reference
+- **[Build Guide](docs/build-guide.md)** - How to build from source
 
-## 🤝 Contributing
+## Credits
 
-Contributions are welcome! Whether it's:
+This project is built on the reverse engineering work by **[Nils Skowasch](https://github.com/nils-skowasch)**.
 
-- 🐛 Bug reports and fixes
-- ✨ Feature requests and implementations
-- 📚 Documentation improvements
-- 🎨 UI/UX enhancements
-- 🌍 Translations and localization
+His [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project reverse-engineered the complete USB protocol for the G6. Rusty G6 uses this protocol documentation for all USB communication.
 
-Please feel free to open issues or submit pull requests.
+**If you find this project useful, please also star the [original CLI project](https://github.com/nils-skowasch/soundblaster-x-g6-cli).**
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **[soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli)** by Nils Skowasch - For the USB protocol reverse engineering work and CLI implementation that made this project possible
-- **Creative Technology Ltd** - For the excellent SoundBlaster X G6 hardware
-- **Tauri Team** - For the amazing cross-platform framework
-- **Rust Community** - For the robust ecosystem and excellent USB libraries
-
-## 📖 Additional Resources
-
-- [SoundBlaster X G6 Official Page](https://de.creative.com/p/sound-blaster/sound-blasterx-g6)
-- [Original CLI Project](https://github.com/nils-skowasch/soundblaster-x-g6-cli)
-- [USB Protocol Documentation](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-protocol.md)
-
----
-
-<div align="center">
-
-**Made with ❤️ for the SoundBlaster community**
-
-[Report Bug](https://github.com/jackbrumley/rusty-g6/issues) • [Request Feature](https://github.com/jackbrumley/rusty-g6/issues)
-
-</div>
