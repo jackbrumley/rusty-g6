@@ -33,9 +33,58 @@ pub enum SmartVolumePreset {
     Loud,
 }
 
+/// Scout Mode state (read-only for now)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum ScoutModeState {
+    Enabled,
+    Disabled,
+}
+
+/// Device firmware information (read-only)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FirmwareInfo {
+    pub version: String,
+    pub build: Option<String>,
+}
+
+/// Equalizer band configuration (read-only for now)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EqualizerBand {
+    pub frequency: f32,
+    pub gain: f32,
+}
+
+/// Complete equalizer configuration (read-only for now)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EqualizerConfig {
+    pub enabled: EffectState,
+    pub bands: Vec<EqualizerBand>,
+}
+
+/// Extended audio effect parameters (read-only)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtendedAudioParams {
+    pub param_0x0a: Option<f32>,
+    pub param_0x0b: Option<f32>,
+    pub param_0x0c: Option<f32>,
+    pub param_0x0d: Option<f32>,
+    pub param_0x0e: Option<f32>,
+    pub param_0x0f: Option<f32>,
+    pub param_0x10: Option<f32>,
+    pub param_0x11: Option<f32>,
+    pub param_0x12: Option<f32>,
+    pub param_0x13: Option<f32>,
+    pub param_0x14: Option<f32>,
+    pub param_0x1a: Option<f32>,
+    pub param_0x1b: Option<f32>,
+    pub param_0x1c: Option<f32>,
+    pub param_0x1d: Option<f32>,
+}
+
 /// G6 device settings structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct G6Settings {
+    // Controllable settings (read-write)
     pub output: OutputDevice,
     
     pub surround_enabled: EffectState,
@@ -53,6 +102,16 @@ pub struct G6Settings {
     
     pub dialog_plus_enabled: EffectState,
     pub dialog_plus_value: u8, // 0-100
+    
+    // Read-only device information
+    pub firmware_info: Option<FirmwareInfo>,
+    pub scout_mode: ScoutModeState,
+    pub equalizer: Option<EqualizerConfig>,
+    pub extended_params: Option<ExtendedAudioParams>,
+    
+    // Device connection state
+    pub is_connected: bool,
+    pub last_read_time: Option<u64>, // Unix timestamp
 }
 
 impl Default for G6Settings {
@@ -70,6 +129,54 @@ impl Default for G6Settings {
             smart_volume_preset: None,
             dialog_plus_enabled: EffectState::Disabled,
             dialog_plus_value: 50,
+            firmware_info: None,
+            scout_mode: ScoutModeState::Disabled,
+            equalizer: None,
+            extended_params: None,
+            is_connected: false,
+            last_read_time: None,
+        }
+    }
+}
+
+impl Default for EqualizerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: EffectState::Disabled,
+            bands: vec![
+                EqualizerBand { frequency: 31.0, gain: 0.0 },
+                EqualizerBand { frequency: 62.0, gain: 0.0 },
+                EqualizerBand { frequency: 125.0, gain: 0.0 },
+                EqualizerBand { frequency: 250.0, gain: 0.0 },
+                EqualizerBand { frequency: 500.0, gain: 0.0 },
+                EqualizerBand { frequency: 1000.0, gain: 0.0 },
+                EqualizerBand { frequency: 2000.0, gain: 0.0 },
+                EqualizerBand { frequency: 4000.0, gain: 0.0 },
+                EqualizerBand { frequency: 8000.0, gain: 0.0 },
+                EqualizerBand { frequency: 16000.0, gain: 0.0 },
+            ],
+        }
+    }
+}
+
+impl Default for ExtendedAudioParams {
+    fn default() -> Self {
+        Self {
+            param_0x0a: None,
+            param_0x0b: None,
+            param_0x0c: None,
+            param_0x0d: None,
+            param_0x0e: None,
+            param_0x0f: None,
+            param_0x10: None,
+            param_0x11: None,
+            param_0x12: None,
+            param_0x13: None,
+            param_0x14: None,
+            param_0x1a: None,
+            param_0x1b: None,
+            param_0x1c: None,
+            param_0x1d: None,
         }
     }
 }

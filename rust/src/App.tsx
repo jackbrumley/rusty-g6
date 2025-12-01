@@ -3,7 +3,41 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
+interface FirmwareInfo {
+  version: string;
+  build: string | null;
+}
+
+interface EqualizerBand {
+  frequency: number;
+  gain: number;
+}
+
+interface EqualizerConfig {
+  enabled: "Enabled" | "Disabled";
+  bands: EqualizerBand[];
+}
+
+interface ExtendedAudioParams {
+  param_0x0a: number | null;
+  param_0x0b: number | null;
+  param_0x0c: number | null;
+  param_0x0d: number | null;
+  param_0x0e: number | null;
+  param_0x0f: number | null;
+  param_0x10: number | null;
+  param_0x11: number | null;
+  param_0x12: number | null;
+  param_0x13: number | null;
+  param_0x14: number | null;
+  param_0x1a: number | null;
+  param_0x1b: number | null;
+  param_0x1c: number | null;
+  param_0x1d: number | null;
+}
+
 interface G6Settings {
+  // Controllable settings (read-write)
   output: "Speakers" | "Headphones";
   surround_enabled: "Enabled" | "Disabled";
   surround_value: number;
@@ -16,6 +50,16 @@ interface G6Settings {
   smart_volume_preset: "Night" | "Loud" | null;
   dialog_plus_enabled: "Enabled" | "Disabled";
   dialog_plus_value: number;
+  
+  // Read-only device information
+  firmware_info: FirmwareInfo | null;
+  scout_mode: "Enabled" | "Disabled";
+  equalizer: EqualizerConfig | null;
+  extended_params: ExtendedAudioParams | null;
+  
+  // Device connection state
+  is_connected: boolean;
+  last_read_time: number | null;
 }
 
 interface ToastMessage {
@@ -89,6 +133,50 @@ function App() {
     }
   }
 
+  async function readDeviceState() {
+    try {
+      setStatus("Reading device state...");
+      const deviceSettings = await invoke<G6Settings>("read_device_state");
+      setSettings(deviceSettings);
+      setStatus("Device state read successfully");
+      setToast({
+        message: "Device state read successfully! All settings now reflect actual device values.",
+        type: "success"
+      });
+      setTimeout(() => setToast(null), 4000);
+    } catch (error) {
+      console.error("Failed to read device state:", error);
+      setStatus(`Failed to read device state: ${error}`);
+      setToast({
+        message: `Failed to read device state: ${error}`,
+        type: "error"
+      });
+      setTimeout(() => setToast(null), 5000);
+    }
+  }
+
+  async function synchronizeDevice() {
+    try {
+      setStatus("Synchronizing device...");
+      await invoke("synchronize_device");
+      await loadSettings();
+      setStatus("Device synchronized");
+      setToast({
+        message: "Device synchronized successfully!",
+        type: "success"
+      });
+      setTimeout(() => setToast(null), 3000);
+    } catch (error) {
+      console.error("Failed to synchronize device:", error);
+      setStatus(`Failed to synchronize device: ${error}`);
+      setToast({
+        message: `Failed to synchronize device: ${error}`,
+        type: "error"
+      });
+      setTimeout(() => setToast(null), 5000);
+    }
+  }
+
   async function connectDevice() {
     try {
       console.log("Attempting to connect to G6 device...");
@@ -147,6 +235,24 @@ function App() {
         type: "error"
       });
       setTimeout(() => setToast(null), 5000);
+    }
+  }
+
+  function showWindowsMicrophoneGuidance() {
+    setToast({
+      message: "Microphone setup is not required on Windows - it works automatically",
+      type: "info"
+    });
+    
+    // Auto-dismiss toast after 4 seconds
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  function handleSetupMicClick() {
+    if (isLinux) {
+      configureMicrophone();
+    } else {
+      showWindowsMicrophoneGuidance();
     }
   }
 
@@ -236,15 +342,69 @@ function App() {
 
         {connected && settings && (
           <>
+            {/* Device Information Section */}
+            <section class="device-info-section compact">
+              <div class="section-line">
+                <span class="section-label">Device:</span>
+                {settings.firmware_info && (
+                  <span class="section-value">v{settings.firmware_info.version}</span>
+                )}
+                <button onClick={readDeviceState} class="btn-compact btn-secondary">
+                  Read State
+                </button>
+                <button onClick={synchronizeDevice} class="btn-compact">
+                  Sync
+                </button>
+              </div>
+              
+              {/* Read-only information display */}
+              {(settings.firmware_info || settings.equalizer || settings.scout_mode === "Enabled") && (
+                <div class="device-details">
+                  {settings.scout_mode === "Enabled" && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Scout Mode:</span>
+                      <span class="readonly-value enabled">Enabled (Read-only)</span>
+                    </div>
+                  )}
+                  
+                  {settings.equalizer && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Equalizer:</span>
+                      <span class="readonly-value">
+                        {settings.equalizer.enabled} • {settings.equalizer.bands.length} bands (Read-only)
+                      </span>
+                    </div>
+                  )}
+                  
+                  {settings.extended_params && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Extended Params:</span>
+                      <span class="readonly-value">
+                        {Object.values(settings.extended_params).filter(v => v !== null).length}/15 detected (Read-only)
+                      </span>
+                    </div>
+                  )}
+                  
+                  {settings.last_read_time && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Last Read:</span>
+                      <span class="readonly-value">
+                        {new Date(settings.last_read_time * 1000).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
             {/* Input Section - Horizontal layout */}
             <section class="input-section compact">
               <div class="section-line">
                 <span class="section-label">Input:</span>
                 <button 
-                  onClick={configureMicrophone} 
+                  onClick={handleSetupMicClick} 
                   class="btn-compact"
-                  disabled={!isLinux}
-                  title={isLinux ? "Configure ALSA mixer for microphone input" : "Not required on Windows - microphone works automatically"}
+                  title={isLinux ? "Configure ALSA mixer for microphone input" : undefined}
                 >
                   Setup Mic
                 </button>

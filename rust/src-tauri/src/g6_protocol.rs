@@ -1,13 +1,15 @@
 /// USB Protocol implementation for SoundBlaster X G6
 /// Based on reverse engineering from soundblaster-x-g6-cli project
 
-use crate::g6_spec::{EffectState, OutputDevice, SmartVolumePreset};
+use crate::g6_spec::{EffectState, OutputDevice, SmartVolumePreset, G6Settings, FirmwareInfo, EqualizerConfig, EqualizerBand, ExtendedAudioParams};
 
 // Protocol constants
 const PREFIX: u8 = 0x5a;
 const REQUEST_DATA: u16 = 0x1207;
 const REQUEST_COMMIT: u16 = 0x1103;
-const INTERMEDIATE: u16 = 0x0196;
+const REQUEST_READ: u16 = 0x1108; // Device state reading
+const INTERMEDIATE_AUDIO: u16 = 0x0196; // Audio effects
+const INTERMEDIATE_EQ: u16 = 0x0195; // Equalizer
 const PAYLOAD_SIZE: usize = 64;
 
 // Feature hex codes (for toggles)
@@ -44,7 +46,7 @@ fn build_command(request_type: u16, feature: u8, value: u32) -> Vec<u8> {
     command.extend_from_slice(&request_type.to_be_bytes());
     
     // Intermediate (2 bytes, big-endian)
-    command.extend_from_slice(&INTERMEDIATE.to_be_bytes());
+    command.extend_from_slice(&INTERMEDIATE_AUDIO.to_be_bytes());
     
     // Feature (1 byte)
     command.push(feature);
@@ -53,6 +55,28 @@ fn build_command(request_type: u16, feature: u8, value: u32) -> Vec<u8> {
     command.extend_from_slice(&value.to_le_bytes());
     
     // Padding to 64 bytes
+    command.resize(PAYLOAD_SIZE, 0x00);
+    
+    command
+}
+
+/// Build a 64-byte USB HID read command
+fn build_read_command(request_type: u16, intermediate: u16, feature: u8) -> Vec<u8> {
+    let mut command = Vec::with_capacity(PAYLOAD_SIZE);
+    
+    // Prefix (1 byte)
+    command.push(PREFIX);
+    
+    // Request type (2 bytes, big-endian)
+    command.extend_from_slice(&request_type.to_be_bytes());
+    
+    // Intermediate (2 bytes, big-endian)
+    command.extend_from_slice(&intermediate.to_be_bytes());
+    
+    // Feature (1 byte)
+    command.push(feature);
+    
+    // Padding to 64 bytes with zeros
     command.resize(PAYLOAD_SIZE, 0x00);
     
     command
@@ -231,4 +255,304 @@ pub fn build_output_toggle(current: OutputDevice) -> Vec<Vec<u8>> {
         OutputDevice::Headphones => build_output_speakers(),
         OutputDevice::Speakers => build_output_headphones(),
     }
+}
+
+// === DEVICE STATE READING FUNCTIONS ===
+
+/// Build command to read audio effect state
+pub fn build_read_audio_effect(feature: u8) -> Vec<u8> {
+    build_read_command(REQUEST_READ, INTERMEDIATE_AUDIO, feature)
+}
+
+/// Build command to read equalizer band
+pub fn build_read_equalizer_band(band: u8) -> Vec<u8> {
+    build_read_command(REQUEST_READ, INTERMEDIATE_EQ, band)
+}
+
+/// Build command to read firmware version
+pub fn build_read_firmware_version() -> Vec<u8> {
+    // Based on our analysis: 5a0710... returns firmware version
+    let mut command = vec![PREFIX, 0x07, 0x10];
+    command.resize(PAYLOAD_SIZE, 0x00);
+    command
+}
+
+/// Build command to read current output configuration
+pub fn build_read_output_config() -> Vec<u8> {
+    // Based on analysis: 5a2c0a... reads output routing configuration
+    let mut command = vec![PREFIX, 0x2c, 0x0a, 0x02, 0x82, 0x02];
+    command.resize(PAYLOAD_SIZE, 0x00);
+    command
+}
+
+/// Build commands for comprehensive device state reading
+pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
+    let mut commands = Vec::new();
+    
+    // Read firmware version
+    commands.push(build_read_firmware_version());
+    
+    // Read output configuration
+    commands.push(build_read_output_config());
+    
+    // Read all audio effects (0x00 to 0x1D)
+    for feature in 0x00..=0x1D {
+        commands.push(build_read_audio_effect(feature));
+    }
+    
+    // Read equalizer bands (0x00 to 0x1B) 
+    for band in 0x00..=0x1B {
+        commands.push(build_read_equalizer_band(band));
+    }
+    
+    commands
+}
+
+// === RESPONSE PARSING FUNCTIONS ===
+
+/// Parse IEEE 754 little-endian float from 4 bytes
+fn parse_ieee754_le(bytes: &[u8]) -> Result<f32, &'static str> {
+    if bytes.len() < 4 {
+        return Err("Not enough bytes for IEEE 754 float");
+    }
+    
+    let float_bytes = [bytes[0], bytes[1], bytes[2], bytes[3]];
+    Ok(f32::from_le_bytes(float_bytes))
+}
+
+/// Parse firmware version from response
+pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> {
+    if response.len() < 10 {
+        return Err("Response too short for firmware info".to_string());
+    }
+    
+    // Debug: log the full response to understand the format
+    eprintln!("Firmware response ({} bytes): {:02x?}", response.len(), response);
+    
+    // Look for ASCII content starting from different positions
+    // The version might start after different header lengths
+    let search_positions = [3, 4, 5, 6, 7, 8, 9, 10];
+    
+    for start_pos in search_positions {
+        if start_pos >= response.len() {
+            continue;
+        }
+        
+        // Look for continuous ASCII sequence starting at this position
+        let mut version_start = None;
+        let mut consecutive_ascii = 0;
+        
+        for i in start_pos..response.len() {
+            if response[i] >= 32 && response[i] <= 126 { // Printable ASCII
+                if version_start.is_none() {
+                    version_start = Some(i);
+                }
+                consecutive_ascii += 1;
+            } else if response[i] == 0 {
+                // Null terminator - end of string
+                break;
+            } else {
+                // Non-ASCII byte - reset
+                version_start = None;
+                consecutive_ascii = 0;
+            }
+            
+            // If we found at least 3 consecutive ASCII chars, that's probably the version
+            if consecutive_ascii >= 3 {
+                if let Some(start) = version_start {
+                    // Find the end of the ASCII sequence
+                    let mut version_end = i + 1;
+                    for j in (i + 1)..response.len() {
+                        if response[j] >= 32 && response[j] <= 126 {
+                            version_end = j + 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    let version_bytes = &response[start..version_end];
+                    let version = String::from_utf8_lossy(version_bytes).to_string().trim().to_string();
+                    
+                    if !version.is_empty() && version.len() > 2 {
+                        eprintln!("Found firmware version: '{}'", version);
+                        return Ok(FirmwareInfo {
+                            version: version.clone(),
+                            build: if version.contains('.') { 
+                                Some(version) 
+                            } else { 
+                                None 
+                            },
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    Err("Could not find valid firmware version in response".to_string())
+}
+
+/// Parse audio effect response to extract current value and state
+pub fn parse_audio_effect_response(response: &[u8]) -> Result<(EffectState, f32), String> {
+    if response.len() < 10 {
+        return Err("Response too short for audio effect".to_string());
+    }
+    
+    // Debug: log the response to see what we're getting
+    eprintln!("Audio effect response ({} bytes): {:02x?}", response.len(), &response[0..std::cmp::min(10, response.len())]);
+    
+    // Audio effect values typically start at byte 6
+    let value_bytes = &response[6..10];
+    let float_value = parse_ieee754_le(value_bytes)
+        .map_err(|e| format!("Failed to parse IEEE 754 value: {}", e))?;
+    
+    eprintln!("Parsed float value: {}", float_value);
+    
+    // Determine if effect is enabled based on value
+    let state = if float_value > 0.0001 { // Account for floating point precision
+        EffectState::Enabled
+    } else {
+        EffectState::Disabled
+    };
+    
+    eprintln!("Effect state: {:?}", state);
+    
+    Ok((state, float_value))
+}
+
+/// Parse equalizer band response
+pub fn parse_equalizer_response(response: &[u8]) -> Result<EqualizerBand, String> {
+    if response.len() < 14 {
+        return Err("Response too short for equalizer band".to_string());
+    }
+    
+    // Frequency typically at bytes 6-9, gain at bytes 10-13
+    let freq_bytes = &response[6..10];
+    let gain_bytes = &response[10..14];
+    
+    let frequency = parse_ieee754_le(freq_bytes)
+        .map_err(|e| format!("Failed to parse frequency: {}", e))?;
+    let gain = parse_ieee754_le(gain_bytes)
+        .map_err(|e| format!("Failed to parse gain: {}", e))?;
+    
+    Ok(EqualizerBand { frequency, gain })
+}
+
+/// Parse output configuration response
+pub fn parse_output_config_response(response: &[u8]) -> Result<OutputDevice, String> {
+    if response.len() < 10 {
+        return Err("Response too short for output config".to_string());
+    }
+    
+    // Look for output type indicator in the response
+    // Based on command analysis: 0x02 = Speakers, 0x04 = Headphones
+    for i in 3..10 {
+        match response[i] {
+            0x02 => return Ok(OutputDevice::Speakers),
+            0x04 => return Ok(OutputDevice::Headphones),
+            _ => continue,
+        }
+    }
+    
+    Err("Could not determine output device from response".to_string())
+}
+
+/// Convert IEEE 754 float (0.0-1.0) to percentage (0-100)
+pub fn float_to_percentage(value: f32) -> u8 {
+    (value * 100.0).round().clamp(0.0, 100.0) as u8
+}
+
+/// Parse complete device state from multiple responses
+pub fn parse_device_state_responses(responses: &[Vec<u8>]) -> Result<G6Settings, String> {
+    let mut settings = G6Settings::default();
+    settings.is_connected = true;
+    settings.last_read_time = Some(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    );
+    
+    if responses.is_empty() {
+        return Err("No responses provided".to_string());
+    }
+    
+    // Parse firmware info from first response (response 0)
+    if let Ok(firmware) = parse_firmware_response(&responses[0]) {
+        settings.firmware_info = Some(firmware);
+    }
+    
+    // Parse output configuration from second response (response 1)
+    if responses.len() > 1 {
+        if let Ok(output_device) = parse_output_config_response(&responses[1]) {
+            settings.output = output_device;
+        }
+    }
+    
+    // Parse audio effects (responses 2-31, features 0x00-0x1D)
+    let mut extended_params = ExtendedAudioParams::default();
+    
+    if responses.len() > 2 {
+        for (i, response) in responses[2..].iter().enumerate().take(30) {
+            if let Ok((state, value)) = parse_audio_effect_response(response) {
+                let percentage = float_to_percentage(value);
+                
+                match i as u8 {
+                    0x00 => settings.surround_enabled = state,
+                    0x01 => settings.surround_value = percentage,
+                    0x02 => settings.dialog_plus_enabled = state,
+                    0x03 => settings.dialog_plus_value = percentage,
+                    0x04 => settings.smart_volume_enabled = state,
+                    0x05 => settings.smart_volume_value = percentage,
+                    0x07 => settings.crystalizer_enabled = state,
+                    0x08 => settings.crystalizer_value = percentage,
+                    0x18 => settings.bass_enabled = state,
+                    0x19 => settings.bass_value = percentage,
+                    0x0a => extended_params.param_0x0a = Some(value),
+                    0x0b => extended_params.param_0x0b = Some(value),
+                    0x0c => extended_params.param_0x0c = Some(value),
+                    0x0d => extended_params.param_0x0d = Some(value),
+                    0x0e => extended_params.param_0x0e = Some(value),
+                    0x0f => extended_params.param_0x0f = Some(value),
+                    0x10 => extended_params.param_0x10 = Some(value),
+                    0x11 => extended_params.param_0x11 = Some(value),
+                    0x12 => extended_params.param_0x12 = Some(value),
+                    0x13 => extended_params.param_0x13 = Some(value),
+                    0x14 => extended_params.param_0x14 = Some(value),
+                    0x1a => extended_params.param_0x1a = Some(value),
+                    0x1b => extended_params.param_0x1b = Some(value),
+                    0x1c => extended_params.param_0x1c = Some(value),
+                    0x1d => extended_params.param_0x1d = Some(value),
+                    _ => {} // Skip unknown features
+                }
+            }
+        }
+    }
+    
+    settings.extended_params = Some(extended_params);
+    
+    // Parse equalizer bands (remaining responses)
+    let eq_start = 32; // After firmware + output config + 30 audio effects
+    if responses.len() > eq_start {
+        let mut eq_config = EqualizerConfig::default();
+        let mut bands = Vec::new();
+        
+        for response in responses[eq_start..].iter().take(28) { // 0x00-0x1B = 28 bands
+            if let Ok(band) = parse_equalizer_response(response) {
+                bands.push(band);
+            }
+        }
+        
+        if !bands.is_empty() {
+            eq_config.enabled = if bands.iter().any(|b| b.gain.abs() > 0.001) {
+                EffectState::Enabled
+            } else {
+                EffectState::Disabled
+            };
+            eq_config.bands = bands;
+            settings.equalizer = Some(eq_config);
+        }
+    }
+    
+    Ok(settings)
 }

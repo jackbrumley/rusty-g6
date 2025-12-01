@@ -41,14 +41,14 @@ fn connect_device(state: State<AppState>) -> Result<String, String> {
             e.to_string()
         })?;
     
-    // Apply all saved settings to the device
-    manager.apply_all_settings()
-        .map(|_| "Connected and settings applied successfully".to_string())
+    // Use enhanced synchronization that reads device state first
+    manager.apply_all_settings_enhanced()
+        .map(|_| "Connected and synchronized successfully".to_string())
         .map_err(|e| {
-            eprintln!("Failed to apply settings: {}", e);
-            // Device is connected but settings failed - still report success
+            eprintln!("Failed to synchronize with device: {}", e);
+            // Device is connected but sync failed - still report success
             // but mention the issue
-            format!("Connected but failed to apply settings: {}", e)
+            format!("Connected but synchronization failed: {}", e)
         })
 }
 
@@ -141,6 +141,21 @@ fn set_dialog_plus(state: State<AppState>, enabled: EffectState, value: u8) -> R
 }
 
 #[tauri::command]
+fn read_device_state(state: State<AppState>) -> Result<G6Settings, String> {
+    let manager = state.device_manager.lock().unwrap();
+    manager.read_device_state()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn synchronize_device(state: State<AppState>) -> Result<String, String> {
+    let manager = state.device_manager.lock().unwrap();
+    manager.synchronize_with_device()
+        .map(|_| "Device synchronized successfully".to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
     let manager = state.device_manager.lock().unwrap();
     manager.list_devices()
@@ -206,7 +221,7 @@ fn configure_microphone() -> Result<String, String> {
                     }
                 }
             }
-            Ok(output) => {
+            Ok(_output) => {
                 last_error = format!("Card '{}' found but configuration failed", card_name);
                 eprintln!("{}", last_error);
             }
@@ -291,6 +306,8 @@ pub fn run() {
             disconnect_device,
             is_device_connected,
             get_device_settings,
+            read_device_state,
+            synchronize_device,
             toggle_output,
             set_output,
             set_surround,
