@@ -7,13 +7,15 @@ use crate::g6_spec::{EffectState, OutputDevice, SmartVolumePreset, G6Settings, F
 const PREFIX: u8 = 0x5a;
 const REQUEST_DATA: u16 = 0x1207;
 const REQUEST_COMMIT: u16 = 0x1103;
-const REQUEST_READ: u16 = 0x1108; // Device state reading
+const REQUEST_READ: u16 = 0x1103; // Corrected to match Spec (Same as Commit)
 const INTERMEDIATE_AUDIO: u16 = 0x0196; // Audio effects
 const INTERMEDIATE_EQ: u16 = 0x0195; // Equalizer
 const PAYLOAD_SIZE: usize = 64;
 
 // Feature hex codes (for toggles)
 const FEATURE_SURROUND: u8 = 0x00;
+const FEATURE_SBX_MODE: u8 = 0x01; // In 0x26 protocol
+const FEATURE_SCOUT_MODE: u8 = 0x02; // In 0x26 protocol
 const FEATURE_CRYSTALIZER: u8 = 0x07;
 const FEATURE_BASS: u8 = 0x18;
 const FEATURE_SMART_VOLUME: u8 = 0x04;
@@ -179,6 +181,75 @@ fn hex_to_bytes(hex: &str) -> Vec<u8> {
         .collect()
 }
 
+/// Build commands for SBX Mode (Master Switch)
+pub fn build_sbx_mode_enable() -> Vec<Vec<u8>> {
+    // Verified via packet capture:
+    // DATA:   5a 26 05 07 01 00 01 00 00...
+    // COMMIT: 5a 26 03 08 ff ff 00 00 00...
+    
+    let mut data = Vec::with_capacity(PAYLOAD_SIZE);
+    data.push(PREFIX);
+    data.extend_from_slice(&[0x26, 0x05, 0x07, FEATURE_SBX_MODE, 0x00, 0x01, 0x00, 0x00]);
+    data.resize(PAYLOAD_SIZE, 0x00);
+    
+    let mut commit = Vec::with_capacity(PAYLOAD_SIZE);
+    commit.push(PREFIX);
+    commit.extend_from_slice(&[0x26, 0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00]);
+    commit.resize(PAYLOAD_SIZE, 0x00);
+    
+    vec![data, commit]
+}
+
+pub fn build_sbx_mode_disable() -> Vec<Vec<u8>> {
+    // Verified via packet capture:
+    // DATA:   5a 26 05 07 01 00 00 00 00...
+    // COMMIT: 5a 26 03 08 ff ff 00 00 00...
+    
+    let mut data = Vec::with_capacity(PAYLOAD_SIZE);
+    data.push(PREFIX);
+    data.extend_from_slice(&[0x26, 0x05, 0x07, FEATURE_SBX_MODE, 0x00, 0x00, 0x00, 0x00]);
+    data.resize(PAYLOAD_SIZE, 0x00);
+    
+    let mut commit = Vec::with_capacity(PAYLOAD_SIZE);
+    commit.push(PREFIX);
+    commit.extend_from_slice(&[0x26, 0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00]);
+    commit.resize(PAYLOAD_SIZE, 0x00);
+    
+    vec![data, commit]
+}
+
+/// Build commands for Scout Mode
+pub fn build_scout_mode_enable() -> Vec<Vec<u8>> {
+    // Inferred from SBX Mode pattern:
+    // Uses FEATURE_SCOUT_MODE (0x02) instead of FEATURE_SBX_MODE (0x01)
+    
+    let mut data = Vec::with_capacity(PAYLOAD_SIZE);
+    data.push(PREFIX);
+    data.extend_from_slice(&[0x26, 0x05, 0x07, FEATURE_SCOUT_MODE, 0x00, 0x01, 0x00, 0x00]);
+    data.resize(PAYLOAD_SIZE, 0x00);
+    
+    let mut commit = Vec::with_capacity(PAYLOAD_SIZE);
+    commit.push(PREFIX);
+    commit.extend_from_slice(&[0x26, 0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00]);
+    commit.resize(PAYLOAD_SIZE, 0x00);
+    
+    vec![data, commit]
+}
+
+pub fn build_scout_mode_disable() -> Vec<Vec<u8>> {
+    let mut data = Vec::with_capacity(PAYLOAD_SIZE);
+    data.push(PREFIX);
+    data.extend_from_slice(&[0x26, 0x05, 0x07, FEATURE_SCOUT_MODE, 0x00, 0x00, 0x00, 0x00]);
+    data.resize(PAYLOAD_SIZE, 0x00);
+    
+    let mut commit = Vec::with_capacity(PAYLOAD_SIZE);
+    commit.push(PREFIX);
+    commit.extend_from_slice(&[0x26, 0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00]);
+    commit.resize(PAYLOAD_SIZE, 0x00);
+    
+    vec![data, commit]
+}
+
 /// Build commands for switching to headphones
 pub fn build_output_headphones() -> Vec<Vec<u8>> {
     vec![
@@ -269,9 +340,15 @@ pub fn build_read_equalizer_band(band: u8) -> Vec<u8> {
     build_read_command(REQUEST_READ, INTERMEDIATE_EQ, band)
 }
 
-/// Build command to read firmware version
-pub fn build_read_firmware_version() -> Vec<u8> {
-    // Based on our analysis: 5a0710... returns firmware version
+/// Build command to read firmware version (Candidate 1: Identification)
+pub fn build_read_firmware_v1() -> Vec<u8> {
+    let mut command = vec![PREFIX, 0x05, 0x01];
+    command.resize(PAYLOAD_SIZE, 0x00);
+    command
+}
+
+/// Build command to read firmware version (Candidate 2: Original undocumented)
+pub fn build_read_firmware_v2() -> Vec<u8> {
     let mut command = vec![PREFIX, 0x07, 0x10];
     command.resize(PAYLOAD_SIZE, 0x00);
     command
@@ -289,8 +366,9 @@ pub fn build_read_output_config() -> Vec<u8> {
 pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
     let mut commands = Vec::new();
     
-    // Read firmware version
-    commands.push(build_read_firmware_version());
+    // Read firmware version (Try multiple candidates)
+    commands.push(build_read_firmware_v1());
+    commands.push(build_read_firmware_v2());
     
     // Read output configuration
     commands.push(build_read_output_config());
@@ -357,8 +435,8 @@ pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> 
                 consecutive_ascii = 0;
             }
             
-            // If we found at least 3 consecutive ASCII chars, that's probably the version
-            if consecutive_ascii >= 3 {
+            // If we found at least 2 consecutive ASCII chars (e.g. "V2"), that helps
+            if consecutive_ascii >= 2 {
                 if let Some(start) = version_start {
                     // Find the end of the ASCII sequence
                     let mut version_end = i + 1;
@@ -373,16 +451,20 @@ pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> 
                     let version_bytes = &response[start..version_end];
                     let version = String::from_utf8_lossy(version_bytes).to_string().trim().to_string();
                     
-                    if !version.is_empty() && version.len() > 2 {
-                        eprintln!("Found firmware version: '{}'", version);
-                        return Ok(FirmwareInfo {
-                            version: version.clone(),
-                            build: if version.contains('.') { 
-                                Some(version) 
-                            } else { 
-                                None 
-                            },
-                        });
+                    // We accept length >= 2 to catch "V2" which is what G6 reports
+                    if !version.is_empty() && version.len() >= 2 {
+                        // Validate it looks somewhat like a version (has digits or 'V')
+                        if version.contains(|c: char| c.is_numeric() || c == 'V' || c == 'v') {
+                            eprintln!("Found firmware version: '{}'", version);
+                            return Ok(FirmwareInfo {
+                                version: version.clone(),
+                                build: if version.contains('.') { 
+                                    Some(version) 
+                                } else { 
+                                    None 
+                                },
+                            });
+                        }
                     }
                 }
             }
@@ -394,15 +476,16 @@ pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> 
 
 /// Parse audio effect response to extract current value and state
 pub fn parse_audio_effect_response(response: &[u8]) -> Result<(EffectState, f32), String> {
-    if response.len() < 10 {
+    if response.len() < 11 {
         return Err("Response too short for audio effect".to_string());
     }
     
     // Debug: log the response to see what we're getting
-    eprintln!("Audio effect response ({} bytes): {:02x?}", response.len(), &response[0..std::cmp::min(10, response.len())]);
+    eprintln!("Audio effect response ({} bytes): {:02x?}", response.len(), &response[0..std::cmp::min(11, response.len())]);
     
-    // Audio effect values typically start at byte 6
-    let value_bytes = &response[6..10];
+    // Audio effect values start at byte 7 (after Type and Feature)
+    // [5a, 11, 08, 01, 00, 96, <Feature>, <Val0>, <Val1>, <Val2>, <Val3>]
+    let value_bytes = &response[7..11];
     let float_value = parse_ieee754_le(value_bytes)
         .map_err(|e| format!("Failed to parse IEEE 754 value: {}", e))?;
     
@@ -422,13 +505,14 @@ pub fn parse_audio_effect_response(response: &[u8]) -> Result<(EffectState, f32)
 
 /// Parse equalizer band response
 pub fn parse_equalizer_response(response: &[u8]) -> Result<EqualizerBand, String> {
-    if response.len() < 14 {
+    if response.len() < 15 {
         return Err("Response too short for equalizer band".to_string());
     }
     
-    // Frequency typically at bytes 6-9, gain at bytes 10-13
-    let freq_bytes = &response[6..10];
-    let gain_bytes = &response[10..14];
+    // Frequency typically at bytes 7-11, gain at bytes 11-15
+    // Assuming similar shift: [5a 11 08 01 00 95 <Band> <F0> <F1> <F2> <F3> <G0> <G1> <G2> <G3>]
+    let freq_bytes = &response[7..11];
+    let gain_bytes = &response[11..15];
     
     let frequency = parse_ieee754_le(freq_bytes)
         .map_err(|e| format!("Failed to parse frequency: {}", e))?;
@@ -477,23 +561,28 @@ pub fn parse_device_state_responses(responses: &[Vec<u8>]) -> Result<G6Settings,
         return Err("No responses provided".to_string());
     }
     
-    // Parse firmware info from first response (response 0)
+    // Parse firmware info (Try first two responses)
     if let Ok(firmware) = parse_firmware_response(&responses[0]) {
         settings.firmware_info = Some(firmware);
+    } else if responses.len() > 1 {
+        if let Ok(firmware) = parse_firmware_response(&responses[1]) {
+            settings.firmware_info = Some(firmware);
+        }
     }
     
-    // Parse output configuration from second response (response 1)
-    if responses.len() > 1 {
-        if let Ok(output_device) = parse_output_config_response(&responses[1]) {
+    // Parse output configuration (It's now at index 2 because we added a candidate)
+    if responses.len() > 2 {
+        if let Ok(output_device) = parse_output_config_response(&responses[2]) {
             settings.output = output_device;
         }
     }
     
-    // Parse audio effects (responses 2-31, features 0x00-0x1D)
+    // Parse audio effects (responses start from index 3, features 0x00-0x1D)
     let mut extended_params = ExtendedAudioParams::default();
     
-    if responses.len() > 2 {
-        for (i, response) in responses[2..].iter().enumerate().take(30) {
+    let effect_start_idx = 3;
+    if responses.len() > effect_start_idx {
+        for (i, response) in responses[effect_start_idx..].iter().enumerate().take(30) {
             if let Ok((state, value)) = parse_audio_effect_response(response) {
                 let percentage = float_to_percentage(value);
                 
@@ -504,6 +593,16 @@ pub fn parse_device_state_responses(responses: &[Vec<u8>]) -> Result<G6Settings,
                     0x03 => settings.dialog_plus_value = percentage,
                     0x04 => settings.smart_volume_enabled = state,
                     0x05 => settings.smart_volume_value = percentage,
+                    0x06 => {
+                        // Smart Volume Preset (0.5 = Night, 1.0 = Loud)
+                        if value > 0.9 {
+                            settings.smart_volume_preset = Some(SmartVolumePreset::Loud);
+                        } else if value > 0.4 {
+                            settings.smart_volume_preset = Some(SmartVolumePreset::Night);
+                        } else {
+                            settings.smart_volume_preset = None;
+                        }
+                    },
                     0x07 => settings.crystalizer_enabled = state,
                     0x08 => settings.crystalizer_value = percentage,
                     0x18 => settings.bass_enabled = state,
@@ -532,7 +631,7 @@ pub fn parse_device_state_responses(responses: &[Vec<u8>]) -> Result<G6Settings,
     settings.extended_params = Some(extended_params);
     
     // Parse equalizer bands (remaining responses)
-    let eq_start = 32; // After firmware + output config + 30 audio effects
+    let eq_start = 3 + 30; // After 2 firmware candidates + output config + 30 audio effects
     if responses.len() > eq_start {
         let mut eq_config = EqualizerConfig::default();
         let mut bands = Vec::new();

@@ -3,10 +3,10 @@ mod g6_device;
 mod g6_protocol;
 
 use g6_device::G6DeviceManager;
-use g6_spec::{G6Settings, OutputDevice, EffectState};
+use g6_spec::{G6Settings, OutputDevice, EffectState, ScoutModeState};
 use std::sync::Mutex;
 use tauri::{
-    Manager, State,
+    Manager, State, AppHandle, Emitter,
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
@@ -19,7 +19,7 @@ struct AppState {
 // Tauri Commands
 
 #[tauri::command]
-fn connect_device(state: State<AppState>) -> Result<String, String> {
+fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
     
     // List all devices first for debugging
@@ -40,9 +40,18 @@ fn connect_device(state: State<AppState>) -> Result<String, String> {
             eprintln!("Connection error: {}", e);
             e.to_string()
         })?;
+
+    // Start event listener for live updates
+    let app_clone = app.clone();
+    manager.start_listener(move || {
+        // Emit event to frontend to trigger state refresh
+        if let Err(e) = app_clone.emit("device-update", ()) {
+            eprintln!("Failed to emit device update: {}", e);
+        }
+    });
     
     // Use enhanced synchronization that reads device state first
-    manager.apply_all_settings_enhanced()
+    manager.synchronize_with_device()
         .map(|_| "Connected and synchronized successfully".to_string())
         .map_err(|e| {
             eprintln!("Failed to synchronize with device: {}", e);
@@ -137,6 +146,22 @@ fn set_dialog_plus(state: State<AppState>, enabled: EffectState, value: u8) -> R
     let manager = state.device_manager.lock().unwrap();
     manager.set_dialog_plus(enabled, value)
         .map(|_| format!("Dialog Plus set to {:?} with value {}", enabled, value))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_sbx_mode(state: State<AppState>, enabled: EffectState) -> Result<String, String> {
+    let manager = state.device_manager.lock().unwrap();
+    manager.set_sbx_mode(enabled)
+        .map(|_| format!("SBX Mode set to {:?}", enabled))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_scout_mode(state: State<AppState>, enabled: ScoutModeState) -> Result<String, String> {
+    let manager = state.device_manager.lock().unwrap();
+    manager.set_scout_mode(enabled)
+        .map(|_| format!("Scout Mode set to {:?}", enabled))
         .map_err(|e| e.to_string())
 }
 
@@ -315,6 +340,8 @@ pub fn run() {
             set_bass,
             set_smart_volume,
             set_dialog_plus,
+            set_sbx_mode,
+            set_scout_mode,
             list_usb_devices,
             get_app_version,
             configure_microphone,

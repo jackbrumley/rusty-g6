@@ -103,6 +103,9 @@ pub struct G6Settings {
     pub dialog_plus_enabled: EffectState,
     pub dialog_plus_value: u8, // 0-100
     
+    // Global SBX processing switch
+    pub sbx_enabled: EffectState,
+
     // Read-only device information
     pub firmware_info: Option<FirmwareInfo>,
     pub scout_mode: ScoutModeState,
@@ -129,6 +132,7 @@ impl Default for G6Settings {
             smart_volume_preset: None,
             dialog_plus_enabled: EffectState::Disabled,
             dialog_plus_value: 50,
+            sbx_enabled: EffectState::Disabled,
             firmware_info: None,
             scout_mode: ScoutModeState::Disabled,
             equalizer: None,

@@ -7,14 +7,18 @@ use anyhow::{Context, Result};
 use hidapi::{HidApi, HidDevice};
 use log::{debug, error, info};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::PathBuf;
 use std::fs;
+use std::thread;
+use std::time::Duration;
 
 /// G6 Device Manager
 pub struct G6DeviceManager {
     api: Arc<Mutex<HidApi>>,
     device: Arc<Mutex<Option<HidDevice>>>,
     current_settings: Arc<Mutex<G6Settings>>,
+    command_active: Arc<AtomicBool>,
 }
 
 impl G6DeviceManager {
@@ -26,6 +30,7 @@ impl G6DeviceManager {
             api: Arc::new(Mutex::new(api)),
             device: Arc::new(Mutex::new(None)),
             current_settings: Arc::new(Mutex::new(G6Settings::default())),
+            command_active: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -115,106 +120,191 @@ impl G6DeviceManager {
 
     /// Send commands to the G6 device (DATA + COMMIT pair)
     fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<()> {
-        let device_guard = self.device.lock().unwrap();
+        // Signal listener to pause
+        self.command_active.store(true, Ordering::SeqCst);
         
-        let device = device_guard.as_ref()
-            .context("Device not connected")?;
-        
-        eprintln!("Sending {} commands to G6 device", commands.len());
-        
-        for (i, command) in commands.iter().enumerate() {
-            eprintln!("Command {}/{}: {} bytes - {:02x?}", 
-                     i + 1, commands.len(), command.len(), 
-                     &command[0..std::cmp::min(8, command.len())]);
+        // Ensure strictly scoped lock
+        let result = (|| -> Result<()> {
+            let device_guard = self.device.lock().unwrap();
+            let device = device_guard.as_ref()
+                .context("Device not connected")?;
             
-            // CRITICAL: Prepend 0x00 as report_id!
-            // Without this, the first byte of our payload is used as the report_id
-            // and gets cut off, breaking the command protocol.
-            let mut data_with_report_id = vec![0x00];
-            data_with_report_id.extend_from_slice(&command);
+            eprintln!("Sending {} commands to G6 device", commands.len());
             
-            eprintln!("  With report ID: {} bytes - {:02x?}", 
-                     data_with_report_id.len(),
-                     &data_with_report_id[0..std::cmp::min(9, data_with_report_id.len())]);
-            
-            // Write the command data to the device
-            match device.write(&data_with_report_id) {
-                Ok(bytes_written) => {
-                    eprintln!("  ✓ Wrote {} bytes successfully", bytes_written);
-                }
-                Err(e) => {
-                    eprintln!("  ✗ Write failed: {}", e);
-                    return Err(anyhow::anyhow!("Failed to write to device: {}", e));
-                }
+            for (i, command) in commands.iter().enumerate() {
+                eprintln!("Command {}/{}: {} bytes - {:02x?}", 
+                        i + 1, commands.len(), command.len(), 
+                        &command[0..std::cmp::min(8, command.len())]);
+                
+                let mut data_with_report_id = vec![0x00];
+                data_with_report_id.extend_from_slice(&command);
+                
+                device.write(&data_with_report_id)
+                    .map_err(|e| anyhow::anyhow!("Failed to write to device: {}", e))?;
             }
-        }
+            Ok(())
+        })();
         
-        eprintln!("All commands sent successfully");
-        Ok(())
+        // Resume listener
+        self.command_active.store(false, Ordering::SeqCst);
+        
+        result
     }
 
-    /// Send read commands and collect responses
+    /// Send read commands and collect responses with robust filtering
     fn send_read_commands(&self, commands: Vec<Vec<u8>>) -> Result<Vec<Vec<u8>>> {
-        let device_guard = self.device.lock().unwrap();
+        self.command_active.store(true, Ordering::SeqCst);
         
-        let device = device_guard.as_ref()
-            .context("Device not connected")?;
-        
-        let mut responses = Vec::new();
-        
-        info!("Sending {} read commands to G6 device", commands.len());
-        
-        for (i, command) in commands.iter().enumerate() {
-            debug!("Read command {}/{}: {} bytes - {:02x?}", 
-                   i + 1, commands.len(), command.len(), 
-                   &command[0..std::cmp::min(8, command.len())]);
+        let result = (|| -> Result<Vec<Vec<u8>>> {
+            let device_guard = self.device.lock().unwrap();
+            let device = device_guard.as_ref()
+                .context("Device not connected")?;
             
-            // CRITICAL: Prepend 0x00 as report_id!
-            let mut data_with_report_id = vec![0x00];
-            data_with_report_id.extend_from_slice(&command);
+            let mut responses = Vec::new();
+            info!("Sending {} read commands to G6 device", commands.len());
             
-            // Write the read command
-            match device.write(&data_with_report_id) {
-                Ok(_) => {
-                    // Try to read response
-                    let mut buffer = vec![0u8; 65]; // 64 bytes + potential report ID
-                    match device.read_timeout(&mut buffer, USB_TIMEOUT_MS as i32) {
-                        Ok(bytes_read) => {
-                            if bytes_read > 0 {
-                                // Remove report ID if present and trim to actual data
-                                let response = if buffer[0] == 0x00 && bytes_read > 1 {
-                                    buffer[1..bytes_read].to_vec()
-                                } else {
-                                    buffer[0..bytes_read].to_vec()
-                                };
-                                
-                                debug!("  ✓ Read {} bytes: {:02x?}", 
-                                       response.len(), 
-                                       &response[0..std::cmp::min(8, response.len())]);
-                                responses.push(response);
-                            } else {
-                                debug!("  ! No data received for command {}", i + 1);
-                                responses.push(Vec::new());
-                            }
-                        }
-                        Err(e) => {
-                            debug!("  ✗ Read failed for command {}: {}", i + 1, e);
-                            responses.push(Vec::new());
-                        }
-                    }
-                }
-                Err(e) => {
+            for (i, command) in commands.iter().enumerate() {
+                if command.len() < 2 { continue; }
+                let cmd_type = command[1];
+                
+                let mut data_with_report_id = vec![0x00];
+                data_with_report_id.extend_from_slice(&command);
+                
+                if let Err(e) = device.write(&data_with_report_id) {
                     error!("  ✗ Write failed for command {}: {}", i + 1, e);
                     responses.push(Vec::new());
+                    continue;
                 }
+                
+                let mut matched_response = None;
+                let start_time = std::time::Instant::now();
+                
+                while start_time.elapsed().as_millis() < 500 { // 500ms total timeout per command
+                    let mut buffer = vec![0u8; 65]; 
+                    match device.read_timeout(&mut buffer, 100) { // 100ms per read
+                        Ok(bytes_read) if bytes_read > 0 => {
+                            let response = if buffer[0] == 0x00 && bytes_read > 1 {
+                                buffer[1..bytes_read].to_vec()
+                            } else {
+                                buffer[0..bytes_read].to_vec()
+                            };
+                            
+                            if response.len() < 2 || response[0] != 0x5a { continue; }
+                            
+                            if response[1] == cmd_type {
+                                matched_response = Some(response);
+                                break;
+                            }
+                            // Ignore stray events here as needed
+                        }
+                        _ => {}
+                    }
+                }
+                
+                if let Some(resp) = matched_response {
+                    responses.push(resp);
+                } else {
+                    responses.push(Vec::new());
+                }
+                std::thread::sleep(Duration::from_millis(5));
             }
-            
-            // Small delay between commands to avoid overwhelming the device
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+            Ok(responses)
+        })();
         
-        info!("Read {} responses from G6 device", responses.len());
-        Ok(responses)
+        self.command_active.store(false, Ordering::SeqCst);
+        result
+    }
+    
+    /// Start the event listener thread
+    pub fn start_listener<F>(&self, on_event: F) 
+    where F: Fn() + Send + Sync + 'static 
+    {
+        let device_arc = self.device.clone();
+        let settings_arc = self.current_settings.clone();
+        let active_arc = self.command_active.clone();
+        
+        thread::spawn(move || {
+            info!("Device Event Listener Started");
+            loop {
+                // If main thread is sending commands, back off
+                if active_arc.load(Ordering::SeqCst) {
+                    thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
+                
+                let mut buffer = vec![0u8; 65];
+                let read_result = {
+                    // Try to acquire lock - if connection drops, lock might fail?
+                    match device_arc.lock() {
+                        Ok(guard) => {
+                            if let Some(dev) = guard.as_ref() {
+                                dev.read_timeout(&mut buffer, 100)
+                            } else {
+                                // Device disconnected
+                                Ok(0) 
+                            }
+                        }
+                        Err(_) => Ok(0) // Poisoned lock
+                    }
+                };
+                
+                match read_result {
+                    Ok(bytes) if bytes > 0 => {
+                        let packet = if buffer[0] == 0x00 && bytes > 1 {
+                            &buffer[1..bytes]
+                        } else {
+                            &buffer[0..bytes]
+                        };
+                        
+                        // Parse packet and update settings if scout mode detected
+                        if packet.len() > 2 && packet[0] == 0x5a {
+                            // Check for Scout Mode event (0x26 family)
+                            if packet[1] == 0x26 {
+                                // Heuristic: Look for Feature 0x02 and Values 0x01 (On) or 0x00 (Off)
+                                // Packet structures vary (set echo vs report), but Feature is usually at index 4 or 5
+                                
+                                let mut found_feature = false;
+                                let mut new_state = None;
+                                
+                                // Search packet for Feature 0x02 followed closely by 0x01 or 0x00
+                                for i in 2..packet.len()-2 {
+                                    if packet[i] == 0x02 { // Feature ID found?
+                                        // Check if it's really feature ID based on context?
+                                        // Usually 5a 26 05 07 02 00 01 ...
+                                        // Or 5a 26 0b ... 02 (Press event)
+                                        
+                                        // If 0x02 is followed by 0x00 then 0x01 (Enabled)
+                                        if i+2 < packet.len() && packet[i+1] == 0x00 && packet[i+2] == 0x01 {
+                                            new_state = Some(ScoutModeState::Enabled);
+                                            found_feature = true;
+                                            break;
+                                        }
+                                        // If 0x02 is followed by 0x00 then 0x00 (Disabled)
+                                        if i+2 < packet.len() && packet[i+1] == 0x00 && packet[i+2] == 0x00 {
+                                            new_state = Some(ScoutModeState::Disabled);
+                                            found_feature = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if let Some(state) = new_state {
+                                    if let Ok(mut settings) = settings_arc.lock() {
+                                        settings.scout_mode = state;
+                                        info!("Detected external Scout Mode change: {:?}", state);
+                                    }
+                                }
+                            }
+
+                            on_event();
+                        }
+                    }
+                    _ => {}
+                }
+                
+                thread::sleep(Duration::from_millis(10));
+            }
+        });
     }
 
     /// Toggle output between speakers and headphones
@@ -369,6 +459,46 @@ impl G6DeviceManager {
         Ok(())
     }
 
+    /// Set SBX Master Mode
+    pub fn set_sbx_mode(&self, enabled: EffectState) -> Result<()> {
+        let commands = match enabled {
+            EffectState::Enabled => g6_protocol::build_sbx_mode_enable(),
+            EffectState::Disabled => g6_protocol::build_sbx_mode_disable(),
+        };
+        
+        self.send_commands(commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.sbx_enabled = enabled;
+        drop(settings); // Release lock
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
+        info!("SBX Mode set to {:?}", enabled);
+        Ok(())
+    }
+
+    /// Set Scout Mode
+    pub fn set_scout_mode(&self, enabled: ScoutModeState) -> Result<()> {
+        let commands = match enabled {
+            ScoutModeState::Enabled => g6_protocol::build_scout_mode_enable(),
+            ScoutModeState::Disabled => g6_protocol::build_scout_mode_disable(),
+        };
+        
+        self.send_commands(commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.scout_mode = enabled;
+        drop(settings); // Release lock
+        
+        // Save to disk
+        self.save_settings_to_disk()?;
+        
+        info!("Scout Mode set to {:?}", enabled);
+        Ok(())
+    }
+
     /// Get current settings
     pub fn get_settings(&self) -> G6Settings {
         self.current_settings.lock().unwrap().clone()
@@ -392,57 +522,16 @@ impl G6DeviceManager {
 
     /// Save current settings to disk
     pub fn save_settings_to_disk(&self) -> Result<()> {
-        let settings = self.current_settings.lock().unwrap().clone();
-        let config_path = Self::get_config_path()?;
-        
-        let json = serde_json::to_string_pretty(&settings)
-            .context("Failed to serialize settings")?;
-        
-        fs::write(&config_path, json)
-            .context("Failed to write config file")?;
-        
-        info!("Settings saved to {:?}", config_path);
+        // Disabled per user request (State should be ephemeral/read from device)
+        debug!("Settings save requested but disk persistence is disabled");
         Ok(())
     }
 
     /// Load settings from disk (new format only)
     pub fn load_settings_from_disk(&self) -> Result<G6Settings> {
-        let config_path = Self::get_config_path()?;
-        
-        if !config_path.exists() {
-            info!("No config file found, using defaults");
-            return Ok(G6Settings::default());
-        }
-        
-        let json = fs::read_to_string(&config_path)
-            .context("Failed to read config file")?;
-        
-        // Try to parse with new format
-        match serde_json::from_str::<G6Settings>(&json) {
-            Ok(settings) => {
-                info!("Settings loaded from {:?}", config_path);
-                Ok(settings)
-            }
-            Err(e) => {
-                info!("Config file incompatible with new format ({}), starting fresh...", e);
-                
-                // Backup the old file
-                let backup_path = config_path.with_extension("json.old");
-                if let Err(backup_err) = fs::copy(&config_path, &backup_path) {
-                    error!("Failed to backup old config: {}", backup_err);
-                } else {
-                    info!("Old config backed up to {:?}", backup_path);
-                }
-                
-                // Remove the old file and start fresh
-                if let Err(remove_err) = fs::remove_file(&config_path) {
-                    error!("Failed to remove old config file: {}", remove_err);
-                }
-                
-                info!("Using default settings and will create new config format");
-                Ok(G6Settings::default())
-            }
-        }
+        // Disabled per user request
+        info!("Disk settings loading disabled, using defaults");
+        Ok(G6Settings::default())
     }
 
     /// Apply all settings from config to the device
@@ -457,6 +546,11 @@ impl G6DeviceManager {
         
         // Apply all settings to device (without individual saves)
         self.set_output_internal(settings.output)?;
+        // Apply SBX mode first as it might be required for effects
+        self.set_sbx_mode_internal(settings.sbx_enabled)?;
+        // Apply Scout Mode
+        self.set_scout_mode_internal(settings.scout_mode)?;
+        
         self.set_surround_internal(settings.surround_enabled, settings.surround_value)?;
         self.set_crystalizer_internal(settings.crystalizer_enabled, settings.crystalizer_value)?;
         self.set_bass_internal(settings.bass_enabled, settings.bass_value)?;
@@ -566,6 +660,34 @@ impl G6DeviceManager {
         Ok(())
     }
 
+    /// Internal method to set SBX Mode without saving
+    fn set_sbx_mode_internal(&self, enabled: EffectState) -> Result<()> {
+        let commands = match enabled {
+            EffectState::Enabled => g6_protocol::build_sbx_mode_enable(),
+            EffectState::Disabled => g6_protocol::build_sbx_mode_disable(),
+        };
+        
+        self.send_commands(commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.sbx_enabled = enabled;
+        Ok(())
+    }
+
+    /// Internal method to set Scout Mode without saving
+    fn set_scout_mode_internal(&self, enabled: ScoutModeState) -> Result<()> {
+        let commands = match enabled {
+            ScoutModeState::Enabled => g6_protocol::build_scout_mode_enable(),
+            ScoutModeState::Disabled => g6_protocol::build_scout_mode_disable(),
+        };
+        
+        self.send_commands(commands)?;
+        
+        let mut settings = self.current_settings.lock().unwrap();
+        settings.scout_mode = enabled;
+        Ok(())
+    }
+
     /// Read current device state from hardware
     pub fn read_device_state(&self) -> Result<G6Settings> {
         if !self.is_connected() {
@@ -581,9 +703,18 @@ impl G6DeviceManager {
         let responses = self.send_read_commands(commands)?;
         
         // Parse responses into device settings
-        let settings = g6_protocol::parse_device_state_responses(&responses)
+        let mut settings = g6_protocol::parse_device_state_responses(&responses)
             .map_err(|e| anyhow::anyhow!("Failed to parse device state: {}", e))?;
         
+        // Preserve SBX Mode state since we can't read it yet
+        // This prevents "Read State" from accidentally disabling SBX in the UI
+        let current_sbx = self.current_settings.lock().unwrap().sbx_enabled;
+        settings.sbx_enabled = current_sbx;
+
+        // Preserve Scout Mode state
+        let current_scout = self.current_settings.lock().unwrap().scout_mode;
+        settings.scout_mode = current_scout;
+
         info!("Device state read successfully: {} effects, firmware: {:?}", 
               responses.len(),
               settings.firmware_info.as_ref().map(|f| &f.version));
@@ -629,15 +760,9 @@ impl G6DeviceManager {
                 Ok(())
             }
             Err(e) => {
-                error!("Device synchronization failed: {}. Using disk settings.", e);
-                
-                // Fallback to disk settings and apply them
-                let disk_settings = self.load_settings_from_disk()?;
-                *self.current_settings.lock().unwrap() = disk_settings.clone();
-                
-                // Try to apply disk settings to device
-                self.apply_all_settings()?;
-                
+                error!("Device synchronization failed: {}.", e);
+                // Do NOT apply defaults on failure per user request.
+                // Just leave internal state as default but don't write to device.
                 Ok(())
             }
         }
@@ -684,6 +809,11 @@ impl G6DeviceManager {
         
         // Apply controllable settings to device
         self.set_output_internal(settings.output)?;
+        // Apply SBX mode first
+        self.set_sbx_mode_internal(settings.sbx_enabled)?;
+        // Apply Scout Mode
+        self.set_scout_mode_internal(settings.scout_mode)?;
+        
         self.set_surround_internal(settings.surround_enabled, settings.surround_value)?;
         self.set_crystalizer_internal(settings.crystalizer_enabled, settings.crystalizer_value)?;
         self.set_bass_internal(settings.bass_enabled, settings.bass_value)?;

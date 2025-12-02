@@ -1,5 +1,6 @@
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
@@ -51,6 +52,9 @@ interface G6Settings {
   dialog_plus_enabled: "Enabled" | "Disabled";
   dialog_plus_value: number;
   
+  // Global SBX processing switch
+  sbx_enabled: "Enabled" | "Disabled";
+
   // Read-only device information
   firmware_info: FirmwareInfo | null;
   scout_mode: "Enabled" | "Disabled";
@@ -74,6 +78,9 @@ function App() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
+  
+  // Use ref to control polling logic if needed (mostly replaced by events now)
+  const pollEnabledRef = useRef(false);
 
   // Check connection status on mount
   useEffect(() => {
@@ -86,7 +93,22 @@ function App() {
     listUsbDevices();
     // Load app version
     loadVersion();
+
+    // Listen for device updates (from listener thread)
+    const unlistenPromise = listen('device-update', () => {
+      console.log("Device update event received - refreshing state");
+      readDeviceStateSilent();
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => unlisten());
+    };
   }, []);
+
+  // Update polling status when connected state changes
+  useEffect(() => {
+    pollEnabledRef.current = connected;
+  }, [connected]);
 
   async function loadVersion() {
     try {
@@ -155,6 +177,17 @@ function App() {
     }
   }
 
+  // Silent version for polling/events
+  async function readDeviceStateSilent() {
+    try {
+      const deviceSettings = await invoke<G6Settings>("read_device_state");
+      // Only update if something changed? React does shallow diff, but object reference changes.
+      setSettings(deviceSettings);
+    } catch (error) {
+      console.error("Silent refresh failed:", error);
+    }
+  }
+
   async function synchronizeDevice() {
     try {
       setStatus("Synchronizing device...");
@@ -214,6 +247,33 @@ function App() {
     }
   }
 
+  async function setSbxMode(enabled: "Enabled" | "Disabled") {
+    try {
+      console.log("Setting SBX Mode:", enabled);
+      await invoke("set_sbx_mode", { enabled });
+      // Initially update UI state optimistically or wait for event?
+      // Wait for event is safest but might feel laggy (100ms listener + roundtrip)
+      // Call readDeviceStateSilent explicitly for responsiveness
+      readDeviceStateSilent();
+      setStatus(`SBX Mode ${enabled}`);
+    } catch (error) {
+      console.error("Failed to set SBX Mode:", error);
+      setStatus(`Failed to set SBX Mode: ${error}`);
+    }
+  }
+
+  async function setScoutMode(enabled: "Enabled" | "Disabled") {
+    try {
+      console.log("Setting Scout Mode:", enabled);
+      await invoke("set_scout_mode", { enabled });
+      readDeviceStateSilent();
+      setStatus(`Scout Mode ${enabled}`);
+    } catch (error) {
+      console.error("Failed to set Scout Mode:", error);
+      setStatus(`Failed to set Scout Mode: ${error}`);
+    }
+  }
+
   async function configureMicrophone() {
     try {
       setStatus("Configuring microphone...");
@@ -263,10 +323,15 @@ function App() {
   ) {
     try {
       console.log(`Setting ${effectName}:`, { enabled, value });
+      // Optimistic update locally? 
+      // Not strictly needed if readDeviceStateSilent is fast.
       const result = await invoke(`set_${effectName}`, { enabled, value });
       console.log(`${effectName} result:`, result);
-      await loadSettings();
       setStatus(`${effectName} updated`);
+      // We don't need to force read here if the listener works, 
+      // the device will send a Confirmation report -> listener -> emit -> read.
+      // But for robustness:
+      // readDeviceStateSilent(); 
     } catch (error) {
       console.error(`Failed to set ${effectName}:`, error);
       setStatus(`Failed to set ${effectName}: ${error}`);
@@ -358,15 +423,8 @@ function App() {
               </div>
               
               {/* Read-only information display */}
-              {(settings.firmware_info || settings.equalizer || settings.scout_mode === "Enabled") && (
+              {(settings.firmware_info || settings.equalizer) && (
                 <div class="device-details">
-                  {settings.scout_mode === "Enabled" && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Scout Mode:</span>
-                      <span class="readonly-value enabled">Enabled (Read-only)</span>
-                    </div>
-                  )}
-                  
                   {settings.equalizer && (
                     <div class="read-only-item">
                       <span class="readonly-label">Equalizer:</span>
@@ -423,6 +481,38 @@ function App() {
               
               <div class="effects-list">
                 <h3>Audio Effects</h3>
+            
+            <div class="effect-group-row">
+              <div class="effect-control compact main-switch">
+                <span class="effect-name">SBX Mode</span>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.sbx_enabled === "Enabled"}
+                    onChange={(e) => setSbxMode(e.currentTarget.checked ? "Enabled" : "Disabled")}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="slider-value">
+                  {settings.sbx_enabled === "Enabled" ? "On" : "Off"}
+                </span>
+              </div>
+
+              <div class="effect-control compact main-switch">
+                <span class="effect-name">Scout Mode</span>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.scout_mode === "Enabled"}
+                    onChange={(e) => setScoutMode(e.currentTarget.checked ? "Enabled" : "Disabled")}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="slider-value">
+                  {settings.scout_mode === "Enabled" ? "On" : "Off"}
+                </span>
+              </div>
+            </div>
 
             <EffectControl
               name="Surround"
