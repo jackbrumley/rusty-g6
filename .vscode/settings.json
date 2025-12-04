@@ -1,0 +1,115 @@
+{
+    // File Associations
+    "files.associations": {
+        "*.tsx": "typescriptreact"
+    },
+    
+    // Formatter Settings
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer"
+    },
+    
+    // Exclude Patterns (Performance & Noise Reduction)
+    "files.exclude": {
+        "**/.git": true,
+        "**/node_modules": true,
+        "**/target": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/target": true
+    },
+    
+    // Editor Enhancements
+    "editor.inlineSuggest.enabled": true,
+    "editor.quickSuggestions": {
+        "strings": true
+    },
+    "typescript.suggest.autoImports": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    
+    // Rusty G6 Workspace Color Theme
+    "workbench.colorCustomizations": {
+        // Activity Bar (left sidebar with icons)
+        "activityBar.background": "#2a2a2a",
+        "activityBar.foreground": "#ff4444",
+        "activityBar.inactiveForeground": "#666666",
+        "activityBar.activeBorder": "#ff4444",
+        "activityBarBadge.background": "#ff4444",
+        "activityBarBadge.foreground": "#ffffff",
+        
+        // Status Bar (bottom bar)
+        "statusBar.background": "#ff4444",
+        "statusBar.foreground": "#ffffff",
+        "statusBar.noFolderBackground": "#2a2a2a",
+        "statusBar.debuggingBackground": "#ff9800",
+        
+        // Title Bar (top window bar)
+        "titleBar.activeBackground": "#2a2a2a",
+        "titleBar.activeForeground": "#e0e0e0",
+        "titleBar.inactiveBackground": "#1a1a1a",
+        "titleBar.inactiveForeground": "#666666",
+        
+        // Sidebar (file explorer, etc.)
+        "sideBar.background": "#1a1a1a",
+        "sideBar.foreground": "#e0e0e0",
+        "sideBar.border": "#444444",
+        "sideBarTitle.foreground": "#ff4444",
+        "sideBarSectionHeader.background": "#2a2a2a",
+        "sideBarSectionHeader.foreground": "#e0e0e0",
+        
+        // Editor
+        "editor.background": "#1a1a1a",
+        "editorGroupHeader.tabsBackground": "#2a2a2a",
+        "editorGroupHeader.tabsBorder": "#444444",
+        
+        // Tabs
+        "tab.activeBackground": "#1a1a1a",
+        "tab.activeForeground": "#ff4444",
+        "tab.inactiveBackground": "#2a2a2a",
+        "tab.inactiveForeground": "#666666",
+        "tab.activeBorder": "#ff4444",
+        "tab.activeBorderTop": "#ff4444",
+        
+        // Panel (terminal, output, etc.)
+        "panel.background": "#1a1a1a",
+        "panel.border": "#444444",
+        "panelTitle.activeBorder": "#ff4444",
+        "panelTitle.activeForeground": "#e0e0e0",
+        
+        // Buttons and interactive elements
+        "button.background": "#ff4444",
+        "button.foreground": "#ffffff",
+        "button.hoverBackground": "#ff6666",
+        
+        // Lists and trees
+        "list.activeSelectionBackground": "#2a2a2a",
+        "list.activeSelectionForeground": "#ff4444",
+        "list.hoverBackground": "#2a2a2a",
+        "list.inactiveSelectionBackground": "#2a2a2a",
+        
+        // Notifications
+        "notificationCenter.border": "#444444",
+        "notificationCenterHeader.background": "#2a2a2a",
+        "notifications.background": "#1a1a1a",
+        "notifications.border": "#ff4444",
+        
+        // Input fields
+        "input.background": "#1a1a1a",
+        "input.border": "#444444",
+        "input.foreground": "#e0e0e0",
+        "inputOption.activeBorder": "#ff4444",
+        
+        // Focus border (when elements are focused)
+        "focusBorder": "#ff4444",
+        
+        // Badge (notification counters)
+        "badge.background": "#ff4444",
+        "badge.foreground": "#ffffff",
+        
+        // Progress bar
+        "progressBar.background": "#ff4444"
+    }
+}
