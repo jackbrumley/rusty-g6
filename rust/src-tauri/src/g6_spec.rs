@@ -1,16 +1,11 @@
 /// SoundBlaster X G6 USB Device Specifications
 /// Based on reverse engineering from soundblaster-x-g6-cli project
 /// https://github.com/nils-skowasch/soundblaster-x-g6-cli
-
 use serde::{Deserialize, Serialize};
 
 // USB Device Identifiers
 pub const USB_VENDOR_ID: u16 = 0x041e; // Creative Technology Ltd
 pub const USB_PRODUCT_ID: u16 = 0x3256; // Sound Blaster X G6
-
-// Device Configuration
-pub const USB_INTERFACE: i32 = 0;
-pub const USB_TIMEOUT_MS: u64 = 1000;
 
 /// Audio output types
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -86,23 +81,23 @@ pub struct ExtendedAudioParams {
 pub struct G6Settings {
     // Controllable settings (read-write)
     pub output: OutputDevice,
-    
+
     pub surround_enabled: EffectState,
     pub surround_value: u8, // 0-100
-    
+
     pub crystalizer_enabled: EffectState,
     pub crystalizer_value: u8, // 0-100
-    
+
     pub bass_enabled: EffectState,
     pub bass_value: u8, // 0-100
-    
+
     pub smart_volume_enabled: EffectState,
     pub smart_volume_value: u8, // 0-100
     pub smart_volume_preset: Option<SmartVolumePreset>,
-    
+
     pub dialog_plus_enabled: EffectState,
     pub dialog_plus_value: u8, // 0-100
-    
+
     // Global SBX processing switch
     pub sbx_enabled: EffectState,
 
@@ -111,7 +106,7 @@ pub struct G6Settings {
     pub scout_mode: ScoutModeState,
     pub equalizer: Option<EqualizerConfig>,
     pub extended_params: Option<ExtendedAudioParams>,
-    
+
     // Device connection state
     pub is_connected: bool,
     pub last_read_time: Option<u64>, // Unix timestamp
@@ -148,16 +143,46 @@ impl Default for EqualizerConfig {
         Self {
             enabled: EffectState::Disabled,
             bands: vec![
-                EqualizerBand { frequency: 31.0, gain: 0.0 },
-                EqualizerBand { frequency: 62.0, gain: 0.0 },
-                EqualizerBand { frequency: 125.0, gain: 0.0 },
-                EqualizerBand { frequency: 250.0, gain: 0.0 },
-                EqualizerBand { frequency: 500.0, gain: 0.0 },
-                EqualizerBand { frequency: 1000.0, gain: 0.0 },
-                EqualizerBand { frequency: 2000.0, gain: 0.0 },
-                EqualizerBand { frequency: 4000.0, gain: 0.0 },
-                EqualizerBand { frequency: 8000.0, gain: 0.0 },
-                EqualizerBand { frequency: 16000.0, gain: 0.0 },
+                EqualizerBand {
+                    frequency: 31.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 62.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 125.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 250.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 500.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 1000.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 2000.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 4000.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 8000.0,
+                    gain: 0.0,
+                },
+                EqualizerBand {
+                    frequency: 16000.0,
+                    gain: 0.0,
+                },
             ],
         }
     }
@@ -185,12 +210,14 @@ impl Default for ExtendedAudioParams {
     }
 }
 
-
 /// Validate that a value is within 0-100 range
 pub fn validate_effect_value(value: u8) -> anyhow::Result<u8> {
     if value <= 100 {
         Ok(value)
     } else {
-        Err(anyhow::anyhow!("Value must be between 0 and 100, got {}", value))
+        Err(anyhow::anyhow!(
+            "Value must be between 0 and 100, got {}",
+            value
+        ))
     }
 }

@@ -15,7 +15,7 @@
         "title": "Rusty G6",
         "width": 380,
         "height": 520,
-        "resizable": false,
+        "resizable": true,
         "center": true,
         "decorations": false
       }

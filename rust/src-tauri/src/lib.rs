@@ -1,14 +1,15 @@
-mod g6_spec;
 mod g6_device;
 mod g6_protocol;
+mod g6_spec;
 
 use g6_device::G6DeviceManager;
-use g6_spec::{G6Settings, OutputDevice, EffectState, ScoutModeState};
+use g6_spec::{EffectState, G6Settings, OutputDevice, ScoutModeState};
+use log::info;
 use std::sync::Mutex;
 use tauri::{
-    Manager, State, AppHandle, Emitter,
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager, State,
 };
 
 // Application state
@@ -21,7 +22,7 @@ struct AppState {
 #[tauri::command]
 fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
-    
+
     // List all devices first for debugging
     match manager.list_devices() {
         Ok(devices) => {
@@ -33,13 +34,12 @@ fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, Stri
         }
         Err(e) => eprintln!("Failed to list devices: {}", e),
     }
-    
+
     // Connect to the device
-    manager.connect()
-        .map_err(|e| {
-            eprintln!("Connection error: {}", e);
-            e.to_string()
-        })?;
+    manager.connect().map_err(|e| {
+        eprintln!("Connection error: {}", e);
+        e.to_string()
+    })?;
 
     // Start event listener for live updates
     let app_clone = app.clone();
@@ -49,9 +49,10 @@ fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, Stri
             eprintln!("Failed to emit device update: {}", e);
         }
     });
-    
+
     // Use enhanced synchronization that reads device state first
-    manager.synchronize_with_device()
+    manager
+        .synchronize_with_device()
         .map(|_| "Connected and synchronized successfully".to_string())
         .map_err(|e| {
             eprintln!("Failed to synchronize with device: {}", e);
@@ -82,85 +83,130 @@ fn get_device_settings(state: State<AppState>) -> Result<G6Settings, String> {
 
 #[tauri::command]
 fn toggle_output(state: State<AppState>) -> Result<String, String> {
-    eprintln!("=== Toggle Output Called ===");
+    info!("------------------------------------------------------------");
+    info!("User initiated: Toggle Output");
     let manager = state.device_manager.lock().unwrap();
-    
-    let current_settings = manager.get_settings();
-    eprintln!("Current output: {:?}", current_settings.output);
-    
+
     match manager.toggle_output() {
         Ok(_) => {
             let new_settings = manager.get_settings();
-            eprintln!("Output toggled successfully to: {:?}", new_settings.output);
             Ok(format!("Output toggled to {:?}", new_settings.output))
         }
-        Err(e) => {
-            eprintln!("Toggle output error: {}", e);
-            Err(e.to_string())
-        }
+        Err(e) => Err(e.to_string()),
     }
 }
 
 #[tauri::command]
 fn set_output(state: State<AppState>, output: OutputDevice) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!("User initiated: Set Output to {:?}", output);
     let manager = state.device_manager.lock().unwrap();
-    manager.set_output(output)
+    manager
+        .set_output(output)
         .map(|_| format!("Output set to {:?}", output))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn set_surround(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!(
+        "User initiated: Set Surround to {:?} (Value: {})",
+        enabled, value
+    );
     let manager = state.device_manager.lock().unwrap();
-    manager.set_surround(enabled, value)
+    manager
+        .set_surround(enabled, value)
         .map(|_| format!("Surround set to {:?} with value {}", enabled, value))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn set_crystalizer(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+fn set_crystalizer(
+    state: State<AppState>,
+    enabled: EffectState,
+    value: u8,
+) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!(
+        "User initiated: Set Crystalizer to {:?} (Value: {})",
+        enabled, value
+    );
     let manager = state.device_manager.lock().unwrap();
-    manager.set_crystalizer(enabled, value)
+    manager
+        .set_crystalizer(enabled, value)
         .map(|_| format!("Crystalizer set to {:?} with value {}", enabled, value))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn set_bass(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!(
+        "User initiated: Set Bass to {:?} (Value: {})",
+        enabled, value
+    );
     let manager = state.device_manager.lock().unwrap();
-    manager.set_bass(enabled, value)
+    manager
+        .set_bass(enabled, value)
         .map(|_| format!("Bass set to {:?} with value {}", enabled, value))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn set_smart_volume(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+fn set_smart_volume(
+    state: State<AppState>,
+    enabled: EffectState,
+    value: u8,
+) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!(
+        "User initiated: Set Smart Volume to {:?} (Value: {})",
+        enabled, value
+    );
     let manager = state.device_manager.lock().unwrap();
-    manager.set_smart_volume(enabled, value)
+    manager
+        .set_smart_volume(enabled, value)
         .map(|_| format!("Smart Volume set to {:?} with value {}", enabled, value))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn set_dialog_plus(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+fn set_dialog_plus(
+    state: State<AppState>,
+    enabled: EffectState,
+    value: u8,
+) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!(
+        "User initiated: Set Dialog Plus to {:?} (Value: {})",
+        enabled, value
+    );
     let manager = state.device_manager.lock().unwrap();
-    manager.set_dialog_plus(enabled, value)
+    manager
+        .set_dialog_plus(enabled, value)
         .map(|_| format!("Dialog Plus set to {:?} with value {}", enabled, value))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn set_sbx_mode(state: State<AppState>, enabled: EffectState) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!("User initiated: Set SBX Mode to {:?}", enabled);
     let manager = state.device_manager.lock().unwrap();
-    manager.set_sbx_mode(enabled)
+    manager
+        .set_sbx_mode(enabled)
         .map(|_| format!("SBX Mode set to {:?}", enabled))
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn set_scout_mode(state: State<AppState>, enabled: ScoutModeState) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!("User initiated: Set Scout Mode to {:?}", enabled);
     let manager = state.device_manager.lock().unwrap();
-    manager.set_scout_mode(enabled)
+    manager
+        .set_scout_mode(enabled)
         .map(|_| format!("Scout Mode set to {:?}", enabled))
         .map_err(|e| e.to_string())
 }
@@ -168,14 +214,14 @@ fn set_scout_mode(state: State<AppState>, enabled: ScoutModeState) -> Result<Str
 #[tauri::command]
 fn read_device_state(state: State<AppState>) -> Result<G6Settings, String> {
     let manager = state.device_manager.lock().unwrap();
-    manager.read_device_state()
-        .map_err(|e| e.to_string())
+    manager.read_device_state().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn synchronize_device(state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
-    manager.synchronize_with_device()
+    manager
+        .synchronize_with_device()
         .map(|_| "Device synchronized successfully".to_string())
         .map_err(|e| e.to_string())
 }
@@ -183,8 +229,7 @@ fn synchronize_device(state: State<AppState>) -> Result<String, String> {
 #[tauri::command]
 fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
     let manager = state.device_manager.lock().unwrap();
-    manager.list_devices()
-        .map_err(|e| e.to_string())
+    manager.list_devices().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -192,31 +237,49 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+#[tauri::command]
+fn clear_terminal(message: Option<String>) -> Result<String, String> {
+    // Use ANSI escape codes to clear the terminal
+    // This works on Windows 10+, Linux, and macOS
+    print!("\x1b[2J\x1b[H");
+
+    // Print a visible log separator marker with optional custom message
+    info!("============================================================");
+    if let Some(msg) = message {
+        if !msg.trim().is_empty() {
+            info!("LOG SEPARATOR: {}", msg.trim());
+        } else {
+            info!("LOG SEPARATOR - User requested terminal break");
+        }
+    } else {
+        info!("LOG SEPARATOR - User requested terminal break");
+    }
+    info!("============================================================");
+
+    Ok("Log separator added".to_string())
+}
+
 fn create_tray_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    
+
     Menu::with_items(app, &[&show, &quit])
 }
 
 #[tauri::command]
 fn configure_microphone() -> Result<String, String> {
     use std::process::Command;
-    
+
     eprintln!("=== Configuring G6 Microphone ===");
-    
+
     // Try different possible card names
-    let card_names = vec![
-        "Sound BlasterX G6",
-        "G6",
-        "SoundBlasterXG6",
-    ];
-    
+    let card_names = vec!["Sound BlasterX G6", "G6", "SoundBlasterXG6"];
+
     let mut last_error = String::new();
-    
+
     for card_name in &card_names {
         eprintln!("Trying card name: {}", card_name);
-        
+
         // Try to set Line In capture
         match Command::new("amixer")
             .args(&["-c", card_name, "sset", "Line In", "cap"])
@@ -224,7 +287,7 @@ fn configure_microphone() -> Result<String, String> {
         {
             Ok(output) if output.status.success() => {
                 eprintln!("✓ Line In capture enabled");
-                
+
                 // Set External Mic capture
                 if let Ok(output) = Command::new("amixer")
                     .args(&["-c", card_name, "sset", "External Mic", "cap"])
@@ -232,15 +295,24 @@ fn configure_microphone() -> Result<String, String> {
                 {
                     if output.status.success() {
                         eprintln!("✓ External Mic capture enabled");
-                        
+
                         // Set PCM Capture Source to External Mic
                         if let Ok(output) = Command::new("amixer")
-                            .args(&["-c", card_name, "cset", "name=PCM Capture Source", "External Mic"])
+                            .args(&[
+                                "-c",
+                                card_name,
+                                "cset",
+                                "name=PCM Capture Source",
+                                "External Mic",
+                            ])
                             .output()
                         {
                             if output.status.success() {
                                 eprintln!("✓ PCM Capture Source set to External Mic");
-                                return Ok(format!("Microphone configured successfully on '{}'", card_name));
+                                return Ok(format!(
+                                    "Microphone configured successfully on '{}'",
+                                    card_name
+                                ));
                             }
                         }
                     }
@@ -256,7 +328,7 @@ fn configure_microphone() -> Result<String, String> {
             }
         }
     }
-    
+
     // If we got here, all attempts failed
     Err(format!(
         "Failed to configure microphone. Make sure 'amixer' is installed and the G6 is connected. Last error: {}",
@@ -266,13 +338,12 @@ fn configure_microphone() -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize logging
-    env_logger::init();
-    
+    // Initialize logging with default level "info"
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     // Create device manager
-    let device_manager = G6DeviceManager::new()
-        .expect("Failed to initialize G6 Device Manager");
-    
+    let device_manager = G6DeviceManager::new().expect("Failed to initialize G6 Device Manager");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
@@ -281,7 +352,7 @@ pub fn run() {
         .setup(|app| {
             // Create tray menu
             let menu = create_tray_menu(app.handle())?;
-            
+
             // Create tray icon
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .menu(&menu)
@@ -345,6 +416,7 @@ pub fn run() {
             list_usb_devices,
             get_app_version,
             configure_microphone,
+            clear_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

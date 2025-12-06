@@ -51,7 +51,7 @@ interface G6Settings {
   smart_volume_preset: "Night" | "Loud" | null;
   dialog_plus_enabled: "Enabled" | "Disabled";
   dialog_plus_value: number;
-  
+
   // Global SBX processing switch
   sbx_enabled: "Enabled" | "Disabled";
 
@@ -60,7 +60,7 @@ interface G6Settings {
   scout_mode: "Enabled" | "Disabled";
   equalizer: EqualizerConfig | null;
   extended_params: ExtendedAudioParams | null;
-  
+
   // Device connection state
   is_connected: boolean;
   last_read_time: number | null;
@@ -78,7 +78,8 @@ function App() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
-  
+  const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
+
   // Use ref to control polling logic if needed (mostly replaced by events now)
   const pollEnabledRef = useRef(false);
 
@@ -86,8 +87,8 @@ function App() {
   useEffect(() => {
     // Detect OS from user agent
     const userAgent = navigator.userAgent.toLowerCase();
-    setIsLinux(userAgent.includes('linux'));
-    
+    setIsLinux(userAgent.includes("linux"));
+
     checkConnection();
     // List all USB devices for debugging
     listUsbDevices();
@@ -95,13 +96,16 @@ function App() {
     loadVersion();
 
     // Listen for device updates (from listener thread)
-    const unlistenPromise = listen('device-update', () => {
-      console.log("Device update event received - refreshing state");
-      readDeviceStateSilent();
+    const unlistenPromise = listen("device-update", () => {
+      console.log(
+        "Device update event received - refreshing state from memory"
+      );
+      // Don't query the device - just read the already-updated internal state
+      loadSettings();
     });
 
     return () => {
-      unlistenPromise.then(unlisten => unlisten());
+      unlistenPromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -123,7 +127,7 @@ function App() {
     try {
       const devices = await invoke<string[]>("list_usb_devices");
       console.log("=== All USB HID Devices ===");
-      devices.forEach(device => console.log(device));
+      devices.forEach((device) => console.log(device));
       console.log("===========================");
     } catch (error) {
       console.error("Failed to list USB devices:", error);
@@ -162,8 +166,9 @@ function App() {
       setSettings(deviceSettings);
       setStatus("Device state read successfully");
       setToast({
-        message: "Device state read successfully! All settings now reflect actual device values.",
-        type: "success"
+        message:
+          "Device state read successfully! All settings now reflect actual device values.",
+        type: "success",
       });
       setTimeout(() => setToast(null), 4000);
     } catch (error) {
@@ -171,7 +176,7 @@ function App() {
       setStatus(`Failed to read device state: ${error}`);
       setToast({
         message: `Failed to read device state: ${error}`,
-        type: "error"
+        type: "error",
       });
       setTimeout(() => setToast(null), 5000);
     }
@@ -196,7 +201,7 @@ function App() {
       setStatus("Device synchronized");
       setToast({
         message: "Device synchronized successfully!",
-        type: "success"
+        type: "success",
       });
       setTimeout(() => setToast(null), 3000);
     } catch (error) {
@@ -204,7 +209,7 @@ function App() {
       setStatus(`Failed to synchronize device: ${error}`);
       setToast({
         message: `Failed to synchronize device: ${error}`,
-        type: "error"
+        type: "error",
       });
       setTimeout(() => setToast(null), 5000);
     }
@@ -279,31 +284,55 @@ function App() {
       setStatus("Configuring microphone...");
       const result = await invoke<string>("configure_microphone");
       setStatus(result);
-      
+
       // Show toast with instructions
       setToast({
-        message: 'Microphone configured! Now set your system default input device to "Digital Input (S/PDIF) Sound BlasterX G6"',
-        type: "info"
+        message:
+          'Microphone configured! Now set your system default input device to "Digital Input (S/PDIF) Sound BlasterX G6"',
+        type: "info",
       });
-      
+
       // Auto-dismiss toast after 8 seconds
       setTimeout(() => setToast(null), 8000);
     } catch (error) {
       setStatus(`Failed to configure microphone: ${error}`);
       setToast({
         message: `Failed to configure microphone: ${error}`,
-        type: "error"
+        type: "error",
       });
       setTimeout(() => setToast(null), 5000);
     }
   }
 
+  async function clearTerminal() {
+    try {
+      await invoke("clear_terminal", {
+        message: logSeparatorMessage || null,
+      });
+      setToast({
+        message: "Log separator added - check terminal for marker",
+        type: "success",
+      });
+      // Clear the input after sending
+      setLogSeparatorMessage("");
+      setTimeout(() => setToast(null), 2000);
+    } catch (error) {
+      console.error("Failed to add log separator:", error);
+      setToast({
+        message: `Failed to add log separator: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 3000);
+    }
+  }
+
   function showWindowsMicrophoneGuidance() {
     setToast({
-      message: "Microphone setup is not required on Windows - it works automatically",
-      type: "info"
+      message:
+        "Microphone setup is not required on Windows - it works automatically",
+      type: "info",
     });
-    
+
     // Auto-dismiss toast after 4 seconds
     setTimeout(() => setToast(null), 4000);
   }
@@ -323,15 +352,15 @@ function App() {
   ) {
     try {
       console.log(`Setting ${effectName}:`, { enabled, value });
-      // Optimistic update locally? 
+      // Optimistic update locally?
       // Not strictly needed if readDeviceStateSilent is fast.
       const result = await invoke(`set_${effectName}`, { enabled, value });
       console.log(`${effectName} result:`, result);
       setStatus(`${effectName} updated`);
-      // We don't need to force read here if the listener works, 
+      // We don't need to force read here if the listener works,
       // the device will send a Confirmation report -> listener -> emit -> read.
       // But for robustness:
-      // readDeviceStateSilent(); 
+      // readDeviceStateSilent();
     } catch (error) {
       console.error(`Failed to set ${effectName}:`, error);
       setStatus(`Failed to set ${effectName}: ${error}`);
@@ -343,7 +372,7 @@ function App() {
       const appWindow = getCurrentWindow();
       await appWindow.minimize();
     } catch (error) {
-      console.error('Failed to minimize window:', error);
+      console.error("Failed to minimize window:", error);
     }
   };
 
@@ -352,34 +381,51 @@ function App() {
       const appWindow = getCurrentWindow();
       await appWindow.close();
     } catch (error) {
-      console.error('Failed to close window:', error);
+      console.error("Failed to close window:", error);
     }
   };
 
   const handleTitleBarMouseDown = async (e: MouseEvent) => {
-    if (e.button === 0 && !(e.target as HTMLElement).closest('.title-bar-button')) {
+    if (
+      e.button === 0 &&
+      !(e.target as HTMLElement).closest(".title-bar-button")
+    ) {
       try {
         const appWindow = getCurrentWindow();
         await appWindow.startDragging();
       } catch (error) {
-        console.error('Failed to start dragging:', error);
+        console.error("Failed to start dragging:", error);
       }
     }
   };
 
   return (
     <div class="app">
-      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
-      
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
+
       {/* Custom Title Bar */}
       <div class="title-bar" onMouseDown={handleTitleBarMouseDown}>
         <div class="title-bar-title">Rusty G6</div>
         <div class="title-bar-subtitle">SoundBlaster X G6 Control Panel</div>
         <div class="title-bar-controls">
-          <button class="title-bar-button minimize" onClick={handleMinimize} title="Minimize">
+          <button
+            class="title-bar-button minimize"
+            onClick={handleMinimize}
+            title="Minimize"
+          >
             ─
           </button>
-          <button class="title-bar-button close" onClick={handleClose} title="Close">
+          <button
+            class="title-bar-button close"
+            onClick={handleClose}
+            title="Close"
+          >
             ✕
           </button>
         </div>
@@ -389,7 +435,11 @@ function App() {
         {/* Status Section - Compact horizontal layout */}
         <section class="status-section">
           <div class="status-line">
-            <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
+            <span
+              class={`status-indicator ${
+                connected ? "connected" : "disconnected"
+              }`}
+            >
               {connected ? "●" : "○"}
             </span>
             <span class="status-text">{status}</span>
@@ -398,7 +448,10 @@ function App() {
                 Connect
               </button>
             ) : (
-              <button onClick={disconnectDevice} class="btn-compact btn-secondary">
+              <button
+                onClick={disconnectDevice}
+                class="btn-compact btn-secondary"
+              >
                 Disconnect
               </button>
             )}
@@ -412,16 +465,21 @@ function App() {
               <div class="section-line">
                 <span class="section-label">Device:</span>
                 {settings.firmware_info && (
-                  <span class="section-value">v{settings.firmware_info.version}</span>
+                  <span class="section-value">
+                    v{settings.firmware_info.version}
+                  </span>
                 )}
-                <button onClick={readDeviceState} class="btn-compact btn-secondary">
+                <button
+                  onClick={readDeviceState}
+                  class="btn-compact btn-secondary"
+                >
                   Read State
                 </button>
                 <button onClick={synchronizeDevice} class="btn-compact">
                   Sync
                 </button>
               </div>
-              
+
               {/* Read-only information display */}
               {(settings.firmware_info || settings.equalizer) && (
                 <div class="device-details">
@@ -429,25 +487,33 @@ function App() {
                     <div class="read-only-item">
                       <span class="readonly-label">Equalizer:</span>
                       <span class="readonly-value">
-                        {settings.equalizer.enabled} • {settings.equalizer.bands.length} bands (Read-only)
+                        {settings.equalizer.enabled} •{" "}
+                        {settings.equalizer.bands.length} bands (Read-only)
                       </span>
                     </div>
                   )}
-                  
+
                   {settings.extended_params && (
                     <div class="read-only-item">
                       <span class="readonly-label">Extended Params:</span>
                       <span class="readonly-value">
-                        {Object.values(settings.extended_params).filter(v => v !== null).length}/15 detected (Read-only)
+                        {
+                          Object.values(settings.extended_params).filter(
+                            (v) => v !== null
+                          ).length
+                        }
+                        /15 detected (Read-only)
                       </span>
                     </div>
                   )}
-                  
+
                   {settings.last_read_time && (
                     <div class="read-only-item">
                       <span class="readonly-label">Last Read:</span>
                       <span class="readonly-value">
-                        {new Date(settings.last_read_time * 1000).toLocaleTimeString()}
+                        {new Date(
+                          settings.last_read_time * 1000
+                        ).toLocaleTimeString()}
                       </span>
                     </div>
                   )}
@@ -459,10 +525,14 @@ function App() {
             <section class="input-section compact">
               <div class="section-line">
                 <span class="section-label">Input:</span>
-                <button 
-                  onClick={handleSetupMicClick} 
+                <button
+                  onClick={handleSetupMicClick}
                   class="btn-compact"
-                  title={isLinux ? "Configure ALSA mixer for microphone input" : undefined}
+                  title={
+                    isLinux
+                      ? "Configure ALSA mixer for microphone input"
+                      : undefined
+                  }
                 >
                   Setup Mic
                 </button>
@@ -478,106 +548,142 @@ function App() {
                   Toggle Output
                 </button>
               </div>
-              
+
               <div class="effects-list">
                 <h3>Audio Effects</h3>
-            
-            <div class="effect-group-row">
-              <div class="effect-control compact main-switch">
-                <span class="effect-name">SBX Mode</span>
-                <label class="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.sbx_enabled === "Enabled"}
-                    onChange={(e) => setSbxMode(e.currentTarget.checked ? "Enabled" : "Disabled")}
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="slider-value">
-                  {settings.sbx_enabled === "Enabled" ? "On" : "Off"}
-                </span>
+
+                <div class="effect-group-row">
+                  <div class="effect-control compact main-switch">
+                    <span class="effect-name">SBX Mode</span>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.sbx_enabled === "Enabled"}
+                        onChange={(e) =>
+                          setSbxMode(
+                            e.currentTarget.checked ? "Enabled" : "Disabled"
+                          )
+                        }
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="slider-value">
+                      {settings.sbx_enabled === "Enabled" ? "On" : "Off"}
+                    </span>
+                  </div>
+
+                  <div class="effect-control compact main-switch">
+                    <span class="effect-name">Scout Mode</span>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={settings.scout_mode === "Enabled"}
+                        onChange={(e) =>
+                          setScoutMode(
+                            e.currentTarget.checked ? "Enabled" : "Disabled"
+                          )
+                        }
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <span class="slider-value">
+                      {settings.scout_mode === "Enabled" ? "On" : "Off"}
+                    </span>
+                  </div>
+                </div>
+
+                <EffectControl
+                  name="Surround"
+                  enabled={settings.surround_enabled === "Enabled"}
+                  value={settings.surround_value}
+                  onChange={(enabled, value) =>
+                    setEffect(
+                      "surround",
+                      enabled ? "Enabled" : "Disabled",
+                      value
+                    )
+                  }
+                />
+
+                <EffectControl
+                  name="Crystalizer"
+                  enabled={settings.crystalizer_enabled === "Enabled"}
+                  value={settings.crystalizer_value}
+                  onChange={(enabled, value) =>
+                    setEffect(
+                      "crystalizer",
+                      enabled ? "Enabled" : "Disabled",
+                      value
+                    )
+                  }
+                />
+
+                <EffectControl
+                  name="Bass"
+                  enabled={settings.bass_enabled === "Enabled"}
+                  value={settings.bass_value}
+                  onChange={(enabled, value) =>
+                    setEffect("bass", enabled ? "Enabled" : "Disabled", value)
+                  }
+                />
+
+                <EffectControl
+                  name="Smart Volume"
+                  enabled={settings.smart_volume_enabled === "Enabled"}
+                  value={settings.smart_volume_value}
+                  onChange={(enabled, value) =>
+                    setEffect(
+                      "smart_volume",
+                      enabled ? "Enabled" : "Disabled",
+                      value
+                    )
+                  }
+                />
+
+                <EffectControl
+                  name="Dialog Plus"
+                  enabled={settings.dialog_plus_enabled === "Enabled"}
+                  value={settings.dialog_plus_value}
+                  onChange={(enabled, value) =>
+                    setEffect(
+                      "dialog_plus",
+                      enabled ? "Enabled" : "Disabled",
+                      value
+                    )
+                  }
+                />
               </div>
+            </section>
 
-              <div class="effect-control compact main-switch">
-                <span class="effect-name">Scout Mode</span>
-                <label class="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.scout_mode === "Enabled"}
-                    onChange={(e) => setScoutMode(e.currentTarget.checked ? "Enabled" : "Disabled")}
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="slider-value">
-                  {settings.scout_mode === "Enabled" ? "On" : "Off"}
-                </span>
+            {/* Debug Section - Vertical layout */}
+            <section class="debug-section compact">
+              <div class="section-line">
+                <span class="section-label">Debug:</span>
               </div>
-            </div>
-
-            <EffectControl
-              name="Surround"
-              enabled={settings.surround_enabled === "Enabled"}
-              value={settings.surround_value}
-              onChange={(enabled, value) =>
-                setEffect(
-                  "surround",
-                  enabled ? "Enabled" : "Disabled",
-                  value
-                )
-              }
-            />
-
-            <EffectControl
-              name="Crystalizer"
-              enabled={settings.crystalizer_enabled === "Enabled"}
-              value={settings.crystalizer_value}
-              onChange={(enabled, value) =>
-                setEffect(
-                  "crystalizer",
-                  enabled ? "Enabled" : "Disabled",
-                  value
-                )
-              }
-            />
-
-            <EffectControl
-              name="Bass"
-              enabled={settings.bass_enabled === "Enabled"}
-              value={settings.bass_value}
-              onChange={(enabled, value) =>
-                setEffect("bass", enabled ? "Enabled" : "Disabled", value)
-              }
-            />
-
-            <EffectControl
-              name="Smart Volume"
-              enabled={settings.smart_volume_enabled === "Enabled"}
-              value={settings.smart_volume_value}
-              onChange={(enabled, value) =>
-                setEffect(
-                  "smart_volume",
-                  enabled ? "Enabled" : "Disabled",
-                  value
-                )
-              }
-            />
-
-              <EffectControl
-                name="Dialog Plus"
-                enabled={settings.dialog_plus_enabled === "Enabled"}
-                value={settings.dialog_plus_value}
-                onChange={(enabled, value) =>
-                  setEffect(
-                    "dialog_plus",
-                    enabled ? "Enabled" : "Disabled",
-                    value
-                  )
-                }
-              />
-            </div>
-          </section>
-        </>
-      )}
+              <div class="debug-controls">
+                <input
+                  type="text"
+                  class="log-message-input"
+                  placeholder="Optional: Add a note to the log separator..."
+                  value={logSeparatorMessage}
+                  onInput={(e) => setLogSeparatorMessage(e.currentTarget.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      clearTerminal();
+                    }
+                  }}
+                />
+                <button
+                  onClick={clearTerminal}
+                  class="btn-compact btn-full-width"
+                  title="Add a visual separator marker in the terminal logs with optional message"
+                >
+                  Add Log Separator
+                </button>
+              </div>
+            </section>
+          </>
+        )}
 
         {!connected && (
           <div class="info-panel">
@@ -588,11 +694,9 @@ function App() {
           </div>
         )}
       </main>
-      
+
       {/* Version display */}
-      {appVersion && (
-        <div class="app-version">v{appVersion}</div>
-      )}
+      {appVersion && <div class="app-version">v{appVersion}</div>}
     </div>
   );
 }
@@ -638,11 +742,7 @@ function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
     <div class="effect-control compact">
       <span class="effect-name">{name}</span>
       <label class="toggle-switch">
-        <input
-          type="checkbox"
-          checked={localEnabled}
-          onChange={handleToggle}
-        />
+        <input type="checkbox" checked={localEnabled} onChange={handleToggle} />
         <span class="toggle-slider"></span>
       </label>
       <input
@@ -676,7 +776,9 @@ function Toast({ message, type, onDismiss }: ToastProps) {
           {type === "info" && "ℹ"}
         </span>
         <p class="toast-message">{message}</p>
-        <button class="toast-close" onClick={onDismiss}>×</button>
+        <button class="toast-close" onClick={onDismiss}>
+          ×
+        </button>
       </div>
     </div>
   );
