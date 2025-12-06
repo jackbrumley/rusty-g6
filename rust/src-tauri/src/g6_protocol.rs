@@ -341,10 +341,10 @@ pub fn build_read_firmware_v1() -> Vec<u8> {
 /// This command instructs the device to respond with ASCII string format
 /// Response: 5a 07 10 [ASCII_VERSION_STRING] 00
 /// Example: "2.1.250903.1324"
+///
+/// NOTE: Now using Protocol V2 implementation
 pub fn build_read_firmware_v2() -> Vec<u8> {
-    let mut command = vec![PREFIX, 0x07, 0x01, 0x02];
-    command.resize(PAYLOAD_SIZE, 0x00);
-    command
+    crate::g6_protocol_v2::build_firmware_query_ascii()
 }
 
 /// Build command to read current output configuration

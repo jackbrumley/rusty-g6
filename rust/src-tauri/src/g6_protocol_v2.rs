@@ -486,6 +486,102 @@ pub fn build_output_config_read() -> Vec<u8> {
 }
 
 // ============================================================================
+// ALL READ COMMANDS (Phase 2)
+// ============================================================================
+
+/// Build read command for surround effect
+pub fn build_read_surround() -> Vec<u8> {
+    build_audio_effect_read(0x00)
+}
+
+/// Build read command for surround value
+pub fn build_read_surround_value() -> Vec<u8> {
+    build_audio_effect_read(0x01)
+}
+
+/// Build read command for dialog plus
+pub fn build_read_dialog_plus() -> Vec<u8> {
+    build_audio_effect_read(0x02)
+}
+
+/// Build read command for dialog plus value
+pub fn build_read_dialog_plus_value() -> Vec<u8> {
+    build_audio_effect_read(0x03)
+}
+
+/// Build read command for smart volume
+pub fn build_read_smart_volume() -> Vec<u8> {
+    build_audio_effect_read(0x04)
+}
+
+/// Build read command for smart volume value
+pub fn build_read_smart_volume_value() -> Vec<u8> {
+    build_audio_effect_read(0x05)
+}
+
+/// Build read command for smart volume preset
+pub fn build_read_smart_volume_preset() -> Vec<u8> {
+    build_audio_effect_read(0x06)
+}
+
+/// Build read command for crystalizer
+pub fn build_read_crystalizer() -> Vec<u8> {
+    build_audio_effect_read(0x07)
+}
+
+/// Build read command for crystalizer value
+pub fn build_read_crystalizer_value() -> Vec<u8> {
+    build_audio_effect_read(0x08)
+}
+
+/// Build read command for bass
+pub fn build_read_bass() -> Vec<u8> {
+    build_audio_effect_read(0x18)
+}
+
+/// Build read command for bass value
+pub fn build_read_bass_value() -> Vec<u8> {
+    build_audio_effect_read(0x19)
+}
+
+/// Build read command for extended audio parameter
+pub fn build_read_extended_param(param_id: u8) -> Vec<u8> {
+    build_audio_effect_read(param_id)
+}
+
+/// Build read command for equalizer band
+pub fn build_read_equalizer_band(band: u8) -> Vec<u8> {
+    G6CommandBuilder::new(CommandFamily::AudioControl)
+        .operation(&[0x03, 0x01])
+        .intermediate(IntermediateType::Equalizer)
+        .feature(band)
+        .build()
+}
+
+/// Build all read commands for complete device state
+pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
+    let mut commands = Vec::new();
+
+    // Firmware queries
+    commands.push(build_firmware_query_ascii());
+
+    // Output configuration
+    commands.push(build_output_config_read());
+
+    // All audio effects (0x00 to 0x1D)
+    for feature in 0x00..=0x1D {
+        commands.push(build_audio_effect_read(feature));
+    }
+
+    // All equalizer bands (0x00 to 0x1B)
+    for band in 0x00..=0x1B {
+        commands.push(build_read_equalizer_band(band));
+    }
+
+    commands
+}
+
+// ============================================================================
 // TESTS
 // ============================================================================
 
