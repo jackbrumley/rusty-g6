@@ -470,15 +470,18 @@ impl G6DeviceManager {
     }
 
     /// Set output device
+    /// Now using Protocol V2 (clean 2-command version)
     pub fn set_output(&self, output: OutputDevice) -> Result<()> {
-        let commands = match output {
-            OutputDevice::Headphones => g6_protocol::build_output_headphones(),
-            OutputDevice::Speakers => g6_protocol::build_output_speakers(),
-        };
+        // Use V2 protocol - just 2 commands!
+        let commands = vec![
+            crate::g6_protocol_v2::build_set_output(output),
+            crate::g6_protocol_v2::build_commit_output(),
+        ];
+
         self.send_commands(commands)?;
 
         // State will be updated by listener when device confirms
-        info!("Set output command sent: {:?}", output);
+        info!("Set output command sent using V2: {:?}", output);
         Ok(())
     }
 
