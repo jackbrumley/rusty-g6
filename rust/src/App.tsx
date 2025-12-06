@@ -389,10 +389,8 @@ function App() {
     try {
       console.log("Setting SBX Mode:", enabled);
       await invoke("set_sbx_mode", { enabled });
-      // Initially update UI state optimistically or wait for event?
-      // Wait for event is safest but might feel laggy (100ms listener + roundtrip)
-      // Call readDeviceStateSilent explicitly for responsiveness
-      readDeviceStateSilent();
+      // Device will send event → listener catches it → emits device-update → loadSettings()
+      // No need for manual full-state read here
       setStatus(`SBX Mode ${enabled}`);
     } catch (error) {
       console.error("Failed to set SBX Mode:", error);
@@ -404,7 +402,8 @@ function App() {
     try {
       console.log("Setting Scout Mode:", enabled);
       await invoke("set_scout_mode", { enabled });
-      readDeviceStateSilent();
+      // Device will send event → listener catches it → emits device-update → loadSettings()
+      // No need for manual full-state read here
       setStatus(`Scout Mode ${enabled}`);
     } catch (error) {
       console.error("Failed to set Scout Mode:", error);

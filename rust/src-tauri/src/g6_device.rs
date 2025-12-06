@@ -143,7 +143,7 @@ impl G6DeviceManager {
             let device_guard = self.device.lock().unwrap();
             let device = device_guard.as_ref().context("Device not connected")?;
 
-            for (i, command) in commands.iter().enumerate() {
+            for (_i, command) in commands.iter().enumerate() {
                 // Helper logging
                 let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
                 let desc = g6_protocol::describe_packet(command);
@@ -365,7 +365,7 @@ impl G6DeviceManager {
                             &buffer[0..bytes]
                         };
 
-                        // Parse packet and update settings if scout mode detected
+                        // Parse packet using the unified event parser
                         if packet.len() > 2 && packet[0] == 0x5a {
                             // Log all incoming events
                             let hex_str: String =
@@ -375,72 +375,82 @@ impl G6DeviceManager {
                             // Color Scheme: Yellow for RX
                             info!("\x1b[33m[RX] {}\x1b[0m | \x1b[35m{}\x1b[0m", hex_str, desc);
 
-                            // Check for Output Change event (0x2c family)
-                            if packet[1] == 0x2c {
-                                let mut new_output = None;
-                                // Scan for status byte (0x02=Speakers, 0x04=Headphones)
-                                // Skip index 3 (often header/command byte) - start from index 4
-                                for i in 4..std::cmp::min(12, packet.len()) {
-                                    match packet[i] {
-                                        0x04 => {
-                                            new_output = Some(OutputDevice::Headphones);
-                                            break;
-                                        }
-                                        0x02 => {
-                                            new_output = Some(OutputDevice::Speakers);
-                                            break;
-                                        }
-                                        _ => {}
-                                    }
-                                }
+                            // Parse events using the protocol V2 parser
+                            let events = crate::g6_protocol_v2::G6EventParser::parse(packet);
 
-                                if let Some(output) = new_output {
-                                    if let Ok(mut settings) = settings_arc.lock() {
-                                        if settings.output != output {
-                                            settings.output = output;
-                                            info!("Detected Output change: {:?}", output);
+                            // Process each detected event
+                            for event in &events {
+                                if let Ok(mut settings) = settings_arc.lock() {
+                                    use crate::g6_protocol_v2::DeviceEvent;
+
+                                    match event {
+                                        // Output switching
+                                        DeviceEvent::OutputChanged(output) => {
+                                            settings.output = *output;
+                                            info!("Detected {:?}", event);
+                                        }
+
+                                        // Gaming modes
+                                        DeviceEvent::SbxModeChanged(state) => {
+                                            settings.sbx_enabled = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::ScoutModeChanged(state) => {
+                                            settings.scout_mode = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+
+                                        // Audio effects - toggles
+                                        DeviceEvent::SurroundToggled(state) => {
+                                            settings.surround_enabled = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::CrystalizerToggled(state) => {
+                                            settings.crystalizer_enabled = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::BassToggled(state) => {
+                                            settings.bass_enabled = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::SmartVolumeToggled(state) => {
+                                            settings.smart_volume_enabled = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::DialogPlusToggled(state) => {
+                                            settings.dialog_plus_enabled = *state;
+                                            info!("Detected {:?}", event);
+                                        }
+
+                                        // Audio effects - values
+                                        DeviceEvent::SurroundValueChanged(value) => {
+                                            settings.surround_value = *value;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::CrystalizerValueChanged(value) => {
+                                            settings.crystalizer_value = *value;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::BassValueChanged(value) => {
+                                            settings.bass_value = *value;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::SmartVolumeValueChanged(value) => {
+                                            settings.smart_volume_value = *value;
+                                            info!("Detected {:?}", event);
+                                        }
+                                        DeviceEvent::DialogPlusValueChanged(value) => {
+                                            settings.dialog_plus_value = *value;
+                                            info!("Detected {:?}", event);
                                         }
                                     }
                                 }
                             }
 
-                            // Check for Scout Mode event (0x26 family)
-                            if packet[1] == 0x26 {
-                                // Heuristic: Look for Feature 0x02 and Values 0x01 (On) or 0x00 (Off)
-
-                                let mut new_state = None;
-
-                                // Search packet for Feature 0x02 followed closely by 0x01 or 0x00
-                                for i in 2..packet.len() - 2 {
-                                    if packet[i] == 0x02 {
-                                        // If 0x02 is followed by 0x00 then 0x01 (Enabled)
-                                        if i + 2 < packet.len()
-                                            && packet[i + 1] == 0x00
-                                            && packet[i + 2] == 0x01
-                                        {
-                                            new_state = Some(ScoutModeState::Enabled);
-                                            break;
-                                        }
-                                        // If 0x02 is followed by 0x00 then 0x00 (Disabled)
-                                        if i + 2 < packet.len()
-                                            && packet[i + 1] == 0x00
-                                            && packet[i + 2] == 0x00
-                                        {
-                                            new_state = Some(ScoutModeState::Disabled);
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if let Some(state) = new_state {
-                                    if let Ok(mut settings) = settings_arc.lock() {
-                                        settings.scout_mode = state;
-                                        info!("Detected Scout Mode change: {:?}", state);
-                                    }
-                                }
+                            // Notify UI if any events were processed
+                            if !events.is_empty() {
+                                on_event();
                             }
-
-                            on_event();
                         }
                     }
                     _ => {}
