@@ -524,21 +524,24 @@ impl G6DeviceManager {
     }
 
     /// Set bass
+    /// Now using Protocol V2
     pub fn set_bass(&self, enabled: EffectState, value: u8) -> Result<()> {
         validate_effect_value(value)?;
 
         let enabled_bool = matches!(enabled, EffectState::Enabled);
-        let toggle_commands = g6_protocol::build_bass_toggle(enabled_bool);
-        let slider_commands = g6_protocol::build_bass_slider(value);
+
+        // Use V2 protocol - cleaner command builders
+        let toggle_commands = crate::g6_protocol_v2::build_set_bass_toggle(enabled_bool);
+        let value_commands = crate::g6_protocol_v2::build_set_bass_value(value);
 
         self.send_commands(toggle_commands)?;
-        self.send_commands(slider_commands)?;
+        self.send_commands(value_commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.bass_enabled = enabled;
         settings.bass_value = value;
 
-        info!("Bass set to {:?} with value {}", enabled, value);
+        info!("Bass set to {:?} with value {} using V2", enabled, value);
         Ok(())
     }
 

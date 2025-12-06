@@ -619,6 +619,59 @@ pub fn build_toggle_output_simple(current: OutputDevice) -> Vec<Vec<u8>> {
 }
 
 // ============================================================================
+// WRITE COMMANDS - AUDIO EFFECTS (Phase 6)
+// ============================================================================
+
+// Bass Effect Feature IDs
+const FEATURE_BASS_TOGGLE: u8 = 0x18;
+const FEATURE_BASS_VALUE: u8 = 0x19;
+
+/// Build command to set bass toggle (on/off)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_bass_toggle(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 1.0f32 } else { 0.0f32 };
+
+    vec![
+        // DATA command - Write the toggle value
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01]) // Write operation
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_BASS_TOGGLE)
+            .float_value(value)
+            .build(),
+        // COMMIT command - Confirm the change
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01]) // Commit operation
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_BASS_TOGGLE)
+            .build(),
+    ]
+}
+
+/// Build command to set bass value (0-100)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_bass_value(value: u8) -> Vec<Vec<u8>> {
+    // Convert 0-100 to 0.0-1.0 float
+    let float_value = (value as f32) / 100.0;
+
+    vec![
+        // DATA command - Write the slider value
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01]) // Write operation
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_BASS_VALUE)
+            .float_value(float_value)
+            .build(),
+        // COMMIT command - Confirm the change
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01]) // Commit operation
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_BASS_VALUE)
+            .build(),
+    ]
+}
+
+// ============================================================================
 // TESTS
 // ============================================================================
 
