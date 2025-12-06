@@ -71,6 +71,13 @@ interface ToastMessage {
   type: "success" | "error" | "info";
 }
 
+interface ProtocolConsoleMessage {
+  timestamp: number;
+  level: string;
+  text: string;
+  details: string | null;
+}
+
 function App() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
@@ -79,6 +86,13 @@ function App() {
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
+
+  // Protocol Console state
+  const [consoleMessages, setConsoleMessages] = useState<
+    ProtocolConsoleMessage[]
+  >([]);
+  const [consoleAutoScroll, setConsoleAutoScroll] = useState(true);
+  const consoleEndRef = useRef<HTMLDivElement>(null);
 
   // Use ref to control polling logic if needed (mostly replaced by events now)
   const pollEnabledRef = useRef(false);
@@ -113,6 +127,106 @@ function App() {
   useEffect(() => {
     pollEnabledRef.current = connected;
   }, [connected]);
+
+  // Protocol Console: Load messages and listen for updates
+  useEffect(() => {
+    loadConsoleMessages();
+
+    const unlistenPromise = listen<ProtocolConsoleMessage>(
+      "protocol-console-update",
+      (event) => {
+        setConsoleMessages((prev) => [...prev, event.payload]);
+      }
+    );
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
+  // Auto-scroll console
+  useEffect(() => {
+    if (consoleAutoScroll && consoleEndRef.current) {
+      consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [consoleMessages, consoleAutoScroll]);
+
+  async function loadConsoleMessages() {
+    try {
+      const messages = await invoke<ProtocolConsoleMessage[]>(
+        "get_protocol_console_messages"
+      );
+      setConsoleMessages(messages);
+    } catch (error) {
+      console.error("Failed to load console messages:", error);
+    }
+  }
+
+  async function clearConsole() {
+    try {
+      await invoke("clear_protocol_console");
+      setConsoleMessages([]);
+    } catch (error) {
+      console.error("Failed to clear console:", error);
+    }
+  }
+
+  async function testProtocolV2() {
+    try {
+      const result = await invoke<string>("test_protocol_v2");
+      setToast({
+        message: "Protocol V2 test completed - check console below!",
+        type: "success",
+      });
+      setTimeout(() => setToast(null), 3000);
+    } catch (error) {
+      setToast({
+        message: `Protocol V2 test failed: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
+    }
+  }
+
+  function copyConsoleToClipboard() {
+    if (consoleMessages.length === 0) {
+      setToast({
+        message: "Console is empty - nothing to copy",
+        type: "info",
+      });
+      setTimeout(() => setToast(null), 2000);
+      return;
+    }
+
+    const text = consoleMessages
+      .map((msg) => {
+        const timestamp = new Date(msg.timestamp * 1000).toLocaleTimeString();
+        const header = `[${timestamp}] [${msg.level}] ${msg.text}`;
+        if (msg.details) {
+          return `${header}\nDetails:\n${msg.details}\n`;
+        }
+        return header;
+      })
+      .join("\n");
+
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setToast({
+          message: `Copied ${consoleMessages.length} messages to clipboard!`,
+          type: "success",
+        });
+        setTimeout(() => setToast(null), 2000);
+      },
+      (err) => {
+        console.error("Failed to copy to clipboard:", err);
+        setToast({
+          message: "Failed to copy to clipboard",
+          type: "error",
+        });
+        setTimeout(() => setToast(null), 3000);
+      }
+    );
+  }
 
   async function loadVersion() {
     try {
@@ -460,67 +574,6 @@ function App() {
 
         {connected && settings && (
           <>
-            {/* Device Information Section */}
-            <section class="device-info-section compact">
-              <div class="section-line">
-                <span class="section-label">Device:</span>
-                {settings.firmware_info && (
-                  <span class="section-value">
-                    v{settings.firmware_info.version}
-                  </span>
-                )}
-                <button
-                  onClick={readDeviceState}
-                  class="btn-compact btn-secondary"
-                >
-                  Read State
-                </button>
-                <button onClick={synchronizeDevice} class="btn-compact">
-                  Sync
-                </button>
-              </div>
-
-              {/* Read-only information display */}
-              {(settings.firmware_info || settings.equalizer) && (
-                <div class="device-details">
-                  {settings.equalizer && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Equalizer:</span>
-                      <span class="readonly-value">
-                        {settings.equalizer.enabled} •{" "}
-                        {settings.equalizer.bands.length} bands (Read-only)
-                      </span>
-                    </div>
-                  )}
-
-                  {settings.extended_params && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Extended Params:</span>
-                      <span class="readonly-value">
-                        {
-                          Object.values(settings.extended_params).filter(
-                            (v) => v !== null
-                          ).length
-                        }
-                        /15 detected (Read-only)
-                      </span>
-                    </div>
-                  )}
-
-                  {settings.last_read_time && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Last Read:</span>
-                      <span class="readonly-value">
-                        {new Date(
-                          settings.last_read_time * 1000
-                        ).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
-
             {/* Input Section - Horizontal layout */}
             <section class="input-section compact">
               <div class="section-line">
@@ -659,7 +712,68 @@ function App() {
             <section class="debug-section compact">
               <div class="section-line">
                 <span class="section-label">Debug:</span>
+                <button
+                  onClick={readDeviceState}
+                  class="btn-compact btn-secondary"
+                >
+                  Read State
+                </button>
+                <button onClick={synchronizeDevice} class="btn-compact">
+                  Sync
+                </button>
               </div>
+
+              {/* Device Information */}
+              {(settings.firmware_info ||
+                settings.equalizer ||
+                settings.extended_params) && (
+                <div class="device-details">
+                  {settings.firmware_info && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Firmware:</span>
+                      <span class="readonly-value">
+                        {settings.firmware_info.version}
+                      </span>
+                    </div>
+                  )}
+
+                  {settings.equalizer && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Equalizer:</span>
+                      <span class="readonly-value">
+                        {settings.equalizer.enabled} •{" "}
+                        {settings.equalizer.bands.length} bands (Read-only)
+                      </span>
+                    </div>
+                  )}
+
+                  {settings.extended_params && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Extended Params:</span>
+                      <span class="readonly-value">
+                        {
+                          Object.values(settings.extended_params).filter(
+                            (v) => v !== null
+                          ).length
+                        }
+                        /15 detected (Read-only)
+                      </span>
+                    </div>
+                  )}
+
+                  {settings.last_read_time && (
+                    <div class="read-only-item">
+                      <span class="readonly-label">Last Read:</span>
+                      <span class="readonly-value">
+                        {new Date(
+                          settings.last_read_time * 1000
+                        ).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div class="debug-controls">
                 <input
                   type="text"
@@ -680,6 +794,70 @@ function App() {
                 >
                   Add Log Separator
                 </button>
+              </div>
+
+              {/* Protocol Console */}
+              <div class="protocol-console-wrapper">
+                <div class="console-header">
+                  <h4>Protocol Console (V2 Debug)</h4>
+                  <div class="console-controls">
+                    <button
+                      onClick={testProtocolV2}
+                      class="btn-compact btn-primary"
+                    >
+                      Test Protocol V2
+                    </button>
+                    <button
+                      onClick={copyConsoleToClipboard}
+                      class="btn-compact"
+                      title="Copy all console messages to clipboard"
+                    >
+                      📋 Copy
+                    </button>
+                    <button onClick={clearConsole} class="btn-compact">
+                      Clear
+                    </button>
+                    <label class="console-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={consoleAutoScroll}
+                        onChange={(e) =>
+                          setConsoleAutoScroll(e.currentTarget.checked)
+                        }
+                      />
+                      <span>Auto-scroll</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="protocol-console">
+                  {consoleMessages.length === 0 ? (
+                    <div class="console-empty">
+                      No messages yet. Click "Test Protocol V2" to generate test
+                      commands.
+                    </div>
+                  ) : (
+                    consoleMessages.map((msg, i) => (
+                      <div
+                        key={i}
+                        class={`console-message console-${msg.level}`}
+                      >
+                        <span class="console-timestamp">
+                          {new Date(msg.timestamp * 1000).toLocaleTimeString()}
+                        </span>
+                        <span class="console-level">[{msg.level}]</span>
+                        <span class="console-text">{msg.text}</span>
+                        {msg.details && (
+                          <details class="console-details">
+                            <summary>Show details</summary>
+                            <pre>{msg.details}</pre>
+                          </details>
+                        )}
+                      </div>
+                    ))
+                  )}
+                  <div ref={consoleEndRef} />
+                </div>
               </div>
             </section>
           </>

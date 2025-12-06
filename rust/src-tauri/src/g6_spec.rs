@@ -36,7 +36,7 @@ pub enum ScoutModeState {
 }
 
 /// Device firmware information (read-only)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FirmwareInfo {
     pub version: String,
     pub build: Option<String>,
@@ -219,5 +219,28 @@ pub fn validate_effect_value(value: u8) -> anyhow::Result<u8> {
             "Value must be between 0 and 100, got {}",
             value
         ))
+    }
+}
+
+/// Protocol console message for debugging
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProtocolConsoleMessage {
+    pub timestamp: u64,
+    pub level: String, // "command", "response", "error", "info"
+    pub text: String,
+    pub details: Option<String>,
+}
+
+impl ProtocolConsoleMessage {
+    pub fn new(level: &str, text: String, details: Option<String>) -> Self {
+        Self {
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            level: level.to_string(),
+            text,
+            details,
+        }
     }
 }

@@ -1,9 +1,10 @@
 mod g6_device;
 mod g6_protocol;
+mod g6_protocol_v2; // New unified protocol abstraction layer
 mod g6_spec;
 
 use g6_device::G6DeviceManager;
-use g6_spec::{EffectState, G6Settings, OutputDevice, ScoutModeState};
+use g6_spec::{EffectState, G6Settings, OutputDevice, ProtocolConsoleMessage, ScoutModeState};
 use log::info;
 use std::sync::Mutex;
 use tauri::{
@@ -11,6 +12,9 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, State,
 };
+
+// Global protocol console storage
+static PROTOCOL_CONSOLE: Mutex<Vec<ProtocolConsoleMessage>> = Mutex::new(Vec::new());
 
 // Application state
 struct AppState {
@@ -259,6 +263,119 @@ fn clear_terminal(message: Option<String>) -> Result<String, String> {
     Ok("Log separator added".to_string())
 }
 
+// Protocol Console Commands
+
+#[tauri::command]
+fn get_protocol_console_messages() -> Vec<ProtocolConsoleMessage> {
+    PROTOCOL_CONSOLE.lock().unwrap().clone()
+}
+
+#[tauri::command]
+fn clear_protocol_console() -> Result<String, String> {
+    PROTOCOL_CONSOLE.lock().unwrap().clear();
+    Ok("Console cleared".to_string())
+}
+
+#[tauri::command]
+fn test_protocol_v2(app: AppHandle, state: State<AppState>) -> Result<String, String> {
+    use crate::g6_protocol_v2::{build_firmware_query_ascii, G6ResponseParser};
+
+    let manager = state.device_manager.lock().unwrap();
+
+    // Check if connected
+    if !manager.is_connected() {
+        return Err("Device not connected".to_string());
+    }
+
+    eprintln!("=== TESTING PROTOCOL V2 ===");
+
+    // Build firmware query command using v2
+    let command = build_firmware_query_ascii();
+
+    // Log command to console
+    let cmd_hex: String = command
+        .iter()
+        .take(20)
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let cmd_msg = ProtocolConsoleMessage::new(
+        "command",
+        "Firmware Query (ASCII Mode) - Protocol V2".to_string(),
+        Some(format!("Command bytes: {}", cmd_hex)),
+    );
+    PROTOCOL_CONSOLE.lock().unwrap().push(cmd_msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &cmd_msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
+
+    eprintln!("Command (V2): {}", cmd_hex);
+
+    // Send command to device
+    let response = match manager.send_raw_command(&command) {
+        Ok(resp) => resp,
+        Err(e) => {
+            let err_msg = ProtocolConsoleMessage::new(
+                "error",
+                format!("Failed to send command: {}", e),
+                None,
+            );
+            PROTOCOL_CONSOLE.lock().unwrap().push(err_msg.clone());
+            if let Err(e) = app.emit("protocol-console-update", &err_msg) {
+                eprintln!("Failed to emit console update: {}", e);
+            }
+            return Err(format!("Failed to send command: {}", e));
+        }
+    };
+
+    // Log raw response
+    let resp_hex: String = response
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let resp_ascii: String = response
+        .iter()
+        .filter(|&&b| b >= 0x20 && b <= 0x7E)
+        .map(|&b| b as char)
+        .collect();
+
+    let resp_msg = ProtocolConsoleMessage::new(
+        "response",
+        "Device response received".to_string(),
+        Some(format!("Hex: {}\nASCII: {}", resp_hex, resp_ascii)),
+    );
+    PROTOCOL_CONSOLE.lock().unwrap().push(resp_msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &resp_msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
+
+    // Parse response using V2
+    let (parsed, debug_info) = G6ResponseParser::parse(&response);
+
+    // Log parsed result
+    let parse_level = if parsed.is_ok() { "info" } else { "error" };
+    let parse_text = match &parsed {
+        Ok(p) => format!("✅ Parse SUCCESS: {:?}", p),
+        Err(e) => format!("❌ Parse FAILED: {}", e),
+    };
+
+    let parse_msg =
+        ProtocolConsoleMessage::new(parse_level, parse_text, Some(debug_info.to_readable_text()));
+    PROTOCOL_CONSOLE.lock().unwrap().push(parse_msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &parse_msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
+
+    match parsed {
+        Ok(_) => Ok("Protocol V2 test complete! Check console for full details.".to_string()),
+        Err(e) => Ok(format!(
+            "Test sent but parsing failed: {}. Check console for details.",
+            e
+        )),
+    }
+}
+
 fn create_tray_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -417,6 +534,9 @@ pub fn run() {
             get_app_version,
             configure_microphone,
             clear_terminal,
+            get_protocol_console_messages,
+            clear_protocol_console,
+            test_protocol_v2,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

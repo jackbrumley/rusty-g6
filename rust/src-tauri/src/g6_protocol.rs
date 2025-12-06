@@ -337,9 +337,12 @@ pub fn build_read_firmware_v1() -> Vec<u8> {
     command
 }
 
-/// Build command to read firmware version (Candidate 2: Original undocumented)
+/// Build command to read firmware version (Candidate 2: ASCII mode query)
+/// This command instructs the device to respond with ASCII string format
+/// Response: 5a 07 10 [ASCII_VERSION_STRING] 00
+/// Example: "2.1.250903.1324"
 pub fn build_read_firmware_v2() -> Vec<u8> {
-    let mut command = vec![PREFIX, 0x07, 0x10];
+    let mut command = vec![PREFIX, 0x07, 0x01, 0x02];
     command.resize(PAYLOAD_SIZE, 0x00);
     command
 }
@@ -389,13 +392,44 @@ fn parse_ieee754_le(bytes: &[u8]) -> Result<f32, &'static str> {
 }
 
 /// Parse firmware version from response
+/// With the correct query command (5a 07 01 02), device responds with ASCII string
+/// Response format: 5a 07 10 [ASCII_VERSION_STRING] 00
+/// Example: 5a 07 10 32 2e 31 2e 32 35 30 39 30 33 2e 31 33 32 34 00
+/// Decoded: "2.1.250903.1324"
 pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> {
-    if response.len() < 10 {
+    if response.len() < 4 {
         return Err("Response too short for firmware info".to_string());
     }
 
-    // Look for ASCII content starting from different positions
-    // The version might start after different header lengths
+    // Check if this is a V2 firmware response: 5a 07 10 [ASCII...]
+    if response[1] == 0x07 && response[2] == 0x10 {
+        // ASCII string starts at byte 3 and ends at null terminator (0x00)
+        let mut version_end = 3;
+        for i in 3..response.len() {
+            if response[i] == 0 {
+                version_end = i;
+                break;
+            }
+        }
+
+        if version_end > 3 {
+            let version_bytes = &response[3..version_end];
+            let version = String::from_utf8_lossy(version_bytes)
+                .to_string()
+                .trim()
+                .to_string();
+
+            if !version.is_empty() {
+                return Ok(FirmwareInfo {
+                    version: version.clone(),
+                    build: Some(version),
+                });
+            }
+        }
+    }
+
+    // Fallback: Search for ASCII version string in other positions
+    // This handles alternative firmware query commands (like V1: 5a 05 01)
     let search_positions = [3, 4, 5, 6, 7, 8, 9, 10];
 
     for start_pos in search_positions {
@@ -403,30 +437,24 @@ pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> 
             continue;
         }
 
-        // Look for continuous ASCII sequence starting at this position
         let mut version_start = None;
         let mut consecutive_ascii = 0;
 
         for i in start_pos..response.len() {
             if response[i] >= 32 && response[i] <= 126 {
-                // Printable ASCII
                 if version_start.is_none() {
                     version_start = Some(i);
                 }
                 consecutive_ascii += 1;
             } else if response[i] == 0 {
-                // Null terminator - end of string
                 break;
             } else {
-                // Non-ASCII byte - reset
                 version_start = None;
                 consecutive_ascii = 0;
             }
 
-            // If we found at least 2 consecutive ASCII chars (e.g. "V2"), that helps
             if consecutive_ascii >= 2 {
                 if let Some(start) = version_start {
-                    // Find the end of the ASCII sequence
                     let mut version_end = i + 1;
                     for j in (i + 1)..response.len() {
                         if response[j] >= 32 && response[j] <= 126 {
@@ -442,9 +470,7 @@ pub fn parse_firmware_response(response: &[u8]) -> Result<FirmwareInfo, String> 
                         .trim()
                         .to_string();
 
-                    // We accept length >= 2 to catch "V2" which is what G6 reports
                     if !version.is_empty() && version.len() >= 2 {
-                        // Validate it looks somewhat like a version (has digits or 'V')
                         if version.contains(|c: char| c.is_numeric() || c == 'V' || c == 'v') {
                             return Ok(FirmwareInfo {
                                 version: version.clone(),

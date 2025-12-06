@@ -192,6 +192,51 @@ impl G6DeviceManager {
         result
     }
 
+    /// Send a single raw command and return the response (for Protocol V2 testing)
+    pub fn send_raw_command(&self, command: &[u8]) -> Result<Vec<u8>> {
+        self.command_active.store(true, Ordering::SeqCst);
+
+        let result = (|| -> Result<Vec<u8>> {
+            let device_guard = self.device.lock().unwrap();
+            let device = device_guard.as_ref().context("Device not connected")?;
+
+            // Log TX
+            let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
+            info!("\x1b[32m[TX-RAW] {}\x1b[0m", hex_str);
+
+            // Prepend report ID
+            let mut data_with_report_id = vec![0x00];
+            data_with_report_id.extend_from_slice(command);
+
+            // Send command
+            device
+                .write(&data_with_report_id)
+                .context("Failed to write raw command to device")?;
+
+            // Read response with timeout (100ms)
+            let mut buffer = vec![0u8; 512];
+            let bytes_read = device
+                .read_timeout(&mut buffer, 100)
+                .context("Failed to read raw response from device")?;
+
+            // Remove report ID if present
+            let response = if bytes_read > 0 && buffer[0] == 0x00 && bytes_read > 1 {
+                buffer[1..bytes_read].to_vec()
+            } else {
+                buffer[0..bytes_read].to_vec()
+            };
+
+            // Log RX
+            let rx_hex: String = response.iter().map(|b| format!("{:02x}", b)).collect();
+            info!("\x1b[33m[RX-RAW] {}\x1b[0m", rx_hex);
+
+            Ok(response)
+        })();
+
+        self.command_active.store(false, Ordering::SeqCst);
+        result
+    }
+
     /// Send read commands and collect responses with robust filtering
     fn send_read_commands(&self, commands: Vec<Vec<u8>>) -> Result<Vec<Vec<u8>>> {
         self.command_active.store(true, Ordering::SeqCst);
