@@ -86,29 +86,65 @@ fn get_device_settings(state: State<AppState>) -> Result<G6Settings, String> {
 }
 
 #[tauri::command]
-fn toggle_output(state: State<AppState>) -> Result<String, String> {
+fn toggle_output(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!("User initiated: Toggle Output");
+
     let manager = state.device_manager.lock().unwrap();
+    let current = manager.get_settings().output;
+
+    log_to_console(
+        &app,
+        "command",
+        format!("🔄 Toggle Output (V2 Protocol) from {:?}", current),
+        Some("Using 2-command sequence: routing + commit".to_string()),
+    );
 
     match manager.toggle_output() {
         Ok(_) => {
             let new_settings = manager.get_settings();
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Output toggled to {:?}", new_settings.output),
+                None,
+            );
             Ok(format!("Output toggled to {:?}", new_settings.output))
         }
-        Err(e) => Err(e.to_string()),
+        Err(e) => {
+            log_to_console(&app, "error", format!("❌ Toggle failed: {}", e), None);
+            Err(e.to_string())
+        }
     }
 }
 
 #[tauri::command]
-fn set_output(state: State<AppState>, output: OutputDevice) -> Result<String, String> {
+fn set_output(
+    app: AppHandle,
+    state: State<AppState>,
+    output: OutputDevice,
+) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!("User initiated: Set Output to {:?}", output);
+
+    log_to_console(
+        &app,
+        "command",
+        format!("📡 Set Output (V2 Protocol) to {:?}", output),
+        Some("Using 2-command sequence: routing + commit".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_output(output)
-        .map(|_| format!("Output set to {:?}", output))
-        .map_err(|e| e.to_string())
+    match manager.set_output(output) {
+        Ok(_) => {
+            log_to_console(&app, "info", format!("✅ Output set to {:?}", output), None);
+            Ok(format!("Output set to {:?}", output))
+        }
+        Err(e) => {
+            log_to_console(&app, "error", format!("❌ Set output failed: {}", e), None);
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -144,17 +180,41 @@ fn set_crystalizer(
 }
 
 #[tauri::command]
-fn set_bass(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+fn set_bass(
+    app: AppHandle,
+    state: State<AppState>,
+    enabled: EffectState,
+    value: u8,
+) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!(
         "User initiated: Set Bass to {:?} (Value: {})",
         enabled, value
     );
+
+    log_to_console(
+        &app,
+        "command",
+        format!("🎵 Set Bass (V2 Protocol): {:?}, Value: {}", enabled, value),
+        Some("Using DATA + COMMIT command sequence".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_bass(enabled, value)
-        .map(|_| format!("Bass set to {:?} with value {}", enabled, value))
-        .map_err(|e| e.to_string())
+    match manager.set_bass(enabled, value) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Bass set to {:?} with value {}", enabled, value),
+                None,
+            );
+            Ok(format!("Bass set to {:?} with value {}", enabled, value))
+        }
+        Err(e) => {
+            log_to_console(&app, "error", format!("❌ Set bass failed: {}", e), None);
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -194,25 +254,81 @@ fn set_dialog_plus(
 }
 
 #[tauri::command]
-fn set_sbx_mode(state: State<AppState>, enabled: EffectState) -> Result<String, String> {
+fn set_sbx_mode(
+    app: AppHandle,
+    state: State<AppState>,
+    enabled: EffectState,
+) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!("User initiated: Set SBX Mode to {:?}", enabled);
+
+    log_to_console(
+        &app,
+        "command",
+        format!("🎚️ Set SBX Mode (V2 Protocol): {:?}", enabled),
+        Some("Master audio effects switch - DATA + COMMIT".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_sbx_mode(enabled)
-        .map(|_| format!("SBX Mode set to {:?}", enabled))
-        .map_err(|e| e.to_string())
+    match manager.set_sbx_mode(enabled) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ SBX Mode set to {:?}", enabled),
+                None,
+            );
+            Ok(format!("SBX Mode set to {:?}", enabled))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set SBX mode failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
-fn set_scout_mode(state: State<AppState>, enabled: ScoutModeState) -> Result<String, String> {
+fn set_scout_mode(
+    app: AppHandle,
+    state: State<AppState>,
+    enabled: ScoutModeState,
+) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!("User initiated: Set Scout Mode to {:?}", enabled);
+
+    log_to_console(
+        &app,
+        "command",
+        format!("🎯 Set Scout Mode (V2 Protocol): {:?}", enabled),
+        Some("Gaming audio enhancement - DATA + COMMIT".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_scout_mode(enabled)
-        .map(|_| format!("Scout Mode set to {:?}", enabled))
-        .map_err(|e| e.to_string())
+    match manager.set_scout_mode(enabled) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Scout Mode set to {:?}", enabled),
+                None,
+            );
+            Ok(format!("Scout Mode set to {:?}", enabled))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set scout mode failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -261,6 +377,15 @@ fn clear_terminal(message: Option<String>) -> Result<String, String> {
     info!("============================================================");
 
     Ok("Log separator added".to_string())
+}
+
+// Protocol Console Helper
+fn log_to_console(app: &AppHandle, level: &str, text: String, details: Option<String>) {
+    let msg = ProtocolConsoleMessage::new(level, text, details);
+    PROTOCOL_CONSOLE.lock().unwrap().push(msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
 }
 
 // Protocol Console Commands
