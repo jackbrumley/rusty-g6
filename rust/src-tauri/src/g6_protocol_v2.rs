@@ -582,6 +582,43 @@ pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
 }
 
 // ============================================================================
+// WRITE COMMANDS - OUTPUT SWITCHING (Phase 4 - Simple Version)
+// ============================================================================
+
+/// Build command to set output device (routing command)
+/// Command format: 5a 2c 05 00 [OUTPUT_VALUE] 00 00...
+/// OUTPUT_VALUE: 0x02 = Speakers, 0x04 = Headphones
+pub fn build_set_output(device: OutputDevice) -> Vec<u8> {
+    let output_value = match device {
+        OutputDevice::Headphones => 0x04,
+        OutputDevice::Speakers => 0x02,
+    };
+
+    G6CommandBuilder::new(CommandFamily::Routing)
+        .operation(&[0x05, 0x00, output_value])
+        .build()
+}
+
+/// Build command to commit output change
+/// Command format: 5a 2c 01 01 00 00...
+pub fn build_commit_output() -> Vec<u8> {
+    G6CommandBuilder::new(CommandFamily::Routing)
+        .operation(&[0x01, 0x01])
+        .build()
+}
+
+/// Build toggle output command (2-command sequence)
+/// This is the minimal version - just routing + commit
+pub fn build_toggle_output_simple(current: OutputDevice) -> Vec<Vec<u8>> {
+    let target = match current {
+        OutputDevice::Headphones => OutputDevice::Speakers,
+        OutputDevice::Speakers => OutputDevice::Headphones,
+    };
+
+    vec![build_set_output(target), build_commit_output()]
+}
+
+// ============================================================================
 // TESTS
 // ============================================================================
 

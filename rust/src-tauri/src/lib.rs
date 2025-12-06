@@ -376,6 +376,120 @@ fn test_protocol_v2(app: AppHandle, state: State<AppState>) -> Result<String, St
     }
 }
 
+#[tauri::command]
+fn test_output_toggle_v2(app: AppHandle, state: State<AppState>) -> Result<String, String> {
+    use crate::g6_protocol_v2::build_toggle_output_simple;
+
+    let manager = state.device_manager.lock().unwrap();
+
+    if !manager.is_connected() {
+        return Err("Device not connected".to_string());
+    }
+
+    let current_output = manager.get_settings().output;
+
+    // Log start
+    let start_msg = ProtocolConsoleMessage::new(
+        "command",
+        format!("🔄 Testing V2 Output Toggle from {:?}", current_output),
+        Some("Simple 2-command version (routing + commit)".to_string()),
+    );
+    PROTOCOL_CONSOLE.lock().unwrap().push(start_msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &start_msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
+
+    // Build commands using V2
+    let commands = build_toggle_output_simple(current_output);
+
+    let info_msg = ProtocolConsoleMessage::new(
+        "info",
+        format!("Built {} commands (V2 minimal approach)", commands.len()),
+        None,
+    );
+    PROTOCOL_CONSOLE.lock().unwrap().push(info_msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &info_msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
+
+    // Send each command and log
+    for (i, cmd) in commands.iter().enumerate() {
+        let cmd_hex: String = cmd
+            .iter()
+            .take(20)
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let cmd_desc = if i == 0 {
+            "Step 1: Set output routing"
+        } else {
+            "Step 2: Commit change"
+        };
+
+        let cmd_msg = ProtocolConsoleMessage::new(
+            "command",
+            cmd_desc.to_string(),
+            Some(format!("Hex: {}", cmd_hex)),
+        );
+        PROTOCOL_CONSOLE.lock().unwrap().push(cmd_msg.clone());
+        if let Err(e) = app.emit("protocol-console-update", &cmd_msg) {
+            eprintln!("Failed to emit console update: {}", e);
+        }
+
+        // Send command
+        let response = match manager.send_raw_command(cmd) {
+            Ok(resp) => resp,
+            Err(e) => {
+                let err_msg = ProtocolConsoleMessage::new(
+                    "error",
+                    format!("❌ Step {} failed: {}", i + 1, e),
+                    None,
+                );
+                PROTOCOL_CONSOLE.lock().unwrap().push(err_msg.clone());
+                if let Err(e) = app.emit("protocol-console-update", &err_msg) {
+                    eprintln!("Failed to emit console update: {}", e);
+                }
+                return Err(format!("Failed at step {}: {}", i + 1, e));
+            }
+        };
+
+        // Log response
+        let resp_hex: String = response
+            .iter()
+            .take(20)
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let resp_msg = ProtocolConsoleMessage::new(
+            "response",
+            format!("Response {}/{}", i + 1, commands.len()),
+            Some(format!("Hex: {}", resp_hex)),
+        );
+        PROTOCOL_CONSOLE.lock().unwrap().push(resp_msg.clone());
+        if let Err(e) = app.emit("protocol-console-update", &resp_msg) {
+            eprintln!("Failed to emit console update: {}", e);
+        }
+    }
+
+    // Success message
+    let success_msg = ProtocolConsoleMessage::new(
+        "info",
+        "✅ V2 output toggle test complete!".to_string(),
+        Some("Check if output actually switched. Try Read State to verify.".to_string()),
+    );
+    PROTOCOL_CONSOLE.lock().unwrap().push(success_msg.clone());
+    if let Err(e) = app.emit("protocol-console-update", &success_msg) {
+        eprintln!("Failed to emit console update: {}", e);
+    }
+
+    Ok(format!(
+        "V2 toggle test sent ({} commands). Check Protocol Console for details.",
+        commands.len()
+    ))
+}
+
 fn create_tray_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -537,6 +651,7 @@ pub fn run() {
             get_protocol_console_messages,
             clear_protocol_console,
             test_protocol_v2,
+            test_output_toggle_v2,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

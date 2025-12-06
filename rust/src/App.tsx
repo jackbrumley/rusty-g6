@@ -188,6 +188,25 @@ function App() {
     }
   }
 
+  async function testOutputToggleV2() {
+    try {
+      const result = await invoke<string>("test_output_toggle_v2");
+      setToast({
+        message: "V2 output toggle test sent - check console for details!",
+        type: "success",
+      });
+      setTimeout(() => setToast(null), 3000);
+      // Refresh settings after toggle
+      await loadSettings();
+    } catch (error) {
+      setToast({
+        message: `V2 toggle test failed: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
+    }
+  }
+
   function copyConsoleToClipboard() {
     if (consoleMessages.length === 0) {
       setToast({
@@ -805,7 +824,14 @@ function App() {
                       onClick={testProtocolV2}
                       class="btn-compact btn-primary"
                     >
-                      Test Protocol V2
+                      Test Firmware V2
+                    </button>
+                    <button
+                      onClick={testOutputToggleV2}
+                      class="btn-compact btn-primary"
+                      title="Test output toggle using V2 protocol (2 commands)"
+                    >
+                      Test Toggle V2
                     </button>
                     <button
                       onClick={copyConsoleToClipboard}
