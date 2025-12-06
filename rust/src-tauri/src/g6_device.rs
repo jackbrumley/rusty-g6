@@ -452,14 +452,20 @@ impl G6DeviceManager {
     }
 
     /// Toggle output between speakers and headphones
+    /// Now using Protocol V2 (clean 2-command version)
     pub fn toggle_output(&self) -> Result<()> {
         let current = self.current_settings.lock().unwrap().output;
-        let commands = g6_protocol::build_output_toggle(current);
+
+        // Use V2 protocol - just 2 commands instead of 30!
+        let commands = crate::g6_protocol_v2::build_toggle_output_simple(current);
 
         self.send_commands(commands)?;
 
         // State will be updated by listener when device confirms
-        info!("Output toggle command sent (current: {:?})", current);
+        info!(
+            "Output toggle command sent using V2 (current: {:?})",
+            current
+        );
         Ok(())
     }
 
