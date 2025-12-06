@@ -584,34 +584,36 @@ impl G6DeviceManager {
     }
 
     /// Set SBX Master Mode
+    /// Now using Protocol V2
     pub fn set_sbx_mode(&self, enabled: EffectState) -> Result<()> {
-        let commands = match enabled {
-            EffectState::Enabled => g6_protocol::build_sbx_mode_enable(),
-            EffectState::Disabled => g6_protocol::build_sbx_mode_disable(),
-        };
+        let enabled_bool = matches!(enabled, EffectState::Enabled);
+
+        // Use V2 protocol - Gaming family (0x26)
+        let commands = crate::g6_protocol_v2::build_set_sbx_mode(enabled_bool);
 
         self.send_commands(commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.sbx_enabled = enabled;
 
-        info!("SBX Mode set to {:?}", enabled);
+        info!("SBX Mode set to {:?} using V2", enabled);
         Ok(())
     }
 
     /// Set Scout Mode
+    /// Now using Protocol V2
     pub fn set_scout_mode(&self, enabled: ScoutModeState) -> Result<()> {
-        let commands = match enabled {
-            ScoutModeState::Enabled => g6_protocol::build_scout_mode_enable(),
-            ScoutModeState::Disabled => g6_protocol::build_scout_mode_disable(),
-        };
+        let enabled_bool = matches!(enabled, ScoutModeState::Enabled);
+
+        // Use V2 protocol - Gaming family (0x26)
+        let commands = crate::g6_protocol_v2::build_set_scout_mode(enabled_bool);
 
         self.send_commands(commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.scout_mode = enabled;
 
-        info!("Scout Mode set to {:?}", enabled);
+        info!("Scout Mode set to {:?} using V2", enabled);
         Ok(())
     }
 

@@ -675,6 +675,7 @@ function App() {
                       value
                     )
                   }
+                  disabled={settings.sbx_enabled === "Disabled"}
                 />
 
                 <EffectControl
@@ -688,6 +689,7 @@ function App() {
                       value
                     )
                   }
+                  disabled={settings.sbx_enabled === "Disabled"}
                 />
 
                 <EffectControl
@@ -697,6 +699,7 @@ function App() {
                   onChange={(enabled, value) =>
                     setEffect("bass", enabled ? "Enabled" : "Disabled", value)
                   }
+                  disabled={settings.sbx_enabled === "Disabled"}
                 />
 
                 <EffectControl
@@ -710,6 +713,7 @@ function App() {
                       value
                     )
                   }
+                  disabled={settings.sbx_enabled === "Disabled"}
                 />
 
                 <EffectControl
@@ -723,6 +727,7 @@ function App() {
                       value
                     )
                   }
+                  disabled={settings.sbx_enabled === "Disabled"}
                 />
               </div>
             </section>
@@ -910,9 +915,16 @@ interface EffectControlProps {
   enabled: boolean;
   value: number;
   onChange: (enabled: boolean, value: number) => void;
+  disabled?: boolean;
 }
 
-function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
+function EffectControl({
+  name,
+  enabled,
+  value,
+  onChange,
+  disabled = false,
+}: EffectControlProps) {
   const [localValue, setLocalValue] = useState(value);
   const [localEnabled, setLocalEnabled] = useState(enabled);
 
@@ -943,10 +955,15 @@ function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
   };
 
   return (
-    <div class="effect-control compact">
+    <div class={`effect-control compact ${disabled ? "disabled" : ""}`}>
       <span class="effect-name">{name}</span>
       <label class="toggle-switch">
-        <input type="checkbox" checked={localEnabled} onChange={handleToggle} />
+        <input
+          type="checkbox"
+          checked={localEnabled}
+          onChange={handleToggle}
+          disabled={disabled}
+        />
         <span class="toggle-slider"></span>
       </label>
       <input
@@ -956,7 +973,7 @@ function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
         value={localValue}
         onInput={handleSliderInput}
         onChange={handleSliderChange}
-        disabled={!localEnabled}
+        disabled={!localEnabled || disabled}
         class="slider"
       />
       <span class="slider-value">{localValue}</span>

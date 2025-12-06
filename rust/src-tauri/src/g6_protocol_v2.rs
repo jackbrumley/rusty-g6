@@ -626,6 +626,10 @@ pub fn build_toggle_output_simple(current: OutputDevice) -> Vec<Vec<u8>> {
 const FEATURE_BASS_TOGGLE: u8 = 0x18;
 const FEATURE_BASS_VALUE: u8 = 0x19;
 
+// Gaming Mode Feature IDs (0x26 family)
+const FEATURE_SBX_MODE: u8 = 0x01;
+const FEATURE_SCOUT_MODE: u8 = 0x02;
+
 /// Build command to set bass toggle (on/off)
 /// Command format: DATA (0x12) + COMMIT (0x11)
 pub fn build_set_bass_toggle(enabled: bool) -> Vec<Vec<u8>> {
@@ -667,6 +671,44 @@ pub fn build_set_bass_value(value: u8) -> Vec<Vec<u8>> {
             .operation(&[0x03, 0x01]) // Commit operation
             .intermediate(IntermediateType::Audio)
             .feature(FEATURE_BASS_VALUE)
+            .build(),
+    ]
+}
+
+// ============================================================================
+// WRITE COMMANDS - GAMING MODES (Phase 7)
+// ============================================================================
+
+/// Build command to set SBX Mode (Master Switch)
+/// Command format: DATA (0x26 05 07) + COMMIT (0x26 03 08)
+pub fn build_set_sbx_mode(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 0x01 } else { 0x00 };
+
+    vec![
+        // DATA command - 5a 26 05 07 01 00 [VALUE] 00 00...
+        G6CommandBuilder::new(CommandFamily::Gaming)
+            .operation(&[0x05, 0x07, FEATURE_SBX_MODE, 0x00, value, 0x00, 0x00])
+            .build(),
+        // COMMIT command - 5a 26 03 08 ff ff 00 00 00...
+        G6CommandBuilder::new(CommandFamily::Gaming)
+            .operation(&[0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00])
+            .build(),
+    ]
+}
+
+/// Build command to set Scout Mode
+/// Command format: DATA (0x26 05 07) + COMMIT (0x26 03 08)
+pub fn build_set_scout_mode(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 0x01 } else { 0x00 };
+
+    vec![
+        // DATA command - 5a 26 05 07 02 00 [VALUE] 00 00...
+        G6CommandBuilder::new(CommandFamily::Gaming)
+            .operation(&[0x05, 0x07, FEATURE_SCOUT_MODE, 0x00, value, 0x00, 0x00])
+            .build(),
+        // COMMIT command - 5a 26 03 08 ff ff 00 00 00...
+        G6CommandBuilder::new(CommandFamily::Gaming)
+            .operation(&[0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00])
             .build(),
     ]
 }
