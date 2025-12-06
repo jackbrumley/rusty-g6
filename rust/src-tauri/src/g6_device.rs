@@ -486,40 +486,52 @@ impl G6DeviceManager {
     }
 
     /// Set surround sound
+    /// Now using Protocol V2
     pub fn set_surround(&self, enabled: EffectState, value: u8) -> Result<()> {
         validate_effect_value(value)?;
 
         let enabled_bool = matches!(enabled, EffectState::Enabled);
-        let toggle_commands = g6_protocol::build_surround_toggle(enabled_bool);
-        let slider_commands = g6_protocol::build_surround_slider(value);
+
+        // Use V2 protocol - cleaner command builders
+        let toggle_commands = crate::g6_protocol_v2::build_set_surround_toggle(enabled_bool);
+        let value_commands = crate::g6_protocol_v2::build_set_surround_value(value);
 
         self.send_commands(toggle_commands)?;
-        self.send_commands(slider_commands)?;
+        self.send_commands(value_commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.surround_enabled = enabled;
         settings.surround_value = value;
 
-        info!("Surround set to {:?} with value {}", enabled, value);
+        info!(
+            "Surround set to {:?} with value {} using V2",
+            enabled, value
+        );
         Ok(())
     }
 
     /// Set crystalizer
+    /// Now using Protocol V2
     pub fn set_crystalizer(&self, enabled: EffectState, value: u8) -> Result<()> {
         validate_effect_value(value)?;
 
         let enabled_bool = matches!(enabled, EffectState::Enabled);
-        let toggle_commands = g6_protocol::build_crystalizer_toggle(enabled_bool);
-        let slider_commands = g6_protocol::build_crystalizer_slider(value);
+
+        // Use V2 protocol - cleaner command builders
+        let toggle_commands = crate::g6_protocol_v2::build_set_crystalizer_toggle(enabled_bool);
+        let value_commands = crate::g6_protocol_v2::build_set_crystalizer_value(value);
 
         self.send_commands(toggle_commands)?;
-        self.send_commands(slider_commands)?;
+        self.send_commands(value_commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.crystalizer_enabled = enabled;
         settings.crystalizer_value = value;
 
-        info!("Crystalizer set to {:?} with value {}", enabled, value);
+        info!(
+            "Crystalizer set to {:?} with value {} using V2",
+            enabled, value
+        );
         Ok(())
     }
 
@@ -546,40 +558,52 @@ impl G6DeviceManager {
     }
 
     /// Set smart volume
+    /// Now using Protocol V2
     pub fn set_smart_volume(&self, enabled: EffectState, value: u8) -> Result<()> {
         validate_effect_value(value)?;
 
         let enabled_bool = matches!(enabled, EffectState::Enabled);
-        let toggle_commands = g6_protocol::build_smart_volume_toggle(enabled_bool);
-        let slider_commands = g6_protocol::build_smart_volume_slider(value);
+
+        // Use V2 protocol - cleaner command builders
+        let toggle_commands = crate::g6_protocol_v2::build_set_smart_volume_toggle(enabled_bool);
+        let value_commands = crate::g6_protocol_v2::build_set_smart_volume_value(value);
 
         self.send_commands(toggle_commands)?;
-        self.send_commands(slider_commands)?;
+        self.send_commands(value_commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.smart_volume_enabled = enabled;
         settings.smart_volume_value = value;
 
-        info!("Smart Volume set to {:?} with value {}", enabled, value);
+        info!(
+            "Smart Volume set to {:?} with value {} using V2",
+            enabled, value
+        );
         Ok(())
     }
 
     /// Set dialog plus
+    /// Now using Protocol V2
     pub fn set_dialog_plus(&self, enabled: EffectState, value: u8) -> Result<()> {
         validate_effect_value(value)?;
 
         let enabled_bool = matches!(enabled, EffectState::Enabled);
-        let toggle_commands = g6_protocol::build_dialog_plus_toggle(enabled_bool);
-        let slider_commands = g6_protocol::build_dialog_plus_slider(value);
+
+        // Use V2 protocol - cleaner command builders
+        let toggle_commands = crate::g6_protocol_v2::build_set_dialog_plus_toggle(enabled_bool);
+        let value_commands = crate::g6_protocol_v2::build_set_dialog_plus_value(value);
 
         self.send_commands(toggle_commands)?;
-        self.send_commands(slider_commands)?;
+        self.send_commands(value_commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.dialog_plus_enabled = enabled;
         settings.dialog_plus_value = value;
 
-        info!("Dialog Plus set to {:?} with value {}", enabled, value);
+        info!(
+            "Dialog Plus set to {:?} with value {} using V2",
+            enabled, value
+        );
         Ok(())
     }
 

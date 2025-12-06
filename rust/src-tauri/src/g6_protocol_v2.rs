@@ -622,7 +622,15 @@ pub fn build_toggle_output_simple(current: OutputDevice) -> Vec<Vec<u8>> {
 // WRITE COMMANDS - AUDIO EFFECTS (Phase 6)
 // ============================================================================
 
-// Bass Effect Feature IDs
+// Audio Effect Feature IDs
+const FEATURE_SURROUND_TOGGLE: u8 = 0x00;
+const FEATURE_SURROUND_VALUE: u8 = 0x01;
+const FEATURE_DIALOG_PLUS_TOGGLE: u8 = 0x02;
+const FEATURE_DIALOG_PLUS_VALUE: u8 = 0x03;
+const FEATURE_SMART_VOLUME_TOGGLE: u8 = 0x04;
+const FEATURE_SMART_VOLUME_VALUE: u8 = 0x05;
+const FEATURE_CRYSTALIZER_TOGGLE: u8 = 0x07;
+const FEATURE_CRYSTALIZER_VALUE: u8 = 0x08;
 const FEATURE_BASS_TOGGLE: u8 = 0x18;
 const FEATURE_BASS_VALUE: u8 = 0x19;
 
@@ -671,6 +679,166 @@ pub fn build_set_bass_value(value: u8) -> Vec<Vec<u8>> {
             .operation(&[0x03, 0x01]) // Commit operation
             .intermediate(IntermediateType::Audio)
             .feature(FEATURE_BASS_VALUE)
+            .build(),
+    ]
+}
+
+/// Build command to set surround toggle (on/off)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_surround_toggle(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 1.0f32 } else { 0.0f32 };
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SURROUND_TOGGLE)
+            .float_value(value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SURROUND_TOGGLE)
+            .build(),
+    ]
+}
+
+/// Build command to set surround value (0-100)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_surround_value(value: u8) -> Vec<Vec<u8>> {
+    let float_value = (value as f32) / 100.0;
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SURROUND_VALUE)
+            .float_value(float_value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SURROUND_VALUE)
+            .build(),
+    ]
+}
+
+/// Build command to set crystalizer toggle (on/off)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_crystalizer_toggle(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 1.0f32 } else { 0.0f32 };
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_CRYSTALIZER_TOGGLE)
+            .float_value(value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_CRYSTALIZER_TOGGLE)
+            .build(),
+    ]
+}
+
+/// Build command to set crystalizer value (0-100)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_crystalizer_value(value: u8) -> Vec<Vec<u8>> {
+    let float_value = (value as f32) / 100.0;
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_CRYSTALIZER_VALUE)
+            .float_value(float_value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_CRYSTALIZER_VALUE)
+            .build(),
+    ]
+}
+
+/// Build command to set smart volume toggle (on/off)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_smart_volume_toggle(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 1.0f32 } else { 0.0f32 };
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SMART_VOLUME_TOGGLE)
+            .float_value(value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SMART_VOLUME_TOGGLE)
+            .build(),
+    ]
+}
+
+/// Build command to set smart volume value (0-100)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_smart_volume_value(value: u8) -> Vec<Vec<u8>> {
+    let float_value = (value as f32) / 100.0;
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SMART_VOLUME_VALUE)
+            .float_value(float_value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_SMART_VOLUME_VALUE)
+            .build(),
+    ]
+}
+
+/// Build command to set dialog plus toggle (on/off)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_dialog_plus_toggle(enabled: bool) -> Vec<Vec<u8>> {
+    let value = if enabled { 1.0f32 } else { 0.0f32 };
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_DIALOG_PLUS_TOGGLE)
+            .float_value(value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_DIALOG_PLUS_TOGGLE)
+            .build(),
+    ]
+}
+
+/// Build command to set dialog plus value (0-100)
+/// Command format: DATA (0x12) + COMMIT (0x11)
+pub fn build_set_dialog_plus_value(value: u8) -> Vec<Vec<u8>> {
+    let float_value = (value as f32) / 100.0;
+
+    vec![
+        G6CommandBuilder::new(CommandFamily::DataControl)
+            .operation(&[0x07, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_DIALOG_PLUS_VALUE)
+            .float_value(float_value)
+            .build(),
+        G6CommandBuilder::new(CommandFamily::AudioControl)
+            .operation(&[0x03, 0x01])
+            .intermediate(IntermediateType::Audio)
+            .feature(FEATURE_DIALOG_PLUS_VALUE)
             .build(),
     ]
 }

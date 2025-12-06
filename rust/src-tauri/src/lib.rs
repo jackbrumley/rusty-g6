@@ -148,21 +148,57 @@ fn set_output(
 }
 
 #[tauri::command]
-fn set_surround(state: State<AppState>, enabled: EffectState, value: u8) -> Result<String, String> {
+fn set_surround(
+    app: AppHandle,
+    state: State<AppState>,
+    enabled: EffectState,
+    value: u8,
+) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!(
         "User initiated: Set Surround to {:?} (Value: {})",
         enabled, value
     );
+
+    log_to_console(
+        &app,
+        "command",
+        format!(
+            "🔊 Set Surround (V2 Protocol): {:?}, Value: {}",
+            enabled, value
+        ),
+        Some("Using DATA + COMMIT command sequence".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_surround(enabled, value)
-        .map(|_| format!("Surround set to {:?} with value {}", enabled, value))
-        .map_err(|e| e.to_string())
+    match manager.set_surround(enabled, value) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Surround set to {:?} with value {}", enabled, value),
+                None,
+            );
+            Ok(format!(
+                "Surround set to {:?} with value {}",
+                enabled, value
+            ))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set surround failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
 fn set_crystalizer(
+    app: AppHandle,
     state: State<AppState>,
     enabled: EffectState,
     value: u8,
@@ -172,11 +208,41 @@ fn set_crystalizer(
         "User initiated: Set Crystalizer to {:?} (Value: {})",
         enabled, value
     );
+
+    log_to_console(
+        &app,
+        "command",
+        format!(
+            "💎 Set Crystalizer (V2 Protocol): {:?}, Value: {}",
+            enabled, value
+        ),
+        Some("Using DATA + COMMIT command sequence".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_crystalizer(enabled, value)
-        .map(|_| format!("Crystalizer set to {:?} with value {}", enabled, value))
-        .map_err(|e| e.to_string())
+    match manager.set_crystalizer(enabled, value) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Crystalizer set to {:?} with value {}", enabled, value),
+                None,
+            );
+            Ok(format!(
+                "Crystalizer set to {:?} with value {}",
+                enabled, value
+            ))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set crystalizer failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -219,6 +285,7 @@ fn set_bass(
 
 #[tauri::command]
 fn set_smart_volume(
+    app: AppHandle,
     state: State<AppState>,
     enabled: EffectState,
     value: u8,
@@ -228,15 +295,46 @@ fn set_smart_volume(
         "User initiated: Set Smart Volume to {:?} (Value: {})",
         enabled, value
     );
+
+    log_to_console(
+        &app,
+        "command",
+        format!(
+            "🔉 Set Smart Volume (V2 Protocol): {:?}, Value: {}",
+            enabled, value
+        ),
+        Some("Using DATA + COMMIT command sequence".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_smart_volume(enabled, value)
-        .map(|_| format!("Smart Volume set to {:?} with value {}", enabled, value))
-        .map_err(|e| e.to_string())
+    match manager.set_smart_volume(enabled, value) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Smart Volume set to {:?} with value {}", enabled, value),
+                None,
+            );
+            Ok(format!(
+                "Smart Volume set to {:?} with value {}",
+                enabled, value
+            ))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set smart volume failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
 fn set_dialog_plus(
+    app: AppHandle,
     state: State<AppState>,
     enabled: EffectState,
     value: u8,
@@ -246,11 +344,41 @@ fn set_dialog_plus(
         "User initiated: Set Dialog Plus to {:?} (Value: {})",
         enabled, value
     );
+
+    log_to_console(
+        &app,
+        "command",
+        format!(
+            "🗣️ Set Dialog Plus (V2 Protocol): {:?}, Value: {}",
+            enabled, value
+        ),
+        Some("Using DATA + COMMIT command sequence".to_string()),
+    );
+
     let manager = state.device_manager.lock().unwrap();
-    manager
-        .set_dialog_plus(enabled, value)
-        .map(|_| format!("Dialog Plus set to {:?} with value {}", enabled, value))
-        .map_err(|e| e.to_string())
+    match manager.set_dialog_plus(enabled, value) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Dialog Plus set to {:?} with value {}", enabled, value),
+                None,
+            );
+            Ok(format!(
+                "Dialog Plus set to {:?} with value {}",
+                enabled, value
+            ))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set dialog plus failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
