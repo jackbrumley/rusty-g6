@@ -71,13 +71,6 @@ interface ToastMessage {
   type: "success" | "error" | "info";
 }
 
-interface ProtocolConsoleMessage {
-  timestamp: number;
-  level: string;
-  text: string;
-  details: string | null;
-}
-
 function App() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
@@ -86,13 +79,6 @@ function App() {
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
-
-  // Protocol Console state
-  const [consoleMessages, setConsoleMessages] = useState<
-    ProtocolConsoleMessage[]
-  >([]);
-  const [consoleAutoScroll, setConsoleAutoScroll] = useState(true);
-  const consoleEndRef = useRef<HTMLDivElement>(null);
 
   // Use ref to control polling logic if needed (mostly replaced by events now)
   const pollEnabledRef = useRef(false);
@@ -127,125 +113,6 @@ function App() {
   useEffect(() => {
     pollEnabledRef.current = connected;
   }, [connected]);
-
-  // Protocol Console: Load messages and listen for updates
-  useEffect(() => {
-    loadConsoleMessages();
-
-    const unlistenPromise = listen<ProtocolConsoleMessage>(
-      "protocol-console-update",
-      (event) => {
-        setConsoleMessages((prev) => [...prev, event.payload]);
-      }
-    );
-
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, []);
-
-  // Auto-scroll console
-  useEffect(() => {
-    if (consoleAutoScroll && consoleEndRef.current) {
-      consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [consoleMessages, consoleAutoScroll]);
-
-  async function loadConsoleMessages() {
-    try {
-      const messages = await invoke<ProtocolConsoleMessage[]>(
-        "get_protocol_console_messages"
-      );
-      setConsoleMessages(messages);
-    } catch (error) {
-      console.error("Failed to load console messages:", error);
-    }
-  }
-
-  async function clearConsole() {
-    try {
-      await invoke("clear_protocol_console");
-      setConsoleMessages([]);
-    } catch (error) {
-      console.error("Failed to clear console:", error);
-    }
-  }
-
-  async function testProtocolV2() {
-    try {
-      const result = await invoke<string>("test_protocol_v2");
-      setToast({
-        message: "Protocol V2 test completed - check console below!",
-        type: "success",
-      });
-      setTimeout(() => setToast(null), 3000);
-    } catch (error) {
-      setToast({
-        message: `Protocol V2 test failed: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
-    }
-  }
-
-  async function testOutputToggleV2() {
-    try {
-      const result = await invoke<string>("test_output_toggle_v2");
-      setToast({
-        message: "V2 output toggle test sent - check console for details!",
-        type: "success",
-      });
-      setTimeout(() => setToast(null), 3000);
-      // Refresh settings after toggle
-      await loadSettings();
-    } catch (error) {
-      setToast({
-        message: `V2 toggle test failed: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
-    }
-  }
-
-  function copyConsoleToClipboard() {
-    if (consoleMessages.length === 0) {
-      setToast({
-        message: "Console is empty - nothing to copy",
-        type: "info",
-      });
-      setTimeout(() => setToast(null), 2000);
-      return;
-    }
-
-    const text = consoleMessages
-      .map((msg) => {
-        const timestamp = new Date(msg.timestamp * 1000).toLocaleTimeString();
-        const header = `[${timestamp}] [${msg.level}] ${msg.text}`;
-        if (msg.details) {
-          return `${header}\nDetails:\n${msg.details}\n`;
-        }
-        return header;
-      })
-      .join("\n");
-
-    navigator.clipboard.writeText(text).then(
-      () => {
-        setToast({
-          message: `Copied ${consoleMessages.length} messages to clipboard!`,
-          type: "success",
-        });
-        setTimeout(() => setToast(null), 2000);
-      },
-      (err) => {
-        console.error("Failed to copy to clipboard:", err);
-        setToast({
-          message: "Failed to copy to clipboard",
-          type: "error",
-        });
-        setTimeout(() => setToast(null), 3000);
-      }
-    );
-  }
 
   async function loadVersion() {
     try {
@@ -356,7 +223,8 @@ function App() {
       console.log("Connection result:", result);
       setConnected(true);
       setStatus("Connected");
-      await loadSettings();
+      // Read full device state on connect (includes firmware, equalizer, etc.)
+      await readDeviceState();
     } catch (error) {
       console.error("Connection failed:", error);
       setStatus(`Connection failed: ${error}`);
@@ -623,44 +491,42 @@ function App() {
               <div class="effects-list">
                 <h3>Audio Effects</h3>
 
-                <div class="effect-group-row">
-                  <div class="effect-control compact main-switch">
-                    <span class="effect-name">SBX Mode</span>
-                    <label class="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={settings.sbx_enabled === "Enabled"}
-                        onChange={(e) =>
-                          setSbxMode(
-                            e.currentTarget.checked ? "Enabled" : "Disabled"
-                          )
-                        }
-                      />
-                      <span class="toggle-slider"></span>
-                    </label>
-                    <span class="slider-value">
-                      {settings.sbx_enabled === "Enabled" ? "On" : "Off"}
-                    </span>
-                  </div>
+                <div class="effect-control compact main-switch">
+                  <span class="effect-name">Scout Mode</span>
+                  <label class="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={settings.scout_mode === "Enabled"}
+                      onChange={(e) =>
+                        setScoutMode(
+                          e.currentTarget.checked ? "Enabled" : "Disabled"
+                        )
+                      }
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="slider-value">
+                    {settings.scout_mode === "Enabled" ? "On" : "Off"}
+                  </span>
+                </div>
 
-                  <div class="effect-control compact main-switch">
-                    <span class="effect-name">Scout Mode</span>
-                    <label class="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={settings.scout_mode === "Enabled"}
-                        onChange={(e) =>
-                          setScoutMode(
-                            e.currentTarget.checked ? "Enabled" : "Disabled"
-                          )
-                        }
-                      />
-                      <span class="toggle-slider"></span>
-                    </label>
-                    <span class="slider-value">
-                      {settings.scout_mode === "Enabled" ? "On" : "Off"}
-                    </span>
-                  </div>
+                <div class="effect-control compact main-switch">
+                  <span class="effect-name">SBX Mode</span>
+                  <label class="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={settings.sbx_enabled === "Enabled"}
+                      onChange={(e) =>
+                        setSbxMode(
+                          e.currentTarget.checked ? "Enabled" : "Disabled"
+                        )
+                      }
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="slider-value">
+                    {settings.sbx_enabled === "Enabled" ? "On" : "Off"}
+                  </span>
                 </div>
 
                 <EffectControl
@@ -746,20 +612,19 @@ function App() {
                 </button>
               </div>
 
-              {/* Device Information */}
-              {(settings.firmware_info ||
-                settings.equalizer ||
-                settings.extended_params) && (
-                <div class="device-details">
-                  {settings.firmware_info && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Firmware:</span>
-                      <span class="readonly-value">
-                        {settings.firmware_info.version}
-                      </span>
-                    </div>
-                  )}
+              {/* Firmware Version - ALWAYS VISIBLE */}
+              <div class="read-only-item">
+                <span class="readonly-label">Firmware:</span>
+                <span class="readonly-value">
+                  {settings.firmware_info
+                    ? settings.firmware_info.version
+                    : "Unknown"}
+                </span>
+              </div>
 
+              {/* Device Information */}
+              {(settings.equalizer || settings.extended_params) && (
+                <div class="device-details">
                   {settings.equalizer && (
                     <div class="read-only-item">
                       <span class="readonly-label">Equalizer:</span>
@@ -817,77 +682,6 @@ function App() {
                 >
                   Add Log Separator
                 </button>
-              </div>
-
-              {/* Protocol Console */}
-              <div class="protocol-console-wrapper">
-                <div class="console-header">
-                  <h4>Protocol Console (V2 Debug)</h4>
-                  <div class="console-controls">
-                    <button
-                      onClick={testProtocolV2}
-                      class="btn-compact btn-primary"
-                    >
-                      Test Firmware V2
-                    </button>
-                    <button
-                      onClick={testOutputToggleV2}
-                      class="btn-compact btn-primary"
-                      title="Test output toggle using V2 protocol (2 commands)"
-                    >
-                      Test Toggle V2
-                    </button>
-                    <button
-                      onClick={copyConsoleToClipboard}
-                      class="btn-compact"
-                      title="Copy all console messages to clipboard"
-                    >
-                      📋 Copy
-                    </button>
-                    <button onClick={clearConsole} class="btn-compact">
-                      Clear
-                    </button>
-                    <label class="console-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={consoleAutoScroll}
-                        onChange={(e) =>
-                          setConsoleAutoScroll(e.currentTarget.checked)
-                        }
-                      />
-                      <span>Auto-scroll</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div class="protocol-console">
-                  {consoleMessages.length === 0 ? (
-                    <div class="console-empty">
-                      No messages yet. Click "Test Protocol V2" to generate test
-                      commands.
-                    </div>
-                  ) : (
-                    consoleMessages.map((msg, i) => (
-                      <div
-                        key={i}
-                        class={`console-message console-${msg.level}`}
-                      >
-                        <span class="console-timestamp">
-                          {new Date(msg.timestamp * 1000).toLocaleTimeString()}
-                        </span>
-                        <span class="console-level">[{msg.level}]</span>
-                        <span class="console-text">{msg.text}</span>
-                        {msg.details && (
-                          <details class="console-details">
-                            <summary>Show details</summary>
-                            <pre>{msg.details}</pre>
-                          </details>
-                        )}
-                      </div>
-                    ))
-                  )}
-                  <div ref={consoleEndRef} />
-                </div>
               </div>
             </section>
           </>

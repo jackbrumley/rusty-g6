@@ -1,6 +1,6 @@
-use crate::g6_protocol;
 /// SoundBlaster X G6 USB Device Communication
 /// Handles USB HID communication with the G6 device
+use crate::g6_protocol_v2;
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use hidapi::{HidApi, HidDevice};
@@ -146,7 +146,7 @@ impl G6DeviceManager {
             for (_i, command) in commands.iter().enumerate() {
                 // Helper logging
                 let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
-                let desc = g6_protocol::describe_packet(command);
+                let desc = g6_protocol_v2::describe_packet(command);
 
                 // Color Scheme: Green for TX
                 info!("\x1b[32m[TX] {}\x1b[0m | \x1b[35m{}\x1b[0m", hex_str, desc);
@@ -174,7 +174,7 @@ impl G6DeviceManager {
                         if response.len() >= 2 && response[0] == 0x5a {
                             let rx_hex: String =
                                 response.iter().map(|b| format!("{:02x}", b)).collect();
-                            let rx_desc = g6_protocol::describe_packet(&response);
+                            let rx_desc = g6_protocol_v2::describe_packet(&response);
                             info!(
                                 "\x1b[33m[RX-ACK] {}\x1b[0m | \x1b[35m{}\x1b[0m",
                                 rx_hex, rx_desc
@@ -256,7 +256,7 @@ impl G6DeviceManager {
 
                 // Log TX
                 let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
-                let desc = g6_protocol::describe_packet(command);
+                let desc = g6_protocol_v2::describe_packet(command);
                 info!(
                     "\x1b[32m[TX-READ] {}\x1b[0m | \x1b[35m{}\x1b[0m",
                     hex_str, desc
@@ -293,7 +293,7 @@ impl G6DeviceManager {
                             // Log RX
                             let rx_hex: String =
                                 response.iter().map(|b| format!("{:02x}", b)).collect();
-                            let rx_desc = g6_protocol::describe_packet(&response);
+                            let rx_desc = g6_protocol_v2::describe_packet(&response);
                             info!(
                                 "\x1b[33m[RX-READ] {}\x1b[0m | \x1b[35m{}\x1b[0m",
                                 rx_hex, rx_desc
@@ -370,7 +370,7 @@ impl G6DeviceManager {
                             // Log all incoming events
                             let hex_str: String =
                                 packet.iter().map(|b| format!("{:02x}", b)).collect();
-                            let desc = g6_protocol::describe_packet(packet);
+                            let desc = g6_protocol_v2::describe_packet(packet);
 
                             // Color Scheme: Yellow for RX
                             info!("\x1b[33m[RX] {}\x1b[0m | \x1b[35m{}\x1b[0m", hex_str, desc);
@@ -441,6 +441,18 @@ impl G6DeviceManager {
                                         }
                                         DeviceEvent::DialogPlusValueChanged(value) => {
                                             settings.dialog_plus_value = *value;
+                                            info!("Detected {:?}", event);
+                                        }
+
+                                        // Digital filter
+                                        DeviceEvent::DigitalFilterChanged(filter) => {
+                                            settings.digital_filter = Some(*filter);
+                                            info!("Detected {:?}", event);
+                                        }
+
+                                        // Audio config
+                                        DeviceEvent::AudioConfigChanged(config) => {
+                                            settings.audio_config = Some(*config);
                                             info!("Detected {:?}", event);
                                         }
                                     }
@@ -657,6 +669,7 @@ impl G6DeviceManager {
     }
 
     /// Read current device state from hardware
+    /// Sends read commands and relies on event listener to parse responses
     pub fn read_device_state(&self) -> Result<G6Settings> {
         if !self.is_connected() {
             return Err(anyhow::anyhow!("Device not connected"));
@@ -664,35 +677,30 @@ impl G6DeviceManager {
 
         info!("Reading complete device state from G6...");
 
-        // Build all read commands
-        let commands = g6_protocol::build_read_all_state_commands();
+        // Build all read commands using V2 protocol
+        let commands = crate::g6_protocol_v2::build_read_all_state_commands();
 
-        // Send commands and collect responses
+        // Send commands - responses will be parsed
         let responses = self.send_read_commands(commands)?;
 
-        // Parse responses into device settings
-        let mut settings = g6_protocol::parse_device_state_responses(&responses)
-            .map_err(|e| anyhow::anyhow!("Failed to parse device state: {}", e))?;
+        info!("Read state commands sent - event listener will process responses");
 
-        // Preserve SBX Mode state since we can't read it yet
-        // This prevents "Read State" from accidentally disabling SBX in the UI
-        let current_sbx = self.current_settings.lock().unwrap().sbx_enabled;
-        settings.sbx_enabled = current_sbx;
+        // Parse firmware response (first command is firmware query)
+        if !responses.is_empty() && responses[0].len() >= 3 {
+            use crate::g6_protocol_v2::{G6ResponseParser, ParsedResponse};
+            let (result, _debug) = G6ResponseParser::parse(&responses[0]);
+            if let Ok(ParsedResponse::FirmwareInfo(info)) = result {
+                let mut settings = self.current_settings.lock().unwrap();
+                settings.firmware_info = Some(info);
+                info!(
+                    "Firmware info populated: {}",
+                    settings.firmware_info.as_ref().unwrap().version
+                );
+            }
+        }
 
-        // Preserve Scout Mode state
-        let current_scout = self.current_settings.lock().unwrap().scout_mode;
-        settings.scout_mode = current_scout;
-
-        info!(
-            "Device state read successfully: {} effects, firmware: {:?}",
-            responses.len(),
-            settings.firmware_info.as_ref().map(|f| &f.version)
-        );
-
-        // Update our internal state
-        *self.current_settings.lock().unwrap() = settings.clone();
-
-        Ok(settings)
+        // Return current state (will be updated by event listener as responses arrive)
+        Ok(self.get_settings())
     }
 
     /// Synchronize with device state on startup

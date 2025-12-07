@@ -35,6 +35,21 @@ pub enum ScoutModeState {
     Disabled,
 }
 
+/// Digital Filter Types (DAC filter characteristics)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum DigitalFilter {
+    FastRollOffMinimumPhase, // 0x01
+    SlowRollOffMinimumPhase, // 0x02
+    FastRollOffLinearPhase,  // 0x04
+    SlowRollOffLinearPhase,  // 0x05
+}
+
+/// Audio Configuration (0x3c family - purpose unclear, may be Windows notification)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum AudioConfig {
+    Unknown(u8), // Placeholder until we understand the meaning
+}
+
 /// Device firmware information (read-only)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FirmwareInfo {
@@ -101,6 +116,12 @@ pub struct G6Settings {
     // Global SBX processing switch
     pub sbx_enabled: EffectState,
 
+    // Digital filter setting
+    pub digital_filter: Option<DigitalFilter>,
+
+    // Audio configuration (0x3c family)
+    pub audio_config: Option<AudioConfig>,
+
     // Read-only device information
     pub firmware_info: Option<FirmwareInfo>,
     pub scout_mode: ScoutModeState,
@@ -128,6 +149,8 @@ impl Default for G6Settings {
             dialog_plus_enabled: EffectState::Disabled,
             dialog_plus_value: 50,
             sbx_enabled: EffectState::Disabled,
+            digital_filter: None,
+            audio_config: None,
             firmware_info: None,
             scout_mode: ScoutModeState::Disabled,
             equalizer: None,

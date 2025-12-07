@@ -28,6 +28,8 @@ pub enum CommandFamily {
     Routing = 0x2c,        // Output switching
     DeviceConfig = 0x30,   // General device settings
     SystemConfig = 0x3a,   // LEDs, system parameters
+    AudioConfig = 0x3c,    // Audio configuration (purpose unclear, may be Windows notification)
+    DigitalFilter = 0x6c,  // DAC digital filter settings
 }
 
 impl CommandFamily {
@@ -109,6 +111,12 @@ pub enum DeviceEvent {
     BassValueChanged(u8),
     SmartVolumeValueChanged(u8),
     DialogPlusValueChanged(u8),
+
+    // Digital filter
+    DigitalFilterChanged(crate::g6_spec::DigitalFilter),
+
+    // Audio config (0x3c - purpose unclear)
+    AudioConfigChanged(crate::g6_spec::AudioConfig),
 }
 
 // ============================================================================
@@ -134,6 +142,14 @@ impl G6EventParser {
 
         events.extend(Self::parse_gaming_mode_events(packet));
         events.extend(Self::parse_audio_effect_events(packet));
+
+        if let Some(event) = Self::parse_digital_filter_event(packet) {
+            events.push(event);
+        }
+
+        if let Some(event) = Self::parse_audio_config_event(packet) {
+            events.push(event);
+        }
 
         events
     }
@@ -166,17 +182,29 @@ impl G6EventParser {
 
         // Check if this is a REPORT (0x0b) - different format than COMMAND (0x05)
         // Report format: 5a 26 0b 08 ff ff [VALUE] 00 00...
-        // Value at index [6]: 0x01 = Enabled, 0x00 = Disabled
+        // Value at index [6] encodes BOTH SBX and Scout Mode:
+        //   0x00 = Both OFF
+        //   0x01 = SBX ON, Scout OFF
+        //   0x02 = SBX OFF, Scout ON
+        //   0x03 = Both ON
         if packet[2] == 0x0b && packet.len() >= 7 {
-            match packet[6] {
-                0x01 => {
-                    events.push(DeviceEvent::SbxModeChanged(EffectState::Enabled));
-                }
-                0x00 => {
-                    events.push(DeviceEvent::SbxModeChanged(EffectState::Disabled));
-                }
-                _ => {}
-            }
+            let mode_value = packet[6];
+
+            // Extract SBX state (bit 0)
+            let sbx_enabled = (mode_value & 0x01) != 0;
+            events.push(DeviceEvent::SbxModeChanged(if sbx_enabled {
+                EffectState::Enabled
+            } else {
+                EffectState::Disabled
+            }));
+
+            // Extract Scout state (bit 1)
+            let scout_enabled = (mode_value & 0x02) != 0;
+            events.push(DeviceEvent::ScoutModeChanged(if scout_enabled {
+                crate::g6_spec::ScoutModeState::Enabled
+            } else {
+                crate::g6_spec::ScoutModeState::Disabled
+            }));
         } else {
             // Command format: 5a 26 05 07 [FEATURE] 00 [VALUE] 00 00...
             // Search for feature IDs + values
@@ -255,6 +283,48 @@ impl G6EventParser {
         }
 
         events
+    }
+
+    /// Parse digital filter event (0x6c family)
+    /// Format: 5a 6c 03 01 [FILTER_VALUE] 00 00...
+    fn parse_digital_filter_event(packet: &[u8]) -> Option<DeviceEvent> {
+        if packet.len() < 5 || packet[1] != 0x6c || packet[2] != 0x03 {
+            return None;
+        }
+
+        use crate::g6_spec::DigitalFilter;
+
+        // Filter value at index 4
+        match packet[4] {
+            0x01 => Some(DeviceEvent::DigitalFilterChanged(
+                DigitalFilter::FastRollOffMinimumPhase,
+            )),
+            0x02 => Some(DeviceEvent::DigitalFilterChanged(
+                DigitalFilter::SlowRollOffMinimumPhase,
+            )),
+            0x04 => Some(DeviceEvent::DigitalFilterChanged(
+                DigitalFilter::FastRollOffLinearPhase,
+            )),
+            0x05 => Some(DeviceEvent::DigitalFilterChanged(
+                DigitalFilter::SlowRollOffLinearPhase,
+            )),
+            _ => None,
+        }
+    }
+
+    /// Parse audio config event (0x3c family)
+    /// Format: 5a 3c 04 01 00 [VALUE] 00 00...
+    /// Purpose unclear - may be Windows notification
+    fn parse_audio_config_event(packet: &[u8]) -> Option<DeviceEvent> {
+        if packet.len() < 6 || packet[1] != 0x3c {
+            return None;
+        }
+
+        use crate::g6_spec::AudioConfig;
+
+        // Value at index 5
+        let value = packet[5];
+        Some(DeviceEvent::AudioConfigChanged(AudioConfig::Unknown(value)))
     }
 }
 
@@ -627,6 +697,36 @@ impl G6ResponseParser {
 }
 
 // ============================================================================
+// PACKET DESCRIPTION (for logging)
+// ============================================================================
+
+/// Describe a packet for logging purposes
+pub fn describe_packet(packet: &[u8]) -> String {
+    if packet.len() < 2 {
+        return "Invalid packet (too short)".to_string();
+    }
+
+    let family = packet[1];
+
+    match family {
+        0x05 => "Identification".to_string(),
+        0x07 => "Firmware Query".to_string(),
+        0x10 => "Hardware Status".to_string(),
+        0x11 => "Audio Control".to_string(),
+        0x12 => "Data Control".to_string(),
+        0x15 => "Batch Control".to_string(),
+        0x20 => "Processing".to_string(),
+        0x26 => "Gaming Mode (SBX/Scout)".to_string(),
+        0x2c => "Routing (Output)".to_string(),
+        0x30 => "Device Config".to_string(),
+        0x3a => "System Config".to_string(),
+        0x3c => "Audio Config".to_string(),
+        0x6c => "Digital Filter".to_string(),
+        _ => format!("Unknown Command/Report (Type {:02x})", family),
+    }
+}
+
+// ============================================================================
 // CONVENIENCE FUNCTIONS
 // ============================================================================
 
@@ -734,7 +834,29 @@ pub fn build_read_equalizer_band(band: u8) -> Vec<u8> {
 }
 
 /// Build all read commands for complete device state
+/// OPTIMIZATION: Only queries commands that actually work!
+/// Audio effect reads fail (device responds with wrong packet type),
+/// so we skip them and rely on the event listener to update state.
 pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
+    let mut commands = Vec::new();
+
+    // ✅ Firmware query - WORKS
+    commands.push(build_firmware_query_ascii());
+
+    // ✅ Output configuration - WORKS
+    commands.push(build_output_config_read());
+
+    // ❌ SKIP: Audio effects (0x00-0x1D) - Device responds with wrong type (0x02 instead of 0x11)
+    // ❌ SKIP: Equalizer bands (0x00-0x1B) - Same issue
+    // These will be updated by the event listener when user changes them
+
+    commands
+}
+
+/// Build the FULL read command set (60 commands - mostly fail, takes 30+ seconds)
+/// This is kept for reference but should NOT be used in production
+#[allow(dead_code)]
+pub fn build_read_all_state_commands_slow() -> Vec<Vec<u8>> {
     let mut commands = Vec::new();
 
     // Firmware queries
@@ -743,12 +865,12 @@ pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
     // Output configuration
     commands.push(build_output_config_read());
 
-    // All audio effects (0x00 to 0x1D)
+    // All audio effects (0x00 to 0x1D) - These don't work!
     for feature in 0x00..=0x1D {
         commands.push(build_audio_effect_read(feature));
     }
 
-    // All equalizer bands (0x00 to 0x1B)
+    // All equalizer bands (0x00 to 0x1B) - These don't work either!
     for band in 0x00..=0x1B {
         commands.push(build_read_equalizer_band(band));
     }
@@ -1054,6 +1176,31 @@ pub fn build_set_scout_mode(enabled: bool) -> Vec<Vec<u8>> {
             .operation(&[0x03, 0x08, 0xff, 0xff, 0x00, 0x00, 0x00])
             .build(),
     ]
+}
+
+// ============================================================================
+// WRITE COMMANDS - DIGITAL FILTER (Phase 8 - New Discovery!)
+// ============================================================================
+
+/// Build command to set digital filter type
+/// Command format: Unknown - need to discover write format
+/// For now, this is read-only based on captured reports
+/// Reports show: 5a 6c 03 01 [FILTER_VALUE] 00 00...
+pub fn build_set_digital_filter(filter: crate::g6_spec::DigitalFilter) -> Vec<u8> {
+    use crate::g6_spec::DigitalFilter;
+
+    let filter_value = match filter {
+        DigitalFilter::FastRollOffMinimumPhase => 0x01,
+        DigitalFilter::SlowRollOffMinimumPhase => 0x02,
+        DigitalFilter::FastRollOffLinearPhase => 0x04,
+        DigitalFilter::SlowRollOffLinearPhase => 0x05,
+    };
+
+    // Placeholder command - format needs verification via packet capture
+    // Based on pattern: reports use 0x03, so writes might use 0x05 or 0x07
+    G6CommandBuilder::new(CommandFamily::DigitalFilter)
+        .operation(&[0x05, 0x01, filter_value]) // Guessed write operation
+        .build()
 }
 
 // ============================================================================

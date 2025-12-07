@@ -1,6 +1,5 @@
 mod g6_device;
-mod g6_protocol;
-mod g6_protocol_v2; // New unified protocol abstraction layer
+mod g6_protocol_v2; // Unified protocol abstraction layer
 mod g6_spec;
 
 use g6_device::G6DeviceManager;
