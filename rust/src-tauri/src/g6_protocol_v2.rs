@@ -156,20 +156,17 @@ impl G6EventParser {
 
     /// Check if packet is an output change event (0x2c family)
     fn parse_output_event(packet: &[u8]) -> Option<DeviceEvent> {
-        if packet.len() < 10 || packet[1] != 0x2c {
+        if packet.len() < 5 || packet[1] != 0x2c {
             return None;
         }
 
-        // Scan for status byte (0x02=Speakers, 0x04=Headphones)
-        for i in 4..std::cmp::min(12, packet.len()) {
-            match packet[i] {
-                0x04 => return Some(DeviceEvent::OutputChanged(OutputDevice::Headphones)),
-                0x02 => return Some(DeviceEvent::OutputChanged(OutputDevice::Speakers)),
-                _ => {}
-            }
+        // Exact format: 5a 2c 05 01 [VALUE] 00...
+        // Value at index 4 (0x02=Speakers, 0x04=Headphones)
+        match packet[4] {
+            0x04 => return Some(DeviceEvent::OutputChanged(OutputDevice::Headphones)),
+            0x02 => return Some(DeviceEvent::OutputChanged(OutputDevice::Speakers)),
+            _ => None,
         }
-
-        None
     }
 
     /// Parse gaming mode events (0x26 family) - SBX & Scout Mode
@@ -526,7 +523,7 @@ impl G6ResponseParser {
                 debug.response_description = "Audio effect report".to_string();
                 Self::parse_audio_effect(response, &mut debug)
             }
-            (0x2c, 0x0a) => {
+            (0x2c, 0x05) => {
                 debug.response_description = "Output configuration report".to_string();
                 Self::parse_output_config(response, &mut debug)
             }
@@ -625,53 +622,56 @@ impl G6ResponseParser {
     }
 
     /// Parse output configuration response
+    /// Handles the 0x2c 0x05 response format (Live State)
+    /// Format: 5a 2c 05 01 [VALUE] 00... where VALUE is at index 4
     fn parse_output_config(
         response: &[u8],
         debug: &mut ProtocolDebugInfo,
     ) -> Result<ParsedResponse, String> {
-        if response.len() < 10 {
+        if response.len() < 5 {
             return Err("Response too short for output config".to_string());
         }
 
-        // Check index 9 first (most reliable)
-        if response.len() > 9 {
-            match response[9] {
-                0x04 => {
-                    debug
-                        .parsing_attempts
-                        .push("Index 9 = 0x04 → Headphones".to_string());
-                    return Ok(ParsedResponse::OutputDevice(OutputDevice::Headphones));
-                }
-                0x02 => {
-                    debug
-                        .parsing_attempts
-                        .push("Index 9 = 0x02 → Speakers".to_string());
-                    return Ok(ParsedResponse::OutputDevice(OutputDevice::Speakers));
-                }
-                _ => {}
-            }
+        // Log full packet for debugging
+        let full_hex: String = response
+            .iter()
+            .take(response.len().min(20))
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        debug
+            .parsing_attempts
+            .push(format!("Full packet (first 20 bytes): {}", full_hex));
+
+        if response[1] != 0x2c || response[2] != 0x05 {
+            return Err("Invalid packet header for output config".to_string());
         }
 
-        // Fallback: scan indices 4-9
-        for i in 4..10 {
-            match response[i] {
-                0x04 => {
-                    debug
-                        .parsing_attempts
-                        .push(format!("Index {} = 0x04 → Headphones", i));
-                    return Ok(ParsedResponse::OutputDevice(OutputDevice::Headphones));
-                }
-                0x02 => {
-                    debug
-                        .parsing_attempts
-                        .push(format!("Index {} = 0x02 → Speakers", i));
-                    return Ok(ParsedResponse::OutputDevice(OutputDevice::Speakers));
-                }
-                _ => continue,
+        debug.parsing_attempts.push(format!(
+            "Read response format (0x2c 0x05), index 4 = 0x{:02x}",
+            response[4]
+        ));
+
+        match response[4] {
+            0x04 => {
+                debug
+                    .parsing_attempts
+                    .push("Read response: Index 4 = 0x04 → Headphones".to_string());
+                Ok(ParsedResponse::OutputDevice(OutputDevice::Headphones))
+            }
+            0x02 => {
+                debug
+                    .parsing_attempts
+                    .push("Read response: Index 4 = 0x02 → Speakers".to_string());
+                Ok(ParsedResponse::OutputDevice(OutputDevice::Speakers))
+            }
+            val => {
+                debug
+                    .parsing_attempts
+                    .push(format!("Unexpected value at index 4: 0x{:02x}", val));
+                Err(format!("Unknown output device value: 0x{:02x}", val))
             }
         }
-
-        Err("Could not determine output device".to_string())
     }
 
     /// Generic parser for unknown response types
@@ -754,9 +754,11 @@ pub fn build_audio_effect_read(feature: u8) -> Vec<u8> {
 }
 
 /// Build output config read command
+/// Uses 0x01 0x01 which returns the actual output state event
+/// Device responds with event format: 5a 2c 05 01 [OUTPUT_VALUE] 00 00...
 pub fn build_output_config_read() -> Vec<u8> {
     G6CommandBuilder::new(CommandFamily::Routing)
-        .operation(&[0x0a, 0x02, 0x82, 0x02])
+        .operation(&[0x01, 0x01])
         .build()
 }
 

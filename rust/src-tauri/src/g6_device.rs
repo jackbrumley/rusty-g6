@@ -38,93 +38,120 @@ impl G6DeviceManager {
 
     /// Connect to the G6 device
     pub fn connect(&self) -> Result<()> {
-        let api = self.api.lock().unwrap();
-
-        info!("Attempting to connect to SoundBlaster X G6...");
-        info!(
-            "Looking for device with VID: {:04x}, PID: {:04x}",
-            USB_VENDOR_ID, USB_PRODUCT_ID
-        );
-
-        // The G6 has 4 interfaces (2 Audio and 2 HID), we need interface 4
-        // This is critical - the other interfaces ignore commands!
+        const MAX_RETRIES: u32 = 3;
+        const RETRY_DELAY_MS: u64 = 500;
         const G6_INTERFACE: i32 = 4;
 
-        // Enumerate all devices to find the correct interface
-        let mut device_found = false;
-        let mut target_path: Option<std::ffi::CString> = None;
+        let mut last_error = None;
 
-        for device_info in api.device_list() {
+        for attempt in 1..=MAX_RETRIES {
+            if attempt > 1 {
+                info!(
+                    "Connection attempt {}/{} (waiting {}ms for device enumeration)...",
+                    attempt, MAX_RETRIES, RETRY_DELAY_MS
+                );
+                thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
+            }
+
+            // Refresh HidApi to get current device paths (critical after suspend/resume)
+            let new_api = match HidApi::new() {
+                Ok(api) => api,
+                Err(e) => {
+                    last_error = Some(anyhow::anyhow!("Failed to refresh HID API: {}", e));
+                    continue;
+                }
+            };
+            *self.api.lock().unwrap() = new_api;
+
+            let api = self.api.lock().unwrap();
+
+            info!("Attempting to connect to SoundBlaster X G6...");
             info!(
-                "Found device: VID={:04x}, PID={:04x}, Interface={}",
-                device_info.vendor_id(),
-                device_info.product_id(),
-                device_info.interface_number()
+                "Looking for device with VID: {:04x}, PID: {:04x}",
+                USB_VENDOR_ID, USB_PRODUCT_ID
             );
 
-            if device_info.vendor_id() == USB_VENDOR_ID
-                && device_info.product_id() == USB_PRODUCT_ID
-            {
-                device_found = true;
+            // Enumerate all devices to find the correct interface
+            let mut device_found = false;
+            let mut target_path: Option<std::ffi::CString> = None;
 
-                if device_info.interface_number() == G6_INTERFACE {
-                    info!("Found correct interface ({})", G6_INTERFACE);
-                    target_path = Some(device_info.path().to_owned());
-                    break;
+            for device_info in api.device_list() {
+                info!(
+                    "Found device: VID={:04x}, PID={:04x}, Interface={}",
+                    device_info.vendor_id(),
+                    device_info.product_id(),
+                    device_info.interface_number()
+                );
+
+                if device_info.vendor_id() == USB_VENDOR_ID
+                    && device_info.product_id() == USB_PRODUCT_ID
+                {
+                    device_found = true;
+
+                    if device_info.interface_number() == G6_INTERFACE {
+                        info!("Found correct interface ({})", G6_INTERFACE);
+                        target_path = Some(device_info.path().to_owned());
+                        break;
+                    }
+                }
+            }
+
+            if !device_found {
+                last_error = Some(anyhow::anyhow!(
+                    "G6 device not found. Is it plugged in? VID={:04x}, PID={:04x}",
+                    USB_VENDOR_ID,
+                    USB_PRODUCT_ID
+                ));
+                continue;
+            }
+
+            let path = match target_path {
+                Some(p) => p,
+                None => {
+                    last_error = Some(anyhow::anyhow!(
+                        "G6 device found but required interface {} is not available. \
+                         The device has multiple interfaces but we need the 4th one.",
+                        G6_INTERFACE
+                    ));
+                    continue;
+                }
+            };
+
+            // Try to open the device by path
+            match api.open_path(&path) {
+                Ok(device) => {
+                    info!(
+                        "Successfully connected to G6 device via interface {} (attempt {})",
+                        G6_INTERFACE, attempt
+                    );
+                    let manufacturer = device
+                        .get_manufacturer_string()
+                        .unwrap_or(Some("Unknown".to_string()))
+                        .unwrap_or("Unknown".to_string());
+                    let product = device
+                        .get_product_string()
+                        .unwrap_or(Some("Unknown".to_string()))
+                        .unwrap_or("Unknown".to_string());
+
+                    info!("Device: {} {}", manufacturer, product);
+
+                    *self.device.lock().unwrap() = Some(device);
+                    return Ok(());
+                }
+                Err(e) => {
+                    last_error = Some(anyhow::anyhow!("Failed to open G6 device: {}", e));
+                    error!("Attempt {}/{} failed: {}", attempt, MAX_RETRIES, e);
                 }
             }
         }
 
-        if !device_found {
-            error!(
-                "No G6 device found with VID={:04x}, PID={:04x}",
-                USB_VENDOR_ID, USB_PRODUCT_ID
-            );
-            return Err(anyhow::anyhow!(
-                "G6 device not found. Is it plugged in? VID={:04x}, PID={:04x}",
-                USB_VENDOR_ID,
-                USB_PRODUCT_ID
-            ));
-        }
-
-        let path = target_path.ok_or_else(|| {
-            error!(
-                "G6 device found but interface {} not available",
-                G6_INTERFACE
-            );
-            anyhow::anyhow!(
-                "G6 device found but required interface {} is not available. \
-                 The device has multiple interfaces but we need the 4th one.",
-                G6_INTERFACE
-            )
-        })?;
-
-        // Open the device by path (not by VID/PID which defaults to interface 0)
-        match api.open_path(&path) {
-            Ok(device) => {
-                info!(
-                    "Successfully connected to G6 device via interface {}",
-                    G6_INTERFACE
-                );
-                let manufacturer = device
-                    .get_manufacturer_string()
-                    .unwrap_or(Some("Unknown".to_string()))
-                    .unwrap_or("Unknown".to_string());
-                let product = device
-                    .get_product_string()
-                    .unwrap_or(Some("Unknown".to_string()))
-                    .unwrap_or("Unknown".to_string());
-
-                info!("Device: {} {}", manufacturer, product);
-
-                *self.device.lock().unwrap() = Some(device);
-                Ok(())
-            }
-            Err(e) => {
-                error!("Failed to open G6 device: {}", e);
-                Err(anyhow::anyhow!("Failed to open G6 device: {}", e))
-            }
-        }
+        // All retries exhausted
+        let error = last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown connection error"));
+        error!(
+            "Failed to connect after {} attempts: {}",
+            MAX_RETRIES, error
+        );
+        Err(error)
     }
 
     /// Disconnect from the G6 device
@@ -272,6 +299,7 @@ impl G6DeviceManager {
                 }
 
                 let mut matched_response = None;
+                let mut all_received = Vec::new();
                 let start_time = std::time::Instant::now();
 
                 while start_time.elapsed().as_millis() < 500 {
@@ -290,29 +318,49 @@ impl G6DeviceManager {
                                 continue;
                             }
 
-                            // Log RX
+                            // Log ALL RX packets with detailed info
                             let rx_hex: String =
                                 response.iter().map(|b| format!("{:02x}", b)).collect();
                             let rx_desc = g6_protocol_v2::describe_packet(&response);
+
+                            // Check if this matches our expected response
+                            let matches = response[1] == cmd_type;
+                            let match_status = if matches { "✓ MATCH" } else { "✗ NO MATCH" };
+
                             info!(
-                                "\x1b[33m[RX-READ] {}\x1b[0m | \x1b[35m{}\x1b[0m",
-                                rx_hex, rx_desc
+                                "\x1b[33m[RX-READ] {}\x1b[0m | \x1b[35m{}\x1b[0m | Expected: 0x{:02x}, Got: 0x{:02x} {}",
+                                rx_hex, rx_desc, cmd_type, response[1], match_status
                             );
 
-                            if response[1] == cmd_type {
+                            all_received.push(response.clone());
+
+                            if matches {
                                 matched_response = Some(response);
                                 break;
                             }
-                            // Ignore stray events here as needed
                         }
                         _ => {}
                     }
                 }
 
                 if let Some(resp) = matched_response {
+                    info!(
+                        "  ✓ Found matching response for command {} (0x{:02x})",
+                        i + 1,
+                        cmd_type
+                    );
                     responses.push(resp);
                 } else {
-                    responses.push(Vec::new());
+                    info!("  ✗ No matching response for command {} (0x{:02x}). Received {} packet(s) total.", 
+                        i + 1, cmd_type, all_received.len());
+
+                    // If we received any packets, use the first one even if it doesn't match
+                    if !all_received.is_empty() {
+                        info!("  → Using first received packet as fallback");
+                        responses.push(all_received[0].clone());
+                    } else {
+                        responses.push(Vec::new());
+                    }
                 }
                 std::thread::sleep(Duration::from_millis(5));
             }
@@ -478,16 +526,19 @@ impl G6DeviceManager {
     pub fn toggle_output(&self) -> Result<()> {
         let current = self.current_settings.lock().unwrap().output;
 
+        // Calculate target state
+        let target = match current {
+            OutputDevice::Headphones => OutputDevice::Speakers,
+            OutputDevice::Speakers => OutputDevice::Headphones,
+        };
+
         // Use V2 protocol - just 2 commands instead of 30!
         let commands = crate::g6_protocol_v2::build_toggle_output_simple(current);
 
         self.send_commands(commands)?;
 
-        // State will be updated by listener when device confirms
-        info!(
-            "Output toggle command sent using V2 (current: {:?})",
-            current
-        );
+        // State will be updated by listener when device confirms the change
+        info!("Output toggle command sent: {:?} → {:?}", current, target);
         Ok(())
     }
 
@@ -669,38 +720,137 @@ impl G6DeviceManager {
     }
 
     /// Read current device state from hardware
-    /// Sends read commands and relies on event listener to parse responses
+    /// Sends read commands and parses responses directly to update settings
     pub fn read_device_state(&self) -> Result<G6Settings> {
         if !self.is_connected() {
             return Err(anyhow::anyhow!("Device not connected"));
         }
+
+        // Refresh HidApi connection to handle device path changes (e.g., after suspend/resume)
+        info!("Refreshing device connection before reading state...");
+        let new_api = HidApi::new().context("Failed to refresh HID API for read")?;
+        *self.api.lock().unwrap() = new_api;
 
         info!("Reading complete device state from G6...");
 
         // Build all read commands using V2 protocol
         let commands = crate::g6_protocol_v2::build_read_all_state_commands();
 
-        // Send commands - responses will be parsed
+        // Send commands and get responses
         let responses = self.send_read_commands(commands)?;
 
-        info!("Read state commands sent - event listener will process responses");
+        info!("Processing {} read responses...", responses.len());
 
-        // Parse firmware response (first command is firmware query)
-        if !responses.is_empty() && responses[0].len() >= 3 {
-            use crate::g6_protocol_v2::{G6ResponseParser, ParsedResponse};
-            let (result, _debug) = G6ResponseParser::parse(&responses[0]);
-            if let Ok(ParsedResponse::FirmwareInfo(info)) = result {
-                let mut settings = self.current_settings.lock().unwrap();
-                settings.firmware_info = Some(info);
-                info!(
-                    "Firmware info populated: {}",
-                    settings.firmware_info.as_ref().unwrap().version
-                );
+        // Parse all responses and update settings
+        let mut settings = self.current_settings.lock().unwrap();
+
+        for response in &responses {
+            if response.is_empty() || response.len() < 2 {
+                continue;
+            }
+
+            // Parse response based on command family
+            let cmd_family = response[1];
+
+            match cmd_family {
+                0x07 => {
+                    // Firmware query - use ResponseParser
+                    use crate::g6_protocol_v2::{G6ResponseParser, ParsedResponse};
+                    let (result, _debug) = G6ResponseParser::parse(response);
+
+                    if let Ok(ParsedResponse::FirmwareInfo(info)) = result {
+                        settings.firmware_info = Some(info);
+                        info!(
+                            "Firmware: {}",
+                            settings.firmware_info.as_ref().unwrap().version
+                        );
+                    }
+                }
+                0x2c => {
+                    // Output routing - use ResponseParser for more accurate parsing
+                    use crate::g6_protocol_v2::{G6ResponseParser, ParsedResponse};
+                    let (result, _debug) = G6ResponseParser::parse(response);
+
+                    if let Ok(ParsedResponse::OutputDevice(output)) = result {
+                        settings.output = output;
+                        info!("Output: {:?}", output);
+                    }
+                }
+                _ => {
+                    // For other command families, try event parser
+                    use crate::g6_protocol_v2::G6EventParser;
+                    let events = G6EventParser::parse(response);
+
+                    for event in &events {
+                        use crate::g6_protocol_v2::DeviceEvent;
+                        match event {
+                            DeviceEvent::SbxModeChanged(state) => {
+                                settings.sbx_enabled = *state;
+                                info!("SBX Mode: {:?}", state);
+                            }
+                            DeviceEvent::ScoutModeChanged(state) => {
+                                settings.scout_mode = *state;
+                                info!("Scout Mode: {:?}", state);
+                            }
+                            DeviceEvent::SurroundToggled(state) => {
+                                settings.surround_enabled = *state;
+                                info!("Surround enabled: {:?}", state);
+                            }
+                            DeviceEvent::SurroundValueChanged(value) => {
+                                settings.surround_value = *value;
+                                info!("Surround value: {}", value);
+                            }
+                            DeviceEvent::CrystalizerToggled(state) => {
+                                settings.crystalizer_enabled = *state;
+                                info!("Crystalizer enabled: {:?}", state);
+                            }
+                            DeviceEvent::CrystalizerValueChanged(value) => {
+                                settings.crystalizer_value = *value;
+                                info!("Crystalizer value: {}", value);
+                            }
+                            DeviceEvent::BassToggled(state) => {
+                                settings.bass_enabled = *state;
+                                info!("Bass enabled: {:?}", state);
+                            }
+                            DeviceEvent::BassValueChanged(value) => {
+                                settings.bass_value = *value;
+                                info!("Bass value: {}", value);
+                            }
+                            DeviceEvent::SmartVolumeToggled(state) => {
+                                settings.smart_volume_enabled = *state;
+                                info!("Smart Volume enabled: {:?}", state);
+                            }
+                            DeviceEvent::SmartVolumeValueChanged(value) => {
+                                settings.smart_volume_value = *value;
+                                info!("Smart Volume value: {}", value);
+                            }
+                            DeviceEvent::DialogPlusToggled(state) => {
+                                settings.dialog_plus_enabled = *state;
+                                info!("Dialog Plus enabled: {:?}", state);
+                            }
+                            DeviceEvent::DialogPlusValueChanged(value) => {
+                                settings.dialog_plus_value = *value;
+                                info!("Dialog Plus value: {}", value);
+                            }
+                            DeviceEvent::DigitalFilterChanged(filter) => {
+                                settings.digital_filter = Some(*filter);
+                                info!("Digital filter: {:?}", filter);
+                            }
+                            DeviceEvent::AudioConfigChanged(config) => {
+                                settings.audio_config = Some(*config);
+                                info!("Audio config: {:?}", config);
+                            }
+                            _ => {} // Ignore other events
+                        }
+                    }
+                }
             }
         }
 
-        // Return current state (will be updated by event listener as responses arrive)
-        Ok(self.get_settings())
+        info!("Device state read complete");
+
+        // Return updated settings
+        Ok(settings.clone())
     }
 
     /// Synchronize with device state on startup
