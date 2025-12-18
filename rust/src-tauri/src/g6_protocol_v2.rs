@@ -746,10 +746,20 @@ pub fn build_firmware_query_binary() -> Vec<u8> {
 
 /// Build audio effect read command
 pub fn build_audio_effect_read(feature: u8) -> Vec<u8> {
+    // Corrected based on packet capture: 5a 11 03 01 96 [FEATURE]
+    // 0x96 is the Audio Type byte. We include it in operation to avoid
+    // G6CommandBuilder's 2-byte intermediate insertion.
     G6CommandBuilder::new(CommandFamily::AudioControl)
-        .operation(&[0x03, 0x01]) // Read mode
-        .intermediate(IntermediateType::Audio)
+        .operation(&[0x03, 0x01, 0x96])
         .feature(feature)
+        .build()
+}
+
+/// Build gaming mode (Scout/SBX) read command
+/// Corrected based on packet capture: 5a 26 03 08 ff ff ...
+pub fn build_gaming_mode_read() -> Vec<u8> {
+    G6CommandBuilder::new(CommandFamily::Gaming)
+        .operation(&[0x03, 0x08, 0xff, 0xff])
         .build()
 }
 
@@ -828,9 +838,10 @@ pub fn build_read_extended_param(param_id: u8) -> Vec<u8> {
 
 /// Build read command for equalizer band
 pub fn build_read_equalizer_band(band: u8) -> Vec<u8> {
+    // Corrected based on packet capture: 5a 11 03 01 95 [BAND]
+    // 0x95 is the EQ Type byte.
     G6CommandBuilder::new(CommandFamily::AudioControl)
-        .operation(&[0x03, 0x01])
-        .intermediate(IntermediateType::Equalizer)
+        .operation(&[0x03, 0x01, 0x95])
         .feature(band)
         .build()
 }
@@ -848,9 +859,28 @@ pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
     // ✅ Output configuration - WORKS
     commands.push(build_output_config_read());
 
-    // ❌ SKIP: Audio effects (0x00-0x1D) - Device responds with wrong type (0x02 instead of 0x11)
-    // ❌ SKIP: Equalizer bands (0x00-0x1B) - Same issue
-    // These will be updated by the event listener when user changes them
+    // EXPERIMENTAL: Gaming Mode (Scout/SBX)
+    commands.push(build_gaming_mode_read());
+
+    // EXPERIMENTAL: Audio effects (0x00-0x1D) with new 0x01 0x01 op code
+    // Iterate common features
+    let features = [
+        0x00, // Surround Toggle
+        0x01, // Surround Value
+        0x02, // Dialog+ Toggle
+        0x03, // Dialog+ Value
+        0x04, // Smart Vol Toggle
+        0x05, // Smart Vol Value
+        0x06, // Smart Vol Preset
+        0x07, // Crystalizer Toggle
+        0x08, // Crystalizer Value
+        0x18, // Bass Toggle
+        0x19, // Bass Value
+    ];
+
+    for feature in features.iter() {
+        commands.push(build_audio_effect_read(*feature));
+    }
 
     commands
 }

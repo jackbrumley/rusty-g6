@@ -351,16 +351,10 @@ impl G6DeviceManager {
                     );
                     responses.push(resp);
                 } else {
-                    info!("  ✗ No matching response for command {} (0x{:02x}). Received {} packet(s) total.", 
+                    error!("  ✗ No matching response for command {} (0x{:02x}). Received {} packet(s) total.", 
                         i + 1, cmd_type, all_received.len());
-
-                    // If we received any packets, use the first one even if it doesn't match
-                    if !all_received.is_empty() {
-                        info!("  → Using first received packet as fallback");
-                        responses.push(all_received[0].clone());
-                    } else {
-                        responses.push(Vec::new());
-                    }
+                    // No fallback used - return empty if not matched
+                    responses.push(Vec::new());
                 }
                 std::thread::sleep(Duration::from_millis(5));
             }
