@@ -182,17 +182,6 @@ function App() {
     }
   }
 
-  // Silent version for polling/events
-  async function readDeviceStateSilent() {
-    try {
-      const deviceSettings = await invoke<G6Settings>("read_device_state");
-      // Only update if something changed? React does shallow diff, but object reference changes.
-      setSettings(deviceSettings);
-    } catch (error) {
-      console.error("Silent refresh failed:", error);
-    }
-  }
-
   async function synchronizeDevice() {
     try {
       setStatus("Synchronizing device...");
