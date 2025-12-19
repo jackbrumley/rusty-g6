@@ -409,13 +409,26 @@ impl G6DeviceManager {
 
                         // Parse packet using the unified event parser
                         if packet.len() > 2 && packet[0] == 0x5a {
-                            // Log all incoming events
-                            let hex_str: String =
-                                packet.iter().map(|b| format!("{:02x}", b)).collect();
+                            // Get high-precision timestamp
+                            let timestamp = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap();
+                            let millis = timestamp.as_millis();
+                            let micros = timestamp.as_micros() % 1000;
+
+                            // Log all incoming events with full hex dump (up to 20 bytes)
+                            let hex_str: String = packet
+                                .iter()
+                                .take(20)
+                                .map(|b| format!("{:02x}", b))
+                                .collect();
                             let desc = g6_protocol_v2::describe_packet(packet);
 
-                            // Color Scheme: Yellow for RX
-                            info!("\x1b[33m[RX] {}\x1b[0m | \x1b[35m{}\x1b[0m", hex_str, desc);
+                            // Enhanced logging with timestamp
+                            info!(
+                                "\x1b[33m[RX-EVENT @{}.{:03}µs] {}\x1b[0m | \x1b[35m{}\x1b[0m",
+                                millis, micros, hex_str, desc
+                            );
 
                             // Parse events using the protocol V2 parser
                             let events = crate::g6_protocol_v2::G6EventParser::parse(packet);
@@ -609,18 +622,20 @@ impl G6DeviceManager {
 
         let enabled_bool = matches!(enabled, EffectState::Enabled);
 
-        // Use V2 protocol - cleaner command builders
+        // IMPORTANT: Official software sends ONLY the toggle command when enabling/disabling
+        // The value command should be sent separately only when adjusting the slider
+        // For now, we only send the toggle command to match official behavior
         let toggle_commands = crate::g6_protocol_v2::build_set_bass_toggle(enabled_bool);
-        let value_commands = crate::g6_protocol_v2::build_set_bass_value(value);
-
         self.send_commands(toggle_commands)?;
-        self.send_commands(value_commands)?;
 
         let mut settings = self.current_settings.lock().unwrap();
         settings.bass_enabled = enabled;
         settings.bass_value = value;
 
-        info!("Bass set to {:?} with value {} using V2", enabled, value);
+        info!(
+            "Bass set to {:?} using V2 (value {} stored locally)",
+            enabled, value
+        );
         Ok(())
     }
 

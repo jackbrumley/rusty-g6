@@ -17,19 +17,20 @@ const PAYLOAD_SIZE: usize = 64;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CommandFamily {
+    Unknown02 = 0x02, // Unknown - appears before audio changes (preparation/unlock?)
     Identification = 0x05, // Device info queries
-    FirmwareQuery = 0x07,  // Firmware version (discovered ASCII mode)
+    FirmwareQuery = 0x07, // Firmware version (discovered ASCII mode)
     HardwareStatus = 0x10, // Hardware state
-    AudioControl = 0x11,   // Primary protocol - Read/Write SBX & EQ
-    DataControl = 0x12,    // Audio effect data commands
-    BatchControl = 0x15,   // Multiple params simultaneously
-    Processing = 0x20,     // Audio processing engine
-    Gaming = 0x26,         // Scout/SBX Mode switches
-    Routing = 0x2c,        // Output switching
-    DeviceConfig = 0x30,   // General device settings
-    SystemConfig = 0x3a,   // LEDs, system parameters
-    AudioConfig = 0x3c,    // Audio configuration (purpose unclear, may be Windows notification)
-    DigitalFilter = 0x6c,  // DAC digital filter settings
+    AudioControl = 0x11, // Primary protocol - Read/Write SBX & EQ
+    DataControl = 0x12, // Audio effect data commands
+    BatchControl = 0x15, // Multiple params simultaneously
+    Processing = 0x20, // Audio processing engine
+    Gaming = 0x26,    // Scout/SBX Mode switches
+    Routing = 0x2c,   // Output switching
+    DeviceConfig = 0x30, // General device settings
+    SystemConfig = 0x3a, // LEDs, system parameters
+    AudioConfig = 0x3c, // Audio configuration (purpose unclear, may be Windows notification)
+    DigitalFilter = 0x6c, // DAC digital filter settings
 }
 
 impl CommandFamily {
@@ -265,8 +266,8 @@ impl G6EventParser {
         let percentage = (float_value * 100.0).round() as u8;
 
         // Map feature ID to event
-        // Note: Feature 0x00 is SBX global toggle (detected via 0x26 family), not Surround
         match feature {
+            0x00 => events.push(DeviceEvent::SurroundToggled(enabled)),
             0x01 => events.push(DeviceEvent::SurroundValueChanged(percentage)),
             0x02 => events.push(DeviceEvent::DialogPlusToggled(enabled)),
             0x03 => events.push(DeviceEvent::DialogPlusValueChanged(percentage)),
@@ -968,207 +969,148 @@ const FEATURE_SBX_MODE: u8 = 0x01;
 const FEATURE_SCOUT_MODE: u8 = 0x02;
 
 /// Build command to set bass toggle (on/off)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - matches official software USB capture
+/// The official software uses DataControl family (0x12) with Write operation (0x07), NOT AudioControl (0x11 0x08)
 pub fn build_set_bass_toggle(enabled: bool) -> Vec<Vec<u8>> {
     let value = if enabled { 1.0f32 } else { 0.0f32 };
 
     vec![
-        // DATA command - Write the toggle value
+        // DATA command - 5a 12 07 01 96 18 [FLOAT] ...
+        // This is the ACTUAL command from USB packet capture
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01]) // Write operation
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_BASS_TOGGLE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_BASS_TOGGLE])
             .float_value(value)
             .build(),
-        // COMMIT command - Confirm the change
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01]) // Commit operation
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_BASS_TOGGLE)
-            .build(),
+        // READ command - 5a 11 03 01 96 18 ... (to verify/confirm change)
+        build_audio_effect_read(FEATURE_BASS_TOGGLE),
     ]
 }
 
 /// Build command to set bass value (0-100)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: Single command using 0x11 0x08 (matches official software)
 pub fn build_set_bass_value(value: u8) -> Vec<Vec<u8>> {
     // Convert 0-100 to 0.0-1.0 float
     let float_value = (value as f32) / 100.0;
 
     vec![
-        // DATA command - Write the slider value
-        G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01]) // Write operation
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_BASS_VALUE)
-            .float_value(float_value)
-            .build(),
-        // COMMIT command - Confirm the change
+        // Single command using AudioControl family with 0x08 operation (Report/Write)
+        // Format matches official: 5a 11 08 01 00 96 19 00 [FLOAT] ...
         G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01]) // Commit operation
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_BASS_VALUE)
+            .operation(&[0x08, 0x01, 0x00, 0x96, FEATURE_BASS_VALUE])
+            .float_value(float_value)
             .build(),
     ]
 }
 
 /// Build command to set surround toggle (on/off)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_surround_toggle(enabled: bool) -> Vec<Vec<u8>> {
     let value = if enabled { 1.0f32 } else { 0.0f32 };
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SURROUND_TOGGLE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_SURROUND_TOGGLE])
             .float_value(value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SURROUND_TOGGLE)
-            .build(),
+        build_audio_effect_read(FEATURE_SURROUND_TOGGLE),
     ]
 }
 
 /// Build command to set surround value (0-100)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_surround_value(value: u8) -> Vec<Vec<u8>> {
     let float_value = (value as f32) / 100.0;
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SURROUND_VALUE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_SURROUND_VALUE])
             .float_value(float_value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SURROUND_VALUE)
-            .build(),
+        build_audio_effect_read(FEATURE_SURROUND_VALUE),
     ]
 }
 
 /// Build command to set crystalizer toggle (on/off)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_crystalizer_toggle(enabled: bool) -> Vec<Vec<u8>> {
     let value = if enabled { 1.0f32 } else { 0.0f32 };
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_CRYSTALIZER_TOGGLE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_CRYSTALIZER_TOGGLE])
             .float_value(value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_CRYSTALIZER_TOGGLE)
-            .build(),
+        build_audio_effect_read(FEATURE_CRYSTALIZER_TOGGLE),
     ]
 }
 
 /// Build command to set crystalizer value (0-100)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_crystalizer_value(value: u8) -> Vec<Vec<u8>> {
     let float_value = (value as f32) / 100.0;
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_CRYSTALIZER_VALUE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_CRYSTALIZER_VALUE])
             .float_value(float_value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_CRYSTALIZER_VALUE)
-            .build(),
+        build_audio_effect_read(FEATURE_CRYSTALIZER_VALUE),
     ]
 }
 
 /// Build command to set smart volume toggle (on/off)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_smart_volume_toggle(enabled: bool) -> Vec<Vec<u8>> {
     let value = if enabled { 1.0f32 } else { 0.0f32 };
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SMART_VOLUME_TOGGLE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_SMART_VOLUME_TOGGLE])
             .float_value(value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SMART_VOLUME_TOGGLE)
-            .build(),
+        build_audio_effect_read(FEATURE_SMART_VOLUME_TOGGLE),
     ]
 }
 
 /// Build command to set smart volume value (0-100)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_smart_volume_value(value: u8) -> Vec<Vec<u8>> {
     let float_value = (value as f32) / 100.0;
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SMART_VOLUME_VALUE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_SMART_VOLUME_VALUE])
             .float_value(float_value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_SMART_VOLUME_VALUE)
-            .build(),
+        build_audio_effect_read(FEATURE_SMART_VOLUME_VALUE),
     ]
 }
 
 /// Build command to set dialog plus toggle (on/off)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_dialog_plus_toggle(enabled: bool) -> Vec<Vec<u8>> {
     let value = if enabled { 1.0f32 } else { 0.0f32 };
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_DIALOG_PLUS_TOGGLE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_DIALOG_PLUS_TOGGLE])
             .float_value(value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_DIALOG_PLUS_TOGGLE)
-            .build(),
+        build_audio_effect_read(FEATURE_DIALOG_PLUS_TOGGLE),
     ]
 }
 
 /// Build command to set dialog plus value (0-100)
-/// Command format: DATA (0x12) + COMMIT (0x11)
+/// Command format: DATA (0x12 0x07) + READ (0x11 0x03) - fixed to match bass implementation
 pub fn build_set_dialog_plus_value(value: u8) -> Vec<Vec<u8>> {
     let float_value = (value as f32) / 100.0;
 
     vec![
         G6CommandBuilder::new(CommandFamily::DataControl)
-            .operation(&[0x07, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_DIALOG_PLUS_VALUE)
+            .operation(&[0x07, 0x01, 0x96, FEATURE_DIALOG_PLUS_VALUE])
             .float_value(float_value)
             .build(),
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
-            .feature(FEATURE_DIALOG_PLUS_VALUE)
-            .build(),
+        build_audio_effect_read(FEATURE_DIALOG_PLUS_VALUE),
     ]
 }
 
