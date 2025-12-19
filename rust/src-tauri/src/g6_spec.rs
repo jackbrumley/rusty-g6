@@ -113,6 +113,9 @@ pub struct G6Settings {
     pub dialog_plus_enabled: EffectState,
     pub dialog_plus_value: u8, // 0-100
 
+    // Microphone boost (0, 10, 20, or 30 dB)
+    pub microphone_boost: u8, // 0, 10, 20, or 30
+
     // Global SBX processing switch
     pub sbx_enabled: EffectState,
 
@@ -148,6 +151,7 @@ impl Default for G6Settings {
             smart_volume_preset: None,
             dialog_plus_enabled: EffectState::Disabled,
             dialog_plus_value: 50,
+            microphone_boost: 0,
             sbx_enabled: EffectState::Disabled,
             digital_filter: None,
             audio_config: None,

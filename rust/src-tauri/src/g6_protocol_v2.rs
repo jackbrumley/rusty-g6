@@ -118,6 +118,9 @@ pub enum DeviceEvent {
 
     // Audio config (0x3c - purpose unclear)
     AudioConfigChanged(crate::g6_spec::AudioConfig),
+
+    // Microphone boost
+    MicrophoneBoostChanged(u8), // 0, 10, 20, or 30 dB
 }
 
 // ============================================================================
@@ -311,16 +314,29 @@ impl G6EventParser {
     }
 
     /// Parse audio config event (0x3c family)
-    /// Format: 5a 3c 04 01 00 [VALUE] 00 00...
-    /// Purpose unclear - may be Windows notification
+    /// Format: 5a 3c 04 01 00 02 [DB_VALUE] 00 00... (microphone boost)
+    /// Microphone boost values: 0x00=0dB, 0x0a=10dB, 0x14=20dB, 0x1e=30dB
     fn parse_audio_config_event(packet: &[u8]) -> Option<DeviceEvent> {
-        if packet.len() < 6 || packet[1] != 0x3c {
+        if packet.len() < 7 || packet[1] != 0x3c {
             return None;
         }
 
-        use crate::g6_spec::AudioConfig;
+        // Check if this is microphone boost: 5a 3c 04 01 00 02 [DB_VALUE]
+        if packet[2] == 0x04 && packet.len() >= 7 && packet[5] == 0x02 {
+            let raw_value = packet[6];
+            // Convert hex value to dB: 0x00=0, 0x0a=10, 0x14=20, 0x1e=30
+            let db_value = match raw_value {
+                0x00 => 0,
+                0x0a => 10,
+                0x14 => 20,
+                0x1e => 30,
+                _ => return None, // Unknown value, skip
+            };
+            return Some(DeviceEvent::MicrophoneBoostChanged(db_value));
+        }
 
-        // Value at index 5
+        // Fallback to generic audio config
+        use crate::g6_spec::AudioConfig;
         let value = packet[5];
         Some(DeviceEvent::AudioConfigChanged(AudioConfig::Unknown(value)))
     }
@@ -1175,6 +1191,52 @@ pub fn build_set_digital_filter(filter: crate::g6_spec::DigitalFilter) -> Vec<u8
     G6CommandBuilder::new(CommandFamily::DigitalFilter)
         .operation(&[0x05, 0x01, filter_value]) // Guessed write operation
         .build()
+}
+
+// ============================================================================
+// WRITE COMMANDS - MICROPHONE BOOST (Phase 9 - Packet Capture Verified!)
+// ============================================================================
+
+/// Build command to set microphone boost level
+/// Command format: DATA (0x3c 04) + COMMIT (0x3c 02 01)
+/// Discovered from packet capture: enable-microphone-boost-up-to-30-db-max.txt
+///
+/// Values:
+/// - 0 dB = 0x00 (no boost)
+/// - 10 dB = 0x0a
+/// - 20 dB = 0x14
+/// - 30 dB = 0x1e (maximum)
+pub fn build_set_microphone_boost(db_value: u8) -> Vec<Vec<u8>> {
+    // Validate: only 0, 10, 20, or 30 dB allowed
+    let validated_value = match db_value {
+        0 => 0x00,
+        10 => 0x0a,
+        20 => 0x14,
+        30 => 0x1e,
+        _ => {
+            // Default to nearest valid value
+            if db_value < 5 {
+                0x00
+            } else if db_value < 15 {
+                0x0a
+            } else if db_value < 25 {
+                0x14
+            } else {
+                0x1e
+            }
+        }
+    };
+
+    vec![
+        // DATA command - 5a 3c 04 00 00 02 [DB_VALUE] 00 00...
+        G6CommandBuilder::new(CommandFamily::AudioConfig)
+            .operation(&[0x04, 0x00, 0x00, 0x02, validated_value])
+            .build(),
+        // COMMIT command - 5a 3c 02 01 00 00...
+        G6CommandBuilder::new(CommandFamily::AudioConfig)
+            .operation(&[0x02, 0x01])
+            .build(),
+    ]
 }
 
 // ============================================================================

@@ -459,6 +459,45 @@ fn set_scout_mode(
 }
 
 #[tauri::command]
+fn set_microphone_boost(
+    app: AppHandle,
+    state: State<AppState>,
+    db_value: u8,
+) -> Result<String, String> {
+    info!("------------------------------------------------------------");
+    info!("User initiated: Set Microphone Boost to {}dB", db_value);
+
+    log_to_console(
+        &app,
+        "command",
+        format!("🎤 Set Microphone Boost (V2 Protocol): {}dB", db_value),
+        Some("Microphone input gain - DATA + COMMIT (0x3c family)".to_string()),
+    );
+
+    let manager = state.device_manager.lock().unwrap();
+    match manager.set_microphone_boost(db_value) {
+        Ok(_) => {
+            log_to_console(
+                &app,
+                "info",
+                format!("✅ Microphone Boost set to {}dB", db_value),
+                None,
+            );
+            Ok(format!("Microphone Boost set to {}dB", db_value))
+        }
+        Err(e) => {
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set microphone boost failed: {}", e),
+                None,
+            );
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
 fn read_device_state(state: State<AppState>) -> Result<G6Settings, String> {
     let manager = state.device_manager.lock().unwrap();
     manager.read_device_state().map_err(|e| e.to_string())
@@ -896,6 +935,7 @@ pub fn run() {
             set_dialog_plus,
             set_sbx_mode,
             set_scout_mode,
+            set_microphone_boost,
             list_usb_devices,
             get_app_version,
             configure_microphone,

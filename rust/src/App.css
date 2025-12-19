@@ -243,12 +243,15 @@ body {
   opacity: 0.8;
 }
 
-/* Effect Control - Compact Single Line */
-.effect-control.compact {
+/* =================================================================== */
+/* UNIFIED CONTROL ROW - DRY: ONE WRAPPER FOR ALL CONTROLS            */
+/* =================================================================== */
+.control-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
+  margin-top: 8px; /* Spacing from section-line above */
   margin-bottom: 6px;
   background: var(--bg-color);
   border-radius: var(--border-radius);
@@ -256,23 +259,23 @@ body {
   transition: var(--transition);
 }
 
-.effect-control.compact:hover {
+.control-row:hover {
   border-color: var(--primary-color);
 }
 
-/* Disabled Effect State - SBX Mode is Off */
-.effect-control.compact.disabled {
+/* Disabled state (for effect controls when SBX Mode is off) */
+.control-row.disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.2);
 }
 
-.effect-control.compact.disabled:hover {
+.control-row.disabled:hover {
   border-color: var(--border-color);
 }
 
-.effect-name {
+.control-label {
   font-size: 0.85rem;
   min-width: 90px;
   font-weight: 500;
@@ -330,10 +333,17 @@ input:checked + .toggle-slider:before {
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: var(--border-color);
+  background: transparent;
   outline: none;
   -webkit-appearance: none;
   min-width: 100px;
+  align-self: center; /* Ensure vertical centering in flex container */
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
 }
 
 .slider::-webkit-slider-thumb {
@@ -345,11 +355,18 @@ input:checked + .toggle-slider:before {
   background: var(--primary-color);
   cursor: pointer;
   transition: var(--transition);
+  margin-top: -5px; /* Centers the 16px thumb on the 6px track */
 }
 
 .slider::-webkit-slider-thumb:hover {
   background: var(--primary-hover);
   transform: scale(1.1);
+}
+
+.slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-color);
 }
 
 .slider::-moz-range-thumb {
@@ -748,14 +765,7 @@ input:checked + .toggle-slider:before {
   background: var(--secondary-color);
 }
 
-/* Effect Group Row - for SBX and Scout mode side-by-side */
-.effect-group-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.effect-control.compact.main-switch {
-  justify-content: space-between;
-}
+/* =================================================================== */
+/* OBSOLETE CLASSES REMOVED - All controls now use .control-row       */
+/* This ensures DRY code and consistent alignment across all controls */
+/* =================================================================== */

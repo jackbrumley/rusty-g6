@@ -510,6 +510,12 @@ impl G6DeviceManager {
                                             settings.audio_config = Some(*config);
                                             info!("Detected {:?}", event);
                                         }
+
+                                        // Microphone boost
+                                        DeviceEvent::MicrophoneBoostChanged(db_value) => {
+                                            settings.microphone_boost = *db_value;
+                                            info!("Detected {:?}", event);
+                                        }
                                     }
                                 }
                             }
@@ -720,6 +726,27 @@ impl G6DeviceManager {
         settings.scout_mode = enabled;
 
         info!("Scout Mode set to {:?} using V2", enabled);
+        Ok(())
+    }
+
+    /// Set Microphone Boost
+    /// Now using Protocol V2 - discovered from packet capture
+    /// Valid values: 0, 10, 20, or 30 dB
+    pub fn set_microphone_boost(&self, db_value: u8) -> Result<()> {
+        // Validate: only 0, 10, 20, or 30 dB allowed
+        if ![0, 10, 20, 30].contains(&db_value) {
+            return Err(anyhow::anyhow!(
+                "Invalid microphone boost value: {}dB. Valid values: 0, 10, 20, 30",
+                db_value
+            ));
+        }
+
+        // Use V2 protocol - AudioConfig family (0x3c)
+        let commands = crate::g6_protocol_v2::build_set_microphone_boost(db_value);
+
+        self.send_commands(commands)?;
+
+        info!("Microphone Boost set to {}dB using V2", db_value);
         Ok(())
     }
 

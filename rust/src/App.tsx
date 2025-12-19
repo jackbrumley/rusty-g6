@@ -52,6 +52,9 @@ interface G6Settings {
   dialog_plus_enabled: "Enabled" | "Disabled";
   dialog_plus_value: number;
 
+  // Microphone boost (0, 10, 20, or 30 dB)
+  microphone_boost: number;
+
   // Global SBX processing switch
   sbx_enabled: "Enabled" | "Disabled";
 
@@ -79,6 +82,7 @@ function App() {
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
+  const [micBoost, setMicBoost] = useState<number>(0);
 
   // Use ref to control polling logic if needed (mostly replaced by events now)
   const pollEnabledRef = useRef(false);
@@ -113,6 +117,13 @@ function App() {
   useEffect(() => {
     pollEnabledRef.current = connected;
   }, [connected]);
+
+  // Sync microphone boost from settings
+  useEffect(() => {
+    if (settings) {
+      setMicBoost(settings.microphone_boost);
+    }
+  }, [settings]);
 
   async function loadVersion() {
     try {
@@ -334,6 +345,28 @@ function App() {
     }
   }
 
+  async function setMicrophoneBoost(dbValue: number) {
+    try {
+      console.log("Setting Microphone Boost:", dbValue);
+      await invoke("set_microphone_boost", { dbValue });
+      setMicBoost(dbValue);
+      setStatus(`Mic Boost set to ${dbValue}dB`);
+      setToast({
+        message: `Microphone boost set to ${dbValue}dB`,
+        type: "success",
+      });
+      setTimeout(() => setToast(null), 2000);
+    } catch (error) {
+      console.error("Failed to set microphone boost:", error);
+      setStatus(`Failed to set mic boost: ${error}`);
+      setToast({
+        message: `Failed to set mic boost: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 3000);
+    }
+  }
+
   async function setEffect(
     effectName: string,
     enabled: "Enabled" | "Disabled",
@@ -465,6 +498,17 @@ function App() {
                   Setup Mic
                 </button>
               </div>
+
+              {/* Microphone Boost Control - Using reusable SliderControl */}
+              <SliderControl
+                label="Mic Boost:"
+                value={micBoost}
+                min={0}
+                max={30}
+                step={10}
+                onChange={setMicrophoneBoost}
+                formatValue={(val) => (val > 0 ? `+${val}dB` : `${val}dB`)}
+              />
             </section>
 
             {/* Output Section - Horizontal layout */}
@@ -480,43 +524,22 @@ function App() {
               <div class="effects-list">
                 <h3>Audio Effects</h3>
 
-                <div class="effect-control compact main-switch">
-                  <span class="effect-name">Scout Mode</span>
-                  <label class="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={settings.scout_mode === "Enabled"}
-                      onChange={(e) =>
-                        setScoutMode(
-                          e.currentTarget.checked ? "Enabled" : "Disabled"
-                        )
-                      }
-                    />
-                    <span class="toggle-slider"></span>
-                  </label>
-                  <span class="slider-value">
-                    {settings.scout_mode === "Enabled" ? "On" : "Off"}
-                  </span>
-                </div>
+                {/* Using reusable ToggleControl components */}
+                <ToggleControl
+                  label="Scout Mode"
+                  checked={settings.scout_mode === "Enabled"}
+                  onChange={(enabled) =>
+                    setScoutMode(enabled ? "Enabled" : "Disabled")
+                  }
+                />
 
-                <div class="effect-control compact main-switch">
-                  <span class="effect-name">SBX Mode</span>
-                  <label class="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={settings.sbx_enabled === "Enabled"}
-                      onChange={(e) =>
-                        setSbxMode(
-                          e.currentTarget.checked ? "Enabled" : "Disabled"
-                        )
-                      }
-                    />
-                    <span class="toggle-slider"></span>
-                  </label>
-                  <span class="slider-value">
-                    {settings.sbx_enabled === "Enabled" ? "On" : "Off"}
-                  </span>
-                </div>
+                <ToggleControl
+                  label="SBX Mode"
+                  checked={settings.sbx_enabled === "Enabled"}
+                  onChange={(enabled) =>
+                    setSbxMode(enabled ? "Enabled" : "Disabled")
+                  }
+                />
 
                 <EffectControl
                   name="Surround"
@@ -588,17 +611,10 @@ function App() {
 
             {/* Debug Section - Vertical layout */}
             <section class="debug-section compact">
-              <div class="section-line">
-                <span class="section-label">Debug:</span>
-                <button
-                  onClick={readDeviceState}
-                  class="btn-compact btn-secondary"
-                >
-                  Read State
-                </button>
-                <button onClick={synchronizeDevice} class="btn-compact">
-                  Sync
-                </button>
+              {/* App Version */}
+              <div class="read-only-item">
+                <span class="readonly-label">App Version:</span>
+                <span class="readonly-value">{appVersion || "Unknown"}</span>
               </div>
 
               {/* Firmware Version - ALWAYS VISIBLE */}
@@ -685,9 +701,93 @@ function App() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
 
-      {/* Version display */}
-      {appVersion && <div class="app-version">v{appVersion}</div>}
+// ============================================================================
+// REUSABLE CONTROL COMPONENTS
+// ============================================================================
+
+interface SliderControlProps {
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  onChange: (value: number) => void;
+  formatValue?: (value: number) => string;
+}
+
+function SliderControl({
+  label,
+  value,
+  min = 0,
+  max = 100,
+  step = 1,
+  unit = "",
+  onChange,
+  formatValue,
+}: SliderControlProps) {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleSliderChange = (e: Event) => {
+    const newValue = parseInt((e.currentTarget as HTMLInputElement).value);
+    setLocalValue(newValue);
+    onChange(newValue);
+  };
+
+  const handleSliderInput = (e: Event) => {
+    setLocalValue(parseInt((e.currentTarget as HTMLInputElement).value));
+  };
+
+  const displayValue = formatValue
+    ? formatValue(localValue)
+    : `${localValue}${unit}`;
+
+  return (
+    <div class="control-row">
+      <span class="control-label">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={localValue}
+        onInput={handleSliderInput}
+        onChange={handleSliderChange}
+        class="slider"
+      />
+      <span class="slider-value">{displayValue}</span>
+    </div>
+  );
+}
+
+interface ToggleControlProps {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+function ToggleControl({ label, checked, onChange }: ToggleControlProps) {
+  const handleToggle = (e: Event) => {
+    const newChecked = (e.currentTarget as HTMLInputElement).checked;
+    onChange(newChecked);
+  };
+
+  return (
+    <div class="control-row">
+      <span class="control-label">{label}</span>
+      <label class="toggle-switch">
+        <input type="checkbox" checked={checked} onChange={handleToggle} />
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="slider-value">{checked ? "On" : "Off"}</span>
     </div>
   );
 }
@@ -718,27 +818,24 @@ function EffectControl({
   const handleToggle = (e: Event) => {
     const newEnabled = (e.currentTarget as HTMLInputElement).checked;
     setLocalEnabled(newEnabled);
-    // Auto-apply when toggle changes
     onChange(newEnabled, localValue);
   };
 
   const handleSliderChange = (e: Event) => {
     const newValue = parseInt((e.currentTarget as HTMLInputElement).value);
     setLocalValue(newValue);
-    // Auto-apply when slider is released
     if (localEnabled) {
       onChange(localEnabled, newValue);
     }
   };
 
   const handleSliderInput = (e: Event) => {
-    // Just update local value for visual feedback while dragging
     setLocalValue(parseInt((e.currentTarget as HTMLInputElement).value));
   };
 
   return (
-    <div class={`effect-control compact ${disabled ? "disabled" : ""}`}>
-      <span class="effect-name">{name}</span>
+    <div class={`control-row ${disabled ? "disabled" : ""}`}>
+      <span class="control-label">{name}</span>
       <label class="toggle-switch">
         <input
           type="checkbox"
