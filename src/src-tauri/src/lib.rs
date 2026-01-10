@@ -916,6 +916,7 @@ pub fn run() {
     let device_manager = G6DeviceManager::new().expect("Failed to initialize G6 Device Manager");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             device_manager: Mutex::new(device_manager),

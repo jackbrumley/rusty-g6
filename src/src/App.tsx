@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  enable as enableAutostart,
+  disable as disableAutostart,
+  isEnabled as isAutostartEnabled,
+} from "@tauri-apps/plugin-autostart";
 import "./App.css";
 
 interface FirmwareInfo {
@@ -84,6 +89,7 @@ function App() {
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
   const [micBoost, setMicBoost] = useState<number>(0);
   const [permissionError, setPermissionError] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [showExperimental, setShowExperimental] = useState(() => {
     return localStorage.getItem("rusty-g6-experimental") === "true";
   });
@@ -91,6 +97,29 @@ function App() {
   const toggleExperimental = (enabled: boolean) => {
     setShowExperimental(enabled);
     localStorage.setItem("rusty-g6-experimental", String(enabled));
+  };
+
+  const toggleAutostart = async (enabled: boolean) => {
+    try {
+      if (enabled) {
+        await enableAutostart();
+      } else {
+        await disableAutostart();
+      }
+      setAutostartEnabled(enabled);
+      setToast({
+        message: `Auto-start ${enabled ? "enabled" : "disabled"}`,
+        type: "success",
+      });
+      setTimeout(() => setToast(null), 3000);
+    } catch (error) {
+      console.error("Failed to toggle autostart:", error);
+      setToast({
+        message: `Failed to toggle auto-start: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
+    }
   };
 
   // Use ref to control polling logic if needed (mostly replaced by events now)
@@ -110,6 +139,8 @@ function App() {
     listUsbDevices();
     // Load app version
     loadVersion();
+    // Check autostart status
+    isAutostartEnabled().then(setAutostartEnabled).catch(console.error);
 
     // Listen for device updates (from listener thread)
     const unlistenPromise = listen("device-update", () => {
@@ -709,6 +740,11 @@ function App() {
               )}
 
               <div class="debug-controls">
+                <ToggleControl
+                  label="Auto-start with system"
+                  checked={autostartEnabled}
+                  onChange={toggleAutostart}
+                />
                 <ToggleControl
                   label="Experimental Features"
                   checked={showExperimental}
