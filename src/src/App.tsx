@@ -84,6 +84,14 @@ function App() {
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
   const [micBoost, setMicBoost] = useState<number>(0);
   const [permissionError, setPermissionError] = useState(false);
+  const [showExperimental, setShowExperimental] = useState(() => {
+    return localStorage.getItem("rusty-g6-experimental") === "true";
+  });
+
+  const toggleExperimental = (enabled: boolean) => {
+    setShowExperimental(enabled);
+    localStorage.setItem("rusty-g6-experimental", String(enabled));
+  };
 
   // Use ref to control polling logic if needed (mostly replaced by events now)
   const pollEnabledRef = useRef(false);
@@ -511,29 +519,38 @@ function App() {
             <section class="input-section compact">
               <div class="section-line">
                 <span class="section-label">Input:</span>
-                <button
-                  onClick={handleSetupMicClick}
-                  class="btn-compact"
-                  title={
-                    isLinux
-                      ? "Configure ALSA mixer for microphone input"
-                      : undefined
-                  }
-                >
-                  Setup Mic
-                </button>
+                {showExperimental ? (
+                  <button
+                    onClick={handleSetupMicClick}
+                    class="btn-compact"
+                    title={
+                      isLinux
+                        ? "Configure ALSA mixer for microphone input"
+                        : undefined
+                    }
+                  >
+                    Setup Mic
+                  </button>
+                ) : (
+                  <span class="info-note" style={{ fontSize: "0.75rem" }}>
+                    Experimental on Linux. Recommended to use motherboard input
+                    for reliability.
+                  </span>
+                )}
               </div>
 
-              {/* Microphone Boost Control - Using reusable SliderControl */}
-              <SliderControl
-                label="Mic Boost:"
-                value={micBoost}
-                min={0}
-                max={30}
-                step={10}
-                onChange={setMicrophoneBoost}
-                formatValue={(val) => (val > 0 ? `+${val}dB` : `${val}dB`)}
-              />
+              {showExperimental && (
+                /* Microphone Boost Control - Using reusable SliderControl */
+                <SliderControl
+                  label="Mic Boost:"
+                  value={micBoost}
+                  min={0}
+                  max={30}
+                  step={10}
+                  onChange={setMicrophoneBoost}
+                  formatValue={(val) => (val > 0 ? `+${val}dB` : `${val}dB`)}
+                />
+              )}
             </section>
 
             {/* Output Section - Horizontal layout */}
@@ -693,6 +710,11 @@ function App() {
               )}
 
               <div class="debug-controls">
+                <ToggleControl
+                  label="Experimental Features"
+                  checked={showExperimental}
+                  onChange={toggleExperimental}
+                />
                 <input
                   type="text"
                   class="log-message-input"
