@@ -203,19 +203,16 @@ function App() {
 
   async function readDeviceState() {
     try {
-      setStatus("Reading device state...");
       const deviceSettings = await invoke<G6Settings>("read_device_state");
       setSettings(deviceSettings);
-      setStatus("Device state read successfully");
       setToast({
         message:
           "Device state read successfully! All settings now reflect actual device values.",
         type: "success",
       });
-      setTimeout(() => setToast(null), 4000);
+      setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error("Failed to read device state:", error);
-      setStatus(`Failed to read device state: ${error}`);
       setToast({
         message: `Failed to read device state: ${error}`,
         type: "error",
@@ -258,14 +255,16 @@ function App() {
 
   async function handleSetupUsbPermissions() {
     try {
-      setStatus("Setting up permissions...");
+      setToast({
+        message: "Setting up USB permissions...",
+        type: "info",
+      });
       const result = await invoke<string>("setup_udev_rules");
       setToast({
         message: result,
         type: "success",
       });
       setPermissionError(false);
-      setStatus("Permissions updated. Ready to connect.");
       setTimeout(() => setToast(null), 5000);
     } catch (error) {
       console.error("Failed to setup permissions:", error);
@@ -273,7 +272,6 @@ function App() {
         message: `Setup failed: ${error}`,
         type: "error",
       });
-      setStatus(`Setup failed: ${error}`);
       setTimeout(() => setToast(null), 5000);
     }
   }
@@ -282,9 +280,12 @@ function App() {
     try {
       await invoke("toggle_output");
       await loadSettings();
-      setStatus("Output toggled");
     } catch (error) {
-      setStatus(`Failed to toggle output: ${error}`);
+      setToast({
+        message: `Failed to toggle output: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
     }
   }
 
@@ -292,12 +293,13 @@ function App() {
     try {
       console.log("Setting SBX Mode:", enabled);
       await invoke("set_sbx_mode", { enabled });
-      // Device will send event → listener catches it → emits device-update → loadSettings()
-      // No need for manual full-state read here
-      setStatus(`SBX Mode ${enabled}`);
     } catch (error) {
       console.error("Failed to set SBX Mode:", error);
-      setStatus(`Failed to set SBX Mode: ${error}`);
+      setToast({
+        message: `Failed to set SBX Mode: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
     }
   }
 
@@ -305,20 +307,23 @@ function App() {
     try {
       console.log("Setting Scout Mode:", enabled);
       await invoke("set_scout_mode", { enabled });
-      // Device will send event → listener catches it → emits device-update → loadSettings()
-      // No need for manual full-state read here
-      setStatus(`Scout Mode ${enabled}`);
     } catch (error) {
       console.error("Failed to set Scout Mode:", error);
-      setStatus(`Failed to set Scout Mode: ${error}`);
+      setToast({
+        message: `Failed to set Scout Mode: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
     }
   }
 
   async function configureMicrophone() {
     try {
-      setStatus("Configuring microphone...");
-      const result = await invoke<string>("configure_microphone");
-      setStatus(result);
+      setToast({
+        message: "Configuring microphone...",
+        type: "info",
+      });
+      await invoke<string>("configure_microphone");
 
       // Show toast with instructions
       setToast({
@@ -330,7 +335,6 @@ function App() {
       // Auto-dismiss toast after 8 seconds
       setTimeout(() => setToast(null), 8000);
     } catch (error) {
-      setStatus(`Failed to configure microphone: ${error}`);
       setToast({
         message: `Failed to configure microphone: ${error}`,
         type: "error",
@@ -385,7 +389,6 @@ function App() {
       console.log("Setting Microphone Boost:", dbValue);
       await invoke("set_microphone_boost", { dbValue });
       setMicBoost(dbValue);
-      setStatus(`Mic Boost set to ${dbValue}dB`);
       setToast({
         message: `Microphone boost set to ${dbValue}dB`,
         type: "success",
@@ -393,7 +396,6 @@ function App() {
       setTimeout(() => setToast(null), 2000);
     } catch (error) {
       console.error("Failed to set microphone boost:", error);
-      setStatus(`Failed to set mic boost: ${error}`);
       setToast({
         message: `Failed to set mic boost: ${error}`,
         type: "error",
@@ -409,18 +411,15 @@ function App() {
   ) {
     try {
       console.log(`Setting ${effectName}:`, { enabled, value });
-      // Optimistic update locally?
-      // Not strictly needed if readDeviceStateSilent is fast.
       const result = await invoke(`set_${effectName}`, { enabled, value });
       console.log(`${effectName} result:`, result);
-      setStatus(`${effectName} updated`);
-      // We don't need to force read here if the listener works,
-      // the device will send a Confirmation report -> listener -> emit -> read.
-      // But for robustness:
-      // readDeviceStateSilent();
     } catch (error) {
       console.error(`Failed to set ${effectName}:`, error);
-      setStatus(`Failed to set ${effectName}: ${error}`);
+      setToast({
+        message: `Failed to set ${effectName}: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 3000);
     }
   }
 
