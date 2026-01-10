@@ -34,7 +34,11 @@
             "core:window:allow-hide",
             "core:window:allow-show",
             "core:window:allow-set-focus",
-            "core:tray:default"
+            "core:tray:default",
+            "opener:default",
+            "autostart:allow-enable",
+            "autostart:allow-disable",
+            "autostart:allow-is-enabled"
           ]
         }
       ]
