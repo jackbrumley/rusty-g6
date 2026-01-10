@@ -25,41 +25,8 @@ node build.js --clean      # Clean build (removes cache first)
 ```
 
 This runs `cargo tauri build` which creates standalone executables in:
-- `rust/src-tauri/target/release/rusty-g6` (release)
-- `rust/src-tauri/target/debug/rusty-g6` (debug)
-
-## First Time Setup
-
-### Install Dependencies
-```bash
-cd rust && npm install
-```
-
-### Fix USB Permissions (Linux) - REQUIRED
-
-On Linux, you need to grant permission to access USB devices. Run this **one-time setup**:
-
-```bash
-./setup-usb-permissions.sh
-```
-
-Then unplug and replug your Sound BlasterX G6.
-
-This creates a udev rule that allows the app (and any built executable) to access the G6 without needing sudo.
-
-**Why?** Linux restricts USB device access for security. The udev rule grants permission specifically for the G6 (VID: 041e, PID: 3256).
-
-## Manual Commands
-
-### Development with Hot Reload
-```bash
-cd rust && cargo tauri dev
-```
-
-### Production Build
-```bash
-cd rust && cargo tauri build
-```
+- `src/src-tauri/target/release/rusty-g6` (release)
+- `src/src-tauri/target/debug/rusty-g6` (debug)
 
 ## Prerequisites
 
@@ -68,14 +35,22 @@ cd rust && cargo tauri build
 - Tauri CLI (`cargo install tauri-cli`)
 - Linux: webkit2gtk, gtk3, libudev-dev, and other system dependencies (scripts will check)
 
+## USB Permissions (Linux)
+
+The application automatically prompts for USB permissions on launch if they are missing. You do not need to run any scripts manually.
+
+If you prefer to set them up ahead of time, you can run:
+```bash
+./setup-usb-permissions.sh
+```
+
 ## Troubleshooting
 
 ### Permission Denied Error
 
 If you see `Permission denied` when accessing `/dev/hidraw*`:
-1. Run `./setup-usb-permissions.sh`
-2. Unplug and replug your G6
-3. Try again
+The app should automatically prompt to fix this. If it doesn't, you can manually run:
+`./setup-usb-permissions.sh`
 
 ### App Doesn't Find G6
 

@@ -362,8 +362,8 @@ All of these would require additional packet capture analysis.
 ### Our Discoveries
 
 - USB packet captures (see `packet-capture/` directory)
-- Protocol V2 implementation (`rust/src-tauri/src/g6_protocol_v2.rs`)
-- Event parser implementation (`rust/src-tauri/src/g6_device.rs`)
+- Protocol V2 implementation (`src/src-tauri/src/g6_protocol_v2.rs`)
+- Event parser implementation (`src/src-tauri/src/g6_device.rs`)
 
 ---
 

@@ -24,7 +24,7 @@ This directory contains all the app icons generated from `rusty-g6.svg`.
 If you update `rusty-g6.svg`, regenerate all icons with:
 
 ```bash
-cd rust/src-tauri/icons
+cd src/src-tauri/icons
 
 # Core PNG icons
 convert -background none rusty-g6.svg -resize 32x32 32x32.png

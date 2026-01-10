@@ -1,5 +1,5 @@
 
-![Rusty G6 Logo](rust/src-tauri/icons/128x128.png)
+![Rusty G6 Logo](src/src-tauri/icons/128x128.png)
 
 # Rusty G6
 
@@ -81,7 +81,13 @@ Download and run the `.msi` installer. No additional setup required.
 
 ### Building from Source
 
-See [docs/build-guide.md](docs/build-guide.md) for build instructions.
+```bash
+git clone https://github.com/jackbrumley/rusty-g6
+cd rusty-g6
+node build.js
+```
+
+See [docs/build-guide.md](docs/build-guide.md) for more detailed instructions.
 
 ## Disclaimer
 
