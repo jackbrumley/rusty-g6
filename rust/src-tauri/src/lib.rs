@@ -519,6 +519,55 @@ fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+fn check_usb_permissions() -> Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    {
+        use std::path::Path;
+        // Check if the udev rule file exists as a proxy for permissions
+        // or check if we can actually open the device if it's plugged in
+        let rule_path = "/etc/udev/rules.d/99-soundblaster-g6.rules";
+        if Path::new(rule_path).exists() {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(true)
+    }
+}
+
+#[tauri::command]
+async fn setup_udev_rules() -> Result<String, String> {
+    use std::process::Command;
+
+    info!("Setting up USB udev rules...");
+
+    let script = r#"
+# Sound BlasterX G6 - VID: 041e, PID: 3256
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666", TAG+="uaccess"
+"#;
+
+    let cmd = format!(
+        "echo '{}' > /etc/udev/rules.d/99-soundblaster-g6.rules && udevadm control --reload-rules && udevadm trigger",
+        script
+    );
+
+    let output = Command::new("pkexec")
+        .args(&["bash", "-c", &cmd])
+        .output()
+        .map_err(|e| format!("Failed to execute pkexec: {}", e))?;
+
+    if output.status.success() {
+        Ok("USB permissions set up successfully. You can now connect to the device.".to_string())
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr);
+        Err(format!("Failed to set up USB permissions: {}", err))
+    }
+}
+
+#[tauri::command]
 fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
@@ -944,6 +993,8 @@ pub fn run() {
             clear_protocol_console,
             test_protocol_v2,
             test_output_toggle_v2,
+            setup_udev_rules,
+            check_usb_permissions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

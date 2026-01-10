@@ -83,6 +83,7 @@ function App() {
   const [isLinux, setIsLinux] = useState(true);
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
   const [micBoost, setMicBoost] = useState<number>(0);
+  const [permissionError, setPermissionError] = useState(false);
 
   // Use ref to control polling logic if needed (mostly replaced by events now)
   const pollEnabledRef = useRef(false);
@@ -93,7 +94,10 @@ function App() {
     const userAgent = navigator.userAgent.toLowerCase();
     setIsLinux(userAgent.includes("linux"));
 
-    checkConnection();
+    // Check USB permissions on launch (Linux only)
+    if (userAgent.includes("linux")) {
+      checkPermissionsAndSetup();
+    }
     // List all USB devices for debugging
     listUsbDevices();
     // Load app version
@@ -125,6 +129,33 @@ function App() {
     }
   }, [settings]);
 
+  // Auto-connect loop
+  useEffect(() => {
+    let interval: number;
+    if (!connected) {
+      // Initial check
+      connectDevice(true);
+
+      // Periodic check every 3 seconds
+      interval = setInterval(() => {
+        connectDevice(true);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [connected]);
+
+  async function checkPermissionsAndSetup() {
+    try {
+      const hasPermissions = await invoke<boolean>("check_usb_permissions");
+      if (!hasPermissions) {
+        console.log("USB permissions missing, prompting for setup...");
+        await handleSetupUsbPermissions();
+      }
+    } catch (error) {
+      console.error("Failed to check USB permissions:", error);
+    }
+  }
+
   async function loadVersion() {
     try {
       const version = await invoke<string>("get_app_version");
@@ -145,24 +176,16 @@ function App() {
     }
   }
 
-  async function checkConnection() {
-    try {
-      const isConnected = await invoke<boolean>("is_device_connected");
-      setConnected(isConnected);
-      if (isConnected) {
-        setStatus("Connected");
-        await loadSettings();
-      } else {
-        setStatus("Disconnected");
-      }
-    } catch (error) {
-      console.error("Error checking connection:", error);
-      setStatus("Error checking connection");
-    }
-  }
-
   async function loadSettings() {
     try {
+      const isConnected = await invoke<boolean>("is_device_connected");
+      if (!isConnected) {
+        setConnected(false);
+        setStatus("Disconnected");
+        setSettings(null);
+        return;
+      }
+
       const deviceSettings = await invoke<G6Settings>("get_device_settings");
       setSettings(deviceSettings);
     } catch (error) {
@@ -193,32 +216,16 @@ function App() {
     }
   }
 
-  async function synchronizeDevice() {
+  async function connectDevice(silent = false) {
     try {
-      setStatus("Synchronizing device...");
-      await invoke("synchronize_device");
-      await loadSettings();
-      setStatus("Device synchronized");
-      setToast({
-        message: "Device synchronized successfully!",
-        type: "success",
-      });
-      setTimeout(() => setToast(null), 3000);
-    } catch (error) {
-      console.error("Failed to synchronize device:", error);
-      setStatus(`Failed to synchronize device: ${error}`);
-      setToast({
-        message: `Failed to synchronize device: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
-    }
-  }
+      if (!silent) {
+        console.log("Attempting to connect to G6 device...");
+        setStatus("Connecting...");
+      } else {
+        setStatus("Searching for device...");
+      }
 
-  async function connectDevice() {
-    try {
-      console.log("Attempting to connect to G6 device...");
-      setStatus("Connecting...");
+      setPermissionError(false);
       const result = await invoke("connect_device");
       console.log("Connection result:", result);
       setConnected(true);
@@ -226,20 +233,40 @@ function App() {
       // Read full device state on connect (includes firmware, equalizer, etc.)
       await readDeviceState();
     } catch (error) {
-      console.error("Connection failed:", error);
-      setStatus(`Connection failed: ${error}`);
+      if (!silent) {
+        console.error("Connection failed:", error);
+      }
+      const errorMsg = String(error);
       setConnected(false);
+
+      if (errorMsg.includes("Permission denied")) {
+        setPermissionError(true);
+        setStatus("USB Permission Denied (Linux)");
+      } else {
+        setStatus("Disconnected");
+      }
     }
   }
 
-  async function disconnectDevice() {
+  async function handleSetupUsbPermissions() {
     try {
-      await invoke("disconnect_device");
-      setConnected(false);
-      setStatus("Disconnected");
-      setSettings(null);
+      setStatus("Setting up permissions...");
+      const result = await invoke<string>("setup_udev_rules");
+      setToast({
+        message: result,
+        type: "success",
+      });
+      setPermissionError(false);
+      setStatus("Permissions updated. Ready to connect.");
+      setTimeout(() => setToast(null), 5000);
     } catch (error) {
-      setStatus(`Disconnect failed: ${error}`);
+      console.error("Failed to setup permissions:", error);
+      setToast({
+        message: `Setup failed: ${error}`,
+        type: "error",
+      });
+      setStatus(`Setup failed: ${error}`);
+      setTimeout(() => setToast(null), 5000);
     }
   }
 
@@ -465,20 +492,18 @@ function App() {
               {connected ? "●" : "○"}
             </span>
             <span class="status-text">{status}</span>
-            {!connected ? (
-              <button onClick={connectDevice} class="btn-compact btn-primary">
-                Connect
-              </button>
-            ) : (
+            {permissionError && (
               <button
-                onClick={disconnectDevice}
-                class="btn-compact btn-secondary"
+                onClick={handleSetupUsbPermissions}
+                class="btn-compact btn-warning"
+                title="Automatically set up Linux udev rules for the G6 device. Requires root password."
               >
-                Disconnect
+                Fix Permissions
               </button>
             )}
           </div>
         </section>
+
 
         {connected && settings && (
           <>

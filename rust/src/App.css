@@ -163,6 +163,15 @@ body {
   background-color: #888;
 }
 
+.btn-compact.btn-warning {
+  background-color: var(--warning-color);
+  color: #000;
+}
+
+.btn-compact.btn-warning:hover {
+  background-color: #ffa726;
+}
+
 /* Section Styles */
 .input-section.compact,
 .output-section.compact,

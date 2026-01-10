@@ -526,7 +526,16 @@ impl G6DeviceManager {
                             }
                         }
                     }
-                    _ => {}
+                    Ok(_) => {} // No data
+                    Err(e) => {
+                        error!("Read error in listener (possibly disconnected): {}", e);
+                        // Clear the device on error to trigger reconnection flow
+                        *device_arc.lock().unwrap() = None;
+                        // Notify UI of disconnect
+                        on_event();
+                        // Sleep a bit longer before next attempt
+                        thread::sleep(Duration::from_millis(500));
+                    }
                 }
 
                 thread::sleep(Duration::from_millis(10));
