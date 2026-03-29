@@ -1,6 +1,6 @@
 {
   "name": "rusty-g6",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "tasks": {
     "dev": "deno run -A scripts/dev.ts",
     "build": "deno run -A scripts/build.ts",
