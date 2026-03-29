@@ -1,0 +1,61 @@
+{
+  "hash": "bb0a012a",
+  "configHash": "3c36a91a",
+  "lockfileHash": "e3b0c442",
+  "browserHash": "5ae424cd",
+  "optimized": {
+    "preact": {
+      "src": "../../node_modules/.deno/preact@10.29.0/node_modules/preact/dist/preact.module.js",
+      "file": "preact.js",
+      "fileHash": "93866ca3",
+      "needsInterop": false
+    },
+    "preact/jsx-runtime": {
+      "src": "../../node_modules/.deno/preact@10.29.0/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js",
+      "file": "preact_jsx-runtime.js",
+      "fileHash": "633b6384",
+      "needsInterop": false
+    },
+    "preact/jsx-dev-runtime": {
+      "src": "../../node_modules/.deno/preact@10.29.0/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js",
+      "file": "preact_jsx-dev-runtime.js",
+      "fileHash": "2df6ac4e",
+      "needsInterop": false
+    },
+    "preact/debug": {
+      "src": "../../node_modules/.deno/preact@10.29.0/node_modules/preact/debug/dist/debug.module.js",
+      "file": "preact_debug.js",
+      "fileHash": "361fa11d",
+      "needsInterop": false
+    },
+    "preact/devtools": {
+      "src": "../../node_modules/.deno/preact@10.29.0/node_modules/preact/devtools/dist/devtools.module.js",
+      "file": "preact_devtools.js",
+      "fileHash": "cda0303d",
+      "needsInterop": false
+    },
+    "@tauri-apps/api/core": {
+      "src": "../../node_modules/.deno/@tauri-apps+api@2.10.1/node_modules/@tauri-apps/api/core.js",
+      "file": "@tauri-apps_api_core.js",
+      "fileHash": "b5a1d483",
+      "needsInterop": false
+    },
+    "preact/hooks": {
+      "src": "../../node_modules/.deno/preact@10.29.0/node_modules/preact/hooks/dist/hooks.module.js",
+      "file": "preact_hooks.js",
+      "fileHash": "c5fdcce0",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-QVUHVV2R": {
+      "file": "chunk-QVUHVV2R.js"
+    },
+    "chunk-F75BFUEV": {
+      "file": "chunk-F75BFUEV.js"
+    },
+    "chunk-BT2LLABF": {
+      "file": "chunk-BT2LLABF.js"
+    }
+  }
+}
