@@ -1,6 +1,6 @@
 # Maintainer: Jack Brumley <your-email@example.com>
 pkgname=rusty-g6-bin
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
 pkgdesc="Cross-platform GUI for SoundBlaster X G6 control"
 arch=('x86_64')

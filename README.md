@@ -47,7 +47,7 @@ All Linux packages automatically install dependencies and configure USB permissi
 
 ```bash
 # Download the .deb package from releases
-sudo apt install ./rusty-g6_1.0.1_amd64.deb
+sudo apt install ./rusty-g6_1.0.2_amd64.deb
 ```
 
 The package automatically:
@@ -59,7 +59,7 @@ The package automatically:
 
 ```bash
 # Download the .rpm package from releases
-sudo dnf install rusty-g6-1.0.1-1.x86_64.rpm
+sudo dnf install rusty-g6-1.0.2-1.x86_64.rpm
 ```
 
 ### Arch/Manjaro/SteamOS

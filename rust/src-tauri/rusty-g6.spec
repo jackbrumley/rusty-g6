@@ -1,5 +1,5 @@
 Name:           rusty-g6
-Version:        1.0.1
+Version:        1.0.2
 Release:        1%{?dist}
 Summary:        Cross-platform GUI for SoundBlaster X G6 control
 
@@ -52,6 +52,9 @@ fi
 %{_bindir}/rusty-g6
 
 %changelog
+* Thu Apr 16 2026 Jack Brumley <your-email@example.com> - 1.0.2-1
+- Wire Linux package maintainer scripts through tauri bundle config so udev rules install correctly
+
 * Thu Apr 16 2026 Jack Brumley <your-email@example.com> - 1.0.1-1
 - Fix Linux device permissions by installing hidraw + usb udev rules for G6 access
 
