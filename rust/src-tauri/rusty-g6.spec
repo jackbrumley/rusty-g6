@@ -1,5 +1,5 @@
 Name:           rusty-g6
-Version:        0.1.0
+Version:        1.0.1
 Release:        1%{?dist}
 Summary:        Cross-platform GUI for SoundBlaster X G6 control
 
@@ -27,8 +27,11 @@ mkdir -p %{buildroot}%{_bindir}
 install -m 755 rusty-g6 %{buildroot}%{_bindir}/rusty-g6
 
 %post
-# Create udev rule for SoundBlaster X G6 USB access
-echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", TAG+="uaccess"' > /etc/udev/rules.d/50-soundblaster-x-g6.rules
+# Create udev rules for SoundBlaster X G6 HID + USB access
+cat > /etc/udev/rules.d/50-soundblaster-x-g6.rules << 'EOF'
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666", TAG+="uaccess"
+EOF
 
 # Reload udev rules
 udevadm control --reload-rules
@@ -49,5 +52,8 @@ fi
 %{_bindir}/rusty-g6
 
 %changelog
+* Thu Apr 16 2026 Jack Brumley <your-email@example.com> - 1.0.1-1
+- Fix Linux device permissions by installing hidraw + usb udev rules for G6 access
+
 * Sat Nov 30 2024 Jack Brumley <your-email@example.com> - 0.1.0-1
 - Initial release

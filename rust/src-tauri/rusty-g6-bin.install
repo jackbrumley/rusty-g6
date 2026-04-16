@@ -1,0 +1,22 @@
+post_install() {
+  cat > /etc/udev/rules.d/50-soundblaster-x-g6.rules << 'EOF'
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666", TAG+="uaccess"
+EOF
+
+  udevadm control --reload-rules
+  udevadm trigger
+
+  echo "Rusty G6 installed successfully!"
+  echo "USB permissions configured for SoundBlaster X G6"
+}
+
+post_upgrade() {
+  post_install
+}
+
+post_remove() {
+  rm -f /etc/udev/rules.d/50-soundblaster-x-g6.rules
+  udevadm control --reload-rules
+  udevadm trigger
+}
