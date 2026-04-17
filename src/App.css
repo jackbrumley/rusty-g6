@@ -33,6 +33,54 @@ body {
   padding: 15px;
 }
 
+.titlebar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--border-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  user-select: none;
+}
+
+.titlebar-title {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.titlebar-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.titlebar-btn {
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.titlebar-btn:hover {
+  background: var(--bg-color);
+  transform: none;
+}
+
+.titlebar-btn-close:hover {
+  background: #cc3a3a;
+  color: #fff;
+}
+
 /* Header */
 header {
   text-align: center;
@@ -366,6 +414,10 @@ input:checked + .toggle-slider:before {
 
   button {
     width: 100%;
+  }
+
+  .titlebar-btn {
+    width: 30px;
   }
 }
 

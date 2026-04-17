@@ -7,12 +7,13 @@ use g6_device::G6DeviceManager;
 use g6_spec::{EffectState, G6Settings, OutputDevice};
 use platform::traits::PlatformBackend;
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Manager, State};
 
 // Application state
 struct AppState {
     device_manager: Mutex<G6DeviceManager>,
     platform_backend: Arc<dyn PlatformBackend>,
+    tray_available: Mutex<bool>,
 }
 
 // Tauri Commands
@@ -217,6 +218,30 @@ fn get_microphone_status(state: State<AppState>) -> Result<String, String> {
     state.platform_backend.get_microphone_status()
 }
 
+#[tauri::command]
+fn minimize_to_tray_or_taskbar(
+    app_handle: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<String, String> {
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+
+    let tray_available = *state.tray_available.lock().unwrap();
+    if tray_available {
+        window.hide().map_err(|error| error.to_string())?;
+        Ok("tray".to_string())
+    } else {
+        window.minimize().map_err(|error| error.to_string())?;
+        Ok("taskbar".to_string())
+    }
+}
+
+#[tauri::command]
+fn quit_application(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logging
@@ -233,6 +258,55 @@ pub fn run() {
         .manage(AppState {
             device_manager: Mutex::new(device_manager),
             platform_backend,
+            tray_available: Mutex::new(false),
+        })
+        .setup(|app| {
+            let state = app.state::<AppState>();
+
+            let open_item =
+                tauri::menu::MenuItem::with_id(app, "open", "Open Rusty G6", true, None::<&str>)?;
+            let quit_item =
+                tauri::menu::MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = tauri::menu::Menu::with_items(app, &[&open_item, &quit_item])?;
+
+            let tray_result = tauri::tray::TrayIconBuilder::with_id("main-tray")
+                .menu(&menu)
+                .icon(app.default_window_icon().unwrap().clone())
+                .on_menu_event(|app_handle, event| match event.id.as_ref() {
+                    "open" => {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "quit" => {
+                        app_handle.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        ..
+                    } = event
+                    {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app);
+
+            *state.tray_available.lock().unwrap() = tray_result.is_ok();
+            if let Err(error) = tray_result {
+                eprintln!(
+                    "Tray initialization failed, using taskbar minimize fallback: {}",
+                    error
+                );
+            }
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             connect_device,
@@ -251,6 +325,8 @@ pub fn run() {
             read_full_device_state,
             setup_microphone,
             get_microphone_status,
+            minimize_to_tray_or_taskbar,
+            quit_application,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

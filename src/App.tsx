@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 interface G6Settings {
@@ -24,6 +25,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<"main" | "microphone" | "debug">("main");
   const [micStatus, setMicStatus] = useState<string>("");
   const [micSetupInProgress, setMicSetupInProgress] = useState(false);
+  const hasTauriRuntime =
+    typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
   // Check connection status on mount
   useEffect(() => {
@@ -148,33 +151,61 @@ function App() {
     }
   }
 
+  async function handleCloseApp() {
+    if (!hasTauriRuntime) {
+      return;
+    }
+
+    try {
+      await invoke("quit_application");
+    } catch (error) {
+      console.error("Failed to quit application:", error);
+      await getCurrentWindow().close();
+    }
+  }
+
+  async function handleMinimizeApp() {
+    if (!hasTauriRuntime) {
+      return;
+    }
+
+    try {
+      await invoke("minimize_to_tray_or_taskbar");
+    } catch (error) {
+      console.error("Failed to minimize via backend:", error);
+      await getCurrentWindow().minimize();
+    }
+  }
+
+  async function handleTitleBarMouseDown(event: MouseEvent) {
+    if (!hasTauriRuntime) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (event.buttons === 1 && !target.closest("button")) {
+      await getCurrentWindow().startDragging();
+    }
+  }
+
   return (
     <main class="container">
+      <div class="titlebar" onMouseDown={handleTitleBarMouseDown}>
+        <div class="titlebar-title">Rusty G6</div>
+        <div class="titlebar-controls">
+          <button class="titlebar-btn" onClick={handleMinimizeApp} aria-label="Minimize">
+            &#x2500;
+          </button>
+          <button class="titlebar-btn titlebar-btn-close" onClick={handleCloseApp} aria-label="Close">
+            &#x2715;
+          </button>
+        </div>
+      </div>
+
       <header>
         <h1>Rusty G6</h1>
         <p class="subtitle">SoundBlaster X G6 Control Panel</p>
       </header>
-
-      <nav class="tab-nav">
-        <button 
-          class={`tab-button ${activeTab === "main" ? "active" : ""}`}
-          onClick={() => setActiveTab("main")}
-        >
-          Main
-        </button>
-        <button 
-          class={`tab-button ${activeTab === "microphone" ? "active" : ""}`}
-          onClick={() => setActiveTab("microphone")}
-        >
-          Microphone (Linux)
-        </button>
-        <button 
-          class={`tab-button ${activeTab === "debug" ? "active" : ""}`}
-          onClick={() => setActiveTab("debug")}
-        >
-          Debug
-        </button>
-      </nav>
 
       <section class="status-section">
         <div class="status-bar">
@@ -195,6 +226,27 @@ function App() {
           )}
         </div>
       </section>
+
+      <nav class="tab-nav">
+        <button
+          class={`tab-button ${activeTab === "main" ? "active" : ""}`}
+          onClick={() => setActiveTab("main")}
+        >
+          Main
+        </button>
+        <button
+          class={`tab-button ${activeTab === "microphone" ? "active" : ""}`}
+          onClick={() => setActiveTab("microphone")}
+        >
+          Microphone (Linux)
+        </button>
+        <button
+          class={`tab-button ${activeTab === "debug" ? "active" : ""}`}
+          onClick={() => setActiveTab("debug")}
+        >
+          Debug
+        </button>
+      </nav>
 
       {activeTab === "main" && connected && settings && (
         <>
