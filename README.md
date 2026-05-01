@@ -2,9 +2,9 @@
   <img src="src-tauri/icons/128x128.png" alt="Rusty G6 Logo" width="96" height="96" />
 </p>
 
-<h1 align="center">Rusty G6</h1>
+<h1 align="center">Rusty G6 - Sound BlasterX G6 GUI for Linux and Windows</h1>
 
-<p align="center">Simple desktop control panel for the Sound BlasterX G6.</p>
+<p align="center">Simple desktop interface for Sound BlasterX G6 controls, no command line needed.</p>
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-f1c40f" alt="MIT License" /></a>
@@ -16,9 +16,17 @@
   <a href="https://github.com/jackbrumley/rusty-g6/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-ef4444?style=for-the-badge" alt="Download Latest Release" /></a>
 </p>
 
-Rusty G6 is a GUI app that lets you control Sound BlasterX G6 features without command-line tools.
+Rusty G6 is a Sound BlasterX G6 GUI app for Linux and Windows that lets you control G6 features without command-line tools.
 
 It exists because there is no official Linux client for the G6, and advanced controls are hard to access outside Creative's Windows software. Rusty G6 provides a cleaner desktop experience for Linux users and is also available on Windows.
+
+If you searched for "Sound Blaster G6 GUI Linux" or "Sound Blaster G6 interface on Linux," this is the app you want.
+
+## Install
+
+Download the latest release here:
+
+- **[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
 
 ## What You Can Do
 
@@ -27,18 +35,17 @@ It exists because there is no official Linux client for the G6, and advanced con
 - Adjust SBX effects like Surround, Crystalizer, Bass, Smart Volume, and Dialog Plus
 - Use the app on Linux and Windows with the same straightforward controls
 
+## Who This Is For
+
+- Linux users who want a graphical interface for Sound BlasterX G6 settings
+- People who do not want to use terminal commands to manage their DAC settings
+- Anyone searching for an easy Sound Blaster G6 control panel on desktop
 
 ## Screenshots
 
-![Screenshot 1](docs/screenshots/screenshot-1.png)
-![Screenshot 2](docs/screenshots/screenshot-2.png)
-![Screenshot 3](docs/screenshots/screenshot-3.png)
-
-## Install
-
-Download the latest release here:
-
-- **[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
+![Rusty G6 main dashboard on Linux](docs/screenshots/screenshot-1.png)
+![Sound BlasterX G6 output and profile controls](docs/screenshots/screenshot-2.png)
+![SBX effects controls in Rusty G6 desktop app](docs/screenshots/screenshot-3.png)
 
 ### Linux
 
@@ -53,6 +60,16 @@ Install by opening the package from the release page with your distro's package 
 ### Windows
 
 Download and run the `.msi` installer from the latest release.
+
+## FAQ
+
+### Is there a GUI for Sound BlasterX G6 on Linux?
+
+Yes. Rusty G6 is a desktop GUI for Linux that gives you direct control over Sound BlasterX G6 settings.
+
+### How do I control Sound Blaster G6 settings on Linux?
+
+Install Rusty G6 from the latest release and use the app to switch outputs and adjust SBX settings with a normal graphical interface.
 
 ## Why This Project Exists
 
@@ -88,8 +105,7 @@ This software communicates directly with USB hardware using reverse-engineered p
 
 ## Credits
 
-Special thanks to **[Nils Skowasch](https://github.com/nils-skowasch)** and the
-[soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project for the protocol reverse engineering foundation.
+Special thanks to **[Nils Skowasch](https://github.com/nils-skowasch)** and the [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project for the protocol reverse engineering foundation.
 
 ## License
 
