@@ -518,16 +518,6 @@ function App() {
 
   return (
     <div class="app-shell">
-      {toast && (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type={toast.type}
-          durationMs={toast.durationMs}
-          onDismiss={() => setToast(null)}
-        />
-      )}
-
       <div
         class="title-bar"
         onMouseDown={handleTitleBarMouseDown}
@@ -605,6 +595,7 @@ function App() {
         </nav>
       </div>
 
+      <div class="workspace-shell" data-no-drag="true">
       <main class="container">
         {activeTab === "status" && (
           <>
@@ -885,6 +876,19 @@ function App() {
           </div>
         )}
       </main>
+
+      <div class="toast-host" data-no-drag="true">
+        {toast && (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            durationMs={toast.durationMs}
+            onDismiss={() => setToast(null)}
+          />
+        )}
+      </div>
+      </div>
     </div>
   );
 }

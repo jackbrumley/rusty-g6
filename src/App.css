@@ -92,6 +92,23 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 12px 15px 15px;
+  position: relative;
+}
+
+.workspace-shell {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.toast-host {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 24px));
+  z-index: 80;
+  pointer-events: none;
 }
 
 .tab-nav-shell {
@@ -189,7 +206,7 @@ body {
 }
 
 .modal-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
   display: flex;
@@ -596,11 +613,8 @@ input:checked + .toggle-slider:before {
 
 /* Toast Notifications */
 .toast {
-  position: fixed;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(560px, calc(100vw - 24px));
+  position: relative;
+  width: 100%;
   background: var(--card-bg);
   border-radius: var(--border-radius);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
@@ -608,7 +622,7 @@ input:checked + .toggle-slider:before {
   border-top: 3px solid var(--border-color);
   backdrop-filter: blur(4px);
   animation: slideIn 0.3s ease;
-  z-index: 2000;
+  pointer-events: auto;
 }
 
 .toast-content {
@@ -662,11 +676,11 @@ input:checked + .toggle-slider:before {
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -10px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
@@ -929,6 +943,11 @@ input:checked + .toggle-slider:before {
 @media (max-width: 600px) {
   .container {
     padding: 10px;
+  }
+
+  .toast-host {
+    top: 10px;
+    width: calc(100% - 20px);
   }
 
   .tab-nav-shell {
