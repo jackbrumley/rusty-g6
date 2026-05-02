@@ -75,8 +75,10 @@ interface G6Settings {
 }
 
 interface ToastMessage {
+  id: number;
   message: string;
   type: "success" | "error" | "info";
+  durationMs: number;
 }
 
 type AppRoute = "status" | "output" | "input" | "debug" | "ui-lab";
@@ -109,6 +111,7 @@ function App() {
   const [settings, setSettings] = useState<G6Settings | null>(null);
   const [activeTab, setActiveTab] = useState<AppRoute>(routeFromHash(window.location.hash));
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const toastIdRef = useRef(0);
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
   const [logSeparatorMessage, setLogSeparatorMessage] = useState<string>("");
@@ -124,6 +127,20 @@ function App() {
     localStorage.setItem("rusty-g6-experimental", String(enabled));
   };
 
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info",
+    durationMs = type === "success" ? 3000 : 5000
+  ) => {
+    toastIdRef.current += 1;
+    setToast({
+      id: toastIdRef.current,
+      message,
+      type,
+      durationMs,
+    });
+  };
+
   const toggleAutostart = async (enabled: boolean) => {
     try {
       if (enabled) {
@@ -132,18 +149,10 @@ function App() {
         await disableAutostart();
       }
       setAutostartEnabled(enabled);
-      setToast({
-        message: `Auto-start ${enabled ? "enabled" : "disabled"}`,
-        type: "success",
-      });
-      setTimeout(() => setToast(null), 3000);
+      showToast(`Auto-start ${enabled ? "enabled" : "disabled"}`, "success");
     } catch (error) {
       console.error("Failed to toggle autostart:", error);
-      setToast({
-        message: `Failed to toggle auto-start: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Failed to toggle auto-start: ${error}`, "error");
     }
   };
 
@@ -284,19 +293,13 @@ function App() {
     try {
       const deviceSettings = await invoke<G6Settings>("read_device_state");
       setSettings(deviceSettings);
-      setToast({
-        message:
-          "Device state read successfully! All settings now reflect actual device values.",
-        type: "success",
-      });
-      setTimeout(() => setToast(null), 3000);
+      showToast(
+        "Device state read successfully! All settings now reflect actual device values.",
+        "success"
+      );
     } catch (error) {
       console.error("Failed to read device state:", error);
-      setToast({
-        message: `Failed to read device state: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Failed to read device state: ${error}`, "error");
     }
   }
 
@@ -339,34 +342,19 @@ function App() {
       setStatus("Disconnected");
       setSettings(null);
     } catch (error) {
-      setToast({
-        message: `Failed to disconnect: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 3000);
+      showToast(`Failed to disconnect: ${error}`, "error");
     }
   }
 
   async function handleSetupUsbPermissions() {
     try {
-      setToast({
-        message: "Setting up USB permissions...",
-        type: "info",
-      });
+      showToast("Setting up USB permissions...", "info");
       const result = await invoke<string>("setup_udev_rules");
-      setToast({
-        message: result,
-        type: "success",
-      });
+      showToast(result, "success", 5000);
       setPermissionError(false);
-      setTimeout(() => setToast(null), 5000);
     } catch (error) {
       console.error("Failed to setup permissions:", error);
-      setToast({
-        message: `Setup failed: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Setup failed: ${error}`, "error");
     }
   }
 
@@ -375,11 +363,7 @@ function App() {
       await invoke("toggle_output");
       await loadSettings();
     } catch (error) {
-      setToast({
-        message: `Failed to toggle output: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Failed to toggle output: ${error}`, "error");
     }
   }
 
@@ -389,11 +373,7 @@ function App() {
       await invoke("set_sbx_mode", { enabled });
     } catch (error) {
       console.error("Failed to set SBX Mode:", error);
-      setToast({
-        message: `Failed to set SBX Mode: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Failed to set SBX Mode: ${error}`, "error");
     }
   }
 
@@ -403,37 +383,23 @@ function App() {
       await invoke("set_scout_mode", { enabled });
     } catch (error) {
       console.error("Failed to set Scout Mode:", error);
-      setToast({
-        message: `Failed to set Scout Mode: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Failed to set Scout Mode: ${error}`, "error");
     }
   }
 
   async function configureMicrophone() {
     try {
-      setToast({
-        message: "Configuring microphone...",
-        type: "info",
-      });
+      showToast("Configuring microphone...", "info");
       await invoke<string>("configure_microphone");
 
       // Show toast with instructions
-      setToast({
-        message:
-          'Microphone configured! Now set your system default input device to "Digital Input (S/PDIF) Sound BlasterX G6"',
-        type: "info",
-      });
-
-      // Auto-dismiss toast after 8 seconds
-      setTimeout(() => setToast(null), 8000);
+      showToast(
+        'Microphone configured! Now set your system default input device to "Digital Input (S/PDIF) Sound BlasterX G6"',
+        "info",
+        8000
+      );
     } catch (error) {
-      setToast({
-        message: `Failed to configure microphone: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 5000);
+      showToast(`Failed to configure microphone: ${error}`, "error");
     }
   }
 
@@ -442,32 +408,21 @@ function App() {
       await invoke("clear_terminal", {
         message: logSeparatorMessage || null,
       });
-      setToast({
-        message: "Log separator added - check terminal for marker",
-        type: "success",
-      });
+      showToast("Log separator added - check terminal for marker", "success", 2000);
       // Clear the input after sending
       setLogSeparatorMessage("");
-      setTimeout(() => setToast(null), 2000);
     } catch (error) {
       console.error("Failed to add log separator:", error);
-      setToast({
-        message: `Failed to add log separator: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 3000);
+      showToast(`Failed to add log separator: ${error}`, "error", 3000);
     }
   }
 
   function showWindowsMicrophoneGuidance() {
-    setToast({
-      message:
-        "Microphone setup is not required on Windows - it works automatically",
-      type: "info",
-    });
-
-    // Auto-dismiss toast after 4 seconds
-    setTimeout(() => setToast(null), 4000);
+    showToast(
+      "Microphone setup is not required on Windows - it works automatically",
+      "info",
+      4000
+    );
   }
 
   function handleSetupMicClick() {
@@ -483,18 +438,10 @@ function App() {
       console.log("Setting Microphone Boost:", dbValue);
       await invoke("set_microphone_boost", { dbValue });
       setMicBoost(dbValue);
-      setToast({
-        message: `Microphone boost set to ${dbValue}dB`,
-        type: "success",
-      });
-      setTimeout(() => setToast(null), 2000);
+      showToast(`Microphone boost set to ${dbValue}dB`, "success", 2000);
     } catch (error) {
       console.error("Failed to set microphone boost:", error);
-      setToast({
-        message: `Failed to set mic boost: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 3000);
+      showToast(`Failed to set mic boost: ${error}`, "error", 3000);
     }
   }
 
@@ -509,11 +456,7 @@ function App() {
       console.log(`${effectName} result:`, result);
     } catch (error) {
       console.error(`Failed to set ${effectName}:`, error);
-      setToast({
-        message: `Failed to set ${effectName}: ${error}`,
-        type: "error",
-      });
-      setTimeout(() => setToast(null), 3000);
+      showToast(`Failed to set ${effectName}: ${error}`, "error", 3000);
     }
   }
 
@@ -541,14 +484,18 @@ function App() {
 
   const handleClose = async () => {
     try {
-      const appWindow = getCurrentWindow();
-      await appWindow.close();
+      await invoke("quit_application");
     } catch (error) {
       console.error("Failed to close window:", error);
     }
   };
 
   const handleTitleBarMouseDown = async (e: MouseEvent) => {
+    if (e.detail > 1) {
+      e.preventDefault();
+      return;
+    }
+
     if (
       e.button === 0 &&
       !(e.target as HTMLElement).closest(".title-bar-button")
@@ -573,8 +520,10 @@ function App() {
     <div class="app-shell">
       {toast && (
         <Toast
+          key={toast.id}
           message={toast.message}
           type={toast.type}
+          durationMs={toast.durationMs}
           onDismiss={() => setToast(null)}
         />
       )}
@@ -591,7 +540,9 @@ function App() {
             onClick={handleMinimize}
             title="Minimize"
           >
-            ─
+            <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </button>
           <button
             class="title-bar-button"
@@ -617,7 +568,10 @@ function App() {
             onClick={handleClose}
             title="Close"
           >
-            ✕
+            <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 7l10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M17 7L7 17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       </div>
@@ -943,10 +897,31 @@ function UiLabPage({ onBack }: UiLabPageProps) {
   const [previewToggle, setPreviewToggle] = useState(true);
   const [previewValue, setPreviewValue] = useState(42);
   const [previewEnabled, setPreviewEnabled] = useState(true);
+  const [previewConnected, setPreviewConnected] = useState(true);
+  const [previewPermissionError, setPreviewPermissionError] = useState(false);
+  const [previewSbxEnabled, setPreviewSbxEnabled] = useState(true);
+  const [showUpdatePill, setShowUpdatePill] = useState(true);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updateState, setUpdateState] = useState<"available" | "uptodate" | "error">("available");
+  const [toastType, setToastType] = useState<"success" | "error" | "info" | null>(null);
+
+  const updateTitle =
+    updateState === "available"
+      ? "Update Available"
+      : updateState === "uptodate"
+        ? "Rusty G6 is Up to Date"
+        : "Update Check Failed";
+
+  const updateMessage =
+    updateState === "available"
+      ? "A newer Rusty G6 version is available. Current: v1.0.4 -> Latest: v1.0.5."
+      : updateState === "uptodate"
+        ? "You are already running the latest version (v1.0.4)."
+        : "Unable to contact update endpoint. Please try again in a few minutes.";
 
   return (
     <section class="debug-section compact">
-      <div class="section-line">
+      <div class="ui-lab-header-row">
         <span class="section-label">UI Lab:</span>
         <button onClick={onBack} class="btn-compact btn-secondary">
           Back to Debug
@@ -957,8 +932,86 @@ function UiLabPage({ onBack }: UiLabPageProps) {
         Hidden route for visual tuning. Open directly with <code>#/ui-lab</code>.
       </p>
 
-      <div class="effects-list">
+      <div class="ui-lab-section ui-lab-checklist">
+        <h3>Release QA Order</h3>
+        <ol>
+          <li>Check titlebar and tab shell spacing/alignment.</li>
+          <li>Validate Status states: connected, disconnected, and permission warning.</li>
+          <li>Review control interactions: toggles, sliders, and disabled SBX-dependent controls.</li>
+          <li>Review update pill and open each update modal state variant.</li>
+          <li>Trigger success, info, and error toasts for final visual pass.</li>
+        </ol>
+      </div>
+
+      <div class="ui-lab-section">
+        <h3>Shell Preview</h3>
+        <div class="ui-lab-shell-preview">
+          <div class="title-bar" style={{ cursor: "default" }}>
+            <div class="title-bar-title">Rusty G6</div>
+            <div class="title-bar-controls">
+              <button class="title-bar-button">
+                <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button class="title-bar-button">
+                <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="5" y="5" width="14" height="14" rx="1.5" ry="1.5" fill="none" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              </button>
+              <button class="title-bar-button close">
+                <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 7l10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M17 7L7 17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="tab-nav-shell">
+            <nav class="tab-nav">
+              <button class="tab-button">Status</button>
+              <button class="tab-button active">Output</button>
+              <button class="tab-button">Input</button>
+              <button class="tab-button">Debug</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-lab-section">
+        <h3>Status Elements</h3>
+        <div class="ui-lab-controls-inline">
+          <button class="btn-compact btn-secondary" onClick={() => setPreviewConnected((v) => !v)}>
+            {previewConnected ? "Show Disconnected" : "Show Connected"}
+          </button>
+          <button class="btn-compact btn-secondary" onClick={() => setPreviewPermissionError((v) => !v)}>
+            Toggle Permission Warning
+          </button>
+        </div>
+        <section class="status-section">
+          <div class="status-line">
+            <span class={`status-indicator ${previewConnected ? "connected" : "disconnected"}`}>
+              {previewConnected ? "●" : "○"}
+            </span>
+            <span class="status-text">{previewConnected ? "Connected" : "Disconnected"}</span>
+            <button class={`btn-compact ${previewConnected ? "btn-secondary" : ""}`}>
+              {previewConnected ? "Disconnect" : "Connect Device"}
+            </button>
+            {previewPermissionError && (
+              <button class="btn-compact btn-warning">Fix Permissions</button>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <div class="ui-lab-section effects-list">
         <h3>Control Previews</h3>
+        <div class="ui-lab-controls-inline">
+          <button class="btn-compact btn-secondary" onClick={() => setPreviewSbxEnabled((v) => !v)}>
+            SBX: {previewSbxEnabled ? "Enabled" : "Disabled"}
+          </button>
+          <button class="btn-compact" onClick={() => setPreviewValue(64)}>Set Slider 64</button>
+        </div>
 
         <ToggleControl
           label="Toggle Preview"
@@ -978,12 +1031,75 @@ function UiLabPage({ onBack }: UiLabPageProps) {
           name="Effect Preview"
           enabled={previewEnabled}
           value={previewValue}
+          disabled={!previewSbxEnabled}
           onChange={(enabled, value) => {
             setPreviewEnabled(enabled);
             setPreviewValue(value);
           }}
         />
       </div>
+
+      <div class="ui-lab-section effects-list">
+        <h3>Update UX Preview</h3>
+        <div class="ui-lab-controls-inline">
+          <button class="btn-compact btn-secondary" onClick={() => setShowUpdatePill((v) => !v)}>
+            {showUpdatePill ? "Hide" : "Show"} Update Pill
+          </button>
+          <button class="btn-compact btn-secondary" onClick={() => setUpdateState("available")}>Available</button>
+          <button class="btn-compact btn-secondary" onClick={() => setUpdateState("uptodate")}>Up To Date</button>
+          <button class="btn-compact btn-secondary" onClick={() => setUpdateState("error")}>Error</button>
+          <button class="btn-compact" onClick={() => setShowUpdateModal(true)}>Open Update Modal</button>
+        </div>
+        <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "10px" }}>
+          <span class="version-text">v1.0.4</span>
+          {showUpdatePill && (
+            <button class="update-pill" onClick={() => setShowUpdateModal(true)}>
+              <span class="update-pill-icon" aria-hidden="true">!</span>
+              <span>Update available</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div class="ui-lab-section effects-list">
+        <h3>Toast Preview</h3>
+        <div class="ui-lab-controls-inline">
+          <button class="btn-compact" onClick={() => setToastType("success")}>Show Success Toast</button>
+          <button class="btn-compact btn-secondary" onClick={() => setToastType("info")}>Show Info Toast</button>
+          <button class="btn-compact btn-warning" onClick={() => setToastType("error")}>Show Error Toast</button>
+        </div>
+      </div>
+
+      {showUpdateModal && (
+        <div class="modal-overlay" onClick={() => setShowUpdateModal(false)}>
+          <section class="update-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>{updateTitle}</h2>
+            <p>{updateMessage}</p>
+            <p class="update-last-checked">Last checked: Just now</p>
+            <div class="update-modal-actions">
+              <button class="btn-compact btn-secondary" onClick={() => setShowUpdateModal(false)}>Later</button>
+              <button class="btn-compact" onClick={() => setShowUpdateModal(false)}>
+                {updateState === "available" ? "Download Latest" : "Close"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {toastType && (
+        <Toast
+          message={
+            toastType === "success"
+              ? "Settings applied successfully."
+              : toastType === "info"
+                ? "Update check started."
+                : "Failed to apply setting."
+          }
+          type={toastType}
+          durationMs={3500}
+          onDismiss={() => setToastType(null)}
+        />
+      )}
     </section>
   );
 }
@@ -1146,18 +1262,57 @@ function EffectControl({
 interface ToastProps {
   message: string;
   type: "success" | "error" | "info";
+  durationMs: number;
   onDismiss: () => void;
 }
 
-function Toast({ message, type, onDismiss }: ToastProps) {
+function Toast({ message, type, durationMs, onDismiss }: ToastProps) {
+  const timerRef = useRef<number | null>(null);
+  const startedAtRef = useRef<number>(0);
+  const remainingRef = useRef<number>(durationMs);
+
+  const clearTimer = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const startTimer = () => {
+    clearTimer();
+    startedAtRef.current = Date.now();
+    timerRef.current = window.setTimeout(() => {
+      onDismiss();
+    }, remainingRef.current);
+  };
+
+  useEffect(() => {
+    remainingRef.current = durationMs;
+    startTimer();
+    return () => {
+      clearTimer();
+    };
+  }, [durationMs]);
+
+  const handleMouseEnter = () => {
+    const elapsed = Date.now() - startedAtRef.current;
+    remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+    clearTimer();
+  };
+
+  const handleMouseLeave = () => {
+    if (remainingRef.current > 0) {
+      startTimer();
+    }
+  };
+
   return (
-    <div class={`toast toast-${type}`}>
+    <div
+      class={`toast toast-${type}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <div class="toast-content">
-        <span class="toast-icon">
-          {type === "success" && "✓"}
-          {type === "error" && "✕"}
-          {type === "info" && "ℹ"}
-        </span>
         <p class="toast-message">{message}</p>
         <button class="toast-close" onClick={onDismiss}>
           ×

@@ -67,6 +67,11 @@ fn disconnect_device(state: State<AppState>) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn quit_application(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn is_device_connected(state: State<AppState>) -> bool {
     let manager = state.device_manager.lock().unwrap();
     manager.is_connected()
@@ -907,6 +912,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             connect_device,
             disconnect_device,
+            quit_application,
             is_device_connected,
             get_device_settings,
             read_device_state,
