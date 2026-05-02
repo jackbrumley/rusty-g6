@@ -79,7 +79,7 @@ interface ToastMessage {
   type: "success" | "error" | "info";
 }
 
-type AppRoute = "status" | "output" | "input" | "debug";
+type AppRoute = "status" | "output" | "input" | "debug" | "ui-lab";
 
 const DEFAULT_ROUTE: AppRoute = "status";
 
@@ -89,7 +89,8 @@ const routeFromHash = (hash: string): AppRoute => {
     normalized === "status" ||
     normalized === "output" ||
     normalized === "input" ||
-    normalized === "debug"
+    normalized === "debug" ||
+    normalized === "ui-lab"
   ) {
     return normalized as AppRoute;
   }
@@ -876,6 +877,12 @@ function App() {
             )}
 
             <div class="debug-controls">
+              <button
+                onClick={() => navigate("ui-lab")}
+                class="btn-compact btn-secondary"
+              >
+                Open UI Lab
+              </button>
               <button onClick={readDeviceState} class="btn-compact btn-secondary">
                 Read Device State
               </button>
@@ -912,6 +919,8 @@ function App() {
           </section>
         )}
 
+        {activeTab === "ui-lab" && <UiLabPage onBack={() => navigate("debug")} />}
+
         {(activeTab === "output" || activeTab === "input") && !connected && (
           <div class="info-panel">
             <p>Connect your SoundBlaster X G6 from the Status tab to begin.</p>
@@ -923,6 +932,59 @@ function App() {
         )}
       </main>
     </div>
+  );
+}
+
+interface UiLabPageProps {
+  onBack: () => void;
+}
+
+function UiLabPage({ onBack }: UiLabPageProps) {
+  const [previewToggle, setPreviewToggle] = useState(true);
+  const [previewValue, setPreviewValue] = useState(42);
+  const [previewEnabled, setPreviewEnabled] = useState(true);
+
+  return (
+    <section class="debug-section compact">
+      <div class="section-line">
+        <span class="section-label">UI Lab:</span>
+        <button onClick={onBack} class="btn-compact btn-secondary">
+          Back to Debug
+        </button>
+      </div>
+
+      <p class="info-note" style={{ marginTop: "8px" }}>
+        Hidden route for visual tuning. Open directly with <code>#/ui-lab</code>.
+      </p>
+
+      <div class="effects-list">
+        <h3>Control Previews</h3>
+
+        <ToggleControl
+          label="Toggle Preview"
+          checked={previewToggle}
+          onChange={setPreviewToggle}
+        />
+
+        <SliderControl
+          label="Slider Preview"
+          value={previewValue}
+          min={0}
+          max={100}
+          onChange={setPreviewValue}
+        />
+
+        <EffectControl
+          name="Effect Preview"
+          enabled={previewEnabled}
+          value={previewValue}
+          onChange={(enabled, value) => {
+            setPreviewEnabled(enabled);
+            setPreviewValue(value);
+          }}
+        />
+      </div>
+    </section>
   );
 }
 
