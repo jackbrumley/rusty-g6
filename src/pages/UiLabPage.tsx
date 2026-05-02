@@ -41,7 +41,7 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
       <div class="ui-lab-header-row">
         <span class="section-label">UI Lab:</span>
         <button onClick={onBack} class="btn-compact btn-secondary">
-          Back to Debug
+          Back to Settings
         </button>
       </div>
 
@@ -82,7 +82,7 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
               <button class="tab-button">Status</button>
               <button class="tab-button active">Output</button>
               <button class="tab-button">Input</button>
-              <button class="tab-button">Debug</button>
+              <button class="tab-button">Settings</button>
             </nav>
           </div>
         </div>

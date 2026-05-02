@@ -50,24 +50,26 @@ export function AppShell({
         </div>
       </div>
 
-      <div class="tab-nav-shell">
-        <nav class="tab-nav">
-          <button class={`tab-button ${activeTab === "status" ? "active" : ""}`} onClick={() => onNavigate("status")}>
-            Status
-          </button>
-          <button class={`tab-button ${activeTab === "output" ? "active" : ""}`} onClick={() => onNavigate("output")}>
-            Output
-          </button>
-          <button class={`tab-button ${activeTab === "input" ? "active" : ""}`} onClick={() => onNavigate("input")}>
-            Input
-          </button>
-          <button class={`tab-button ${activeTab === "debug" ? "active" : ""}`} onClick={() => onNavigate("debug")}>
-            Debug
-          </button>
-        </nav>
-      </div>
+      <div class="app-body-shell" data-no-drag="true">
+        <div class="tab-nav-shell">
+          <nav class="tab-nav">
+            <button class={`tab-button ${activeTab === "status" ? "active" : ""}`} onClick={() => onNavigate("status")}>
+              Status
+            </button>
+            <button class={`tab-button ${activeTab === "output" ? "active" : ""}`} onClick={() => onNavigate("output")}>
+              Output
+            </button>
+            <button class={`tab-button ${activeTab === "input" ? "active" : ""}`} onClick={() => onNavigate("input")}>
+              Input
+            </button>
+            <button class={`tab-button ${activeTab === "debug" ? "active" : ""}`} onClick={() => onNavigate("debug")}>
+              Settings
+            </button>
+          </nav>
+        </div>
 
-      <div class="workspace-shell" data-no-drag="true">{children}</div>
+        <div class="workspace-shell">{children}</div>
+      </div>
     </div>
   );
 }

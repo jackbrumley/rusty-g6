@@ -1,6 +1,9 @@
+import { CollapsibleCardSection } from "../components/ui/CollapsibleCardSection";
 import { ToggleControl } from "../components/controls/ToggleControl";
+import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
 import type { G6Settings } from "../types/g6";
+import { useState } from "preact/hooks";
 
 interface DebugPageProps {
   settings: G6Settings | null;
@@ -47,53 +50,44 @@ export function DebugPage({
   onCopySessionLog,
   onOpenSessionLog,
 }: DebugPageProps) {
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const toggleSection = (section: string) => {
+    setActiveSection((current) => (current === section ? null : section));
+  };
+
   return (
     <>
-      <section class="debug-section compact surface-card">
-        {settings?.extended_params && (
-          <div class="device-details">
-            <div class="read-only-item">
-              <span class="readonly-label">Extended Params:</span>
-              <span class="readonly-value">
-                {Object.values(settings.extended_params).filter((v) => v !== null).length}/15 detected
-                (Read-only)
-              </span>
-            </div>
-          </div>
-        )}
+      <TabPageHeader
+        title="Settings"
+        subtitle="Application controls and update preferences, with advanced debug tools grouped separately below."
+      />
 
-        <div class="debug-controls">
-          <div class="debug-action-grid">
-            <button onClick={onNavigateUiLab} class="btn-compact btn-secondary">
-              Open UI Lab
-            </button>
-            <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
-              Read Device State
-            </button>
-            <button onClick={onResetConnection} class="btn-compact btn-secondary">
-              Reset Connection
-            </button>
-          </div>
-
-          <div class="debug-toggle-grid">
-            <ToggleControl
-              label="Auto-start with system"
-              checked={autostartEnabled}
-              onChange={onToggleAutostart}
-            />
-            <ToggleControl
-              label="Experimental Features"
-              checked={showExperimental}
-              onChange={onToggleExperimental}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section class="debug-section compact surface-card">
+      <div class="settings-accordion">
+      <CollapsibleCardSection
+        title="General Settings"
+        isOpen={activeSection === "general"}
+        onToggle={() => toggleSection("general")}
+      >
         <div class="debug-log-tools">
           <div class="debug-log-card">
-            <h3>Updates</h3>
+            <div class="debug-toggle-grid">
+              <ToggleControl
+                label="Auto-start with system"
+                checked={autostartEnabled}
+                onChange={onToggleAutostart}
+              />
+            </div>
+          </div>
+        </div>
+      </CollapsibleCardSection>
+
+      <CollapsibleCardSection
+        title="Updates"
+        isOpen={activeSection === "updates"}
+        onToggle={() => toggleSection("updates")}
+      >
+        <div class="debug-log-tools">
+          <div class="debug-log-card">
             <div class="device-details">
               <div class="read-only-item">
                 <span class="readonly-label">Current Version:</span>
@@ -120,12 +114,15 @@ export function DebugPage({
             </div>
           </div>
         </div>
-      </section>
+      </CollapsibleCardSection>
 
-      <section class="debug-section compact surface-card">
+      <CollapsibleCardSection
+        title="Logging"
+        isOpen={activeSection === "logging"}
+        onToggle={() => toggleSection("logging")}
+      >
         <div class="debug-log-tools">
           <div class="debug-log-card">
-            <h3>Logging</h3>
             <div class="debug-log-row">
               <input
                 type="text"
@@ -155,7 +152,61 @@ export function DebugPage({
             </div>
           </div>
         </div>
-      </section>
+      </CollapsibleCardSection>
+
+      <CollapsibleCardSection
+        title="Device Debug"
+        isOpen={activeSection === "device-debug"}
+        onToggle={() => toggleSection("device-debug")}
+      >
+        <div class="debug-log-tools">
+          <div class="debug-log-card">
+            <div class="debug-action-grid">
+              <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
+                Read Device State
+              </button>
+              <button onClick={onResetConnection} class="btn-compact btn-secondary">
+                Reset Connection
+              </button>
+            </div>
+            {settings?.extended_params && (
+              <div class="device-details">
+                <div class="read-only-item">
+                  <span class="readonly-label">Extended Params:</span>
+                  <span class="readonly-value">
+                    {Object.values(settings.extended_params).filter((v) => v !== null).length}/15 detected
+                    (Read-only)
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </CollapsibleCardSection>
+
+      <CollapsibleCardSection
+        title="UI Debug"
+        isOpen={activeSection === "ui-debug"}
+        onToggle={() => toggleSection("ui-debug")}
+      >
+        <div class="debug-log-tools">
+          <div class="debug-log-card">
+            <div class="debug-action-grid">
+              <button onClick={onNavigateUiLab} class="btn-compact btn-secondary">
+                Open UI Lab
+              </button>
+            </div>
+            <div class="debug-toggle-grid">
+              <ToggleControl
+                label="Experimental Features"
+                checked={showExperimental}
+                onChange={onToggleExperimental}
+              />
+            </div>
+          </div>
+        </div>
+      </CollapsibleCardSection>
+      </div>
     </>
   );
 }

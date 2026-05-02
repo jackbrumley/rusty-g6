@@ -89,24 +89,28 @@ function App() {
           />
         )}
 
-        {activeTab === "output" && connected && settings && (
+        {activeTab === "output" && (
           <OutputPage
+            connected={connected}
             settings={settings}
             onToggleOutput={toggleOutput}
             onSetScoutMode={setScoutMode}
             onSetSbxMode={setSbxMode}
             onSetEffect={setEffect}
+            onGoToStatus={() => navigate("status")}
           />
         )}
 
-        {activeTab === "input" && connected && settings && (
+        {activeTab === "input" && (
           <InputPage
+            connected={connected}
             settings={settings}
             showExperimental={showExperimental}
             micBoost={micBoost}
             isLinux={isLinux}
             onSetupMicClick={handleSetupMicClick}
             onSetMicrophoneBoost={setMicrophoneBoost}
+            onGoToStatus={() => navigate("status")}
           />
         )}
 
@@ -142,15 +146,6 @@ function App() {
           />
         )}
 
-        {(activeTab === "output" || activeTab === "input") && !connected && (
-          <div class="info-panel surface-card">
-            <p>Connect your SoundBlaster X G6 from the Status tab to begin.</p>
-            <p class="info-note">This page only shows controls once a device session is active.</p>
-            <button class="btn-compact btn-secondary" onClick={() => navigate("status")}>
-              Go to Status
-            </button>
-          </div>
-        )}
       </main>
 
       {showUpdateModal && (
