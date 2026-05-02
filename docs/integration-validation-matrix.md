@@ -4,12 +4,20 @@
 
 - Frontend build and typecheck:
   - Command: `npm run build`
-  - Working directory: `src/`
+  - Working directory: repository root
   - Result: pass
 - Backend compile check:
-  - Command: `cargo check`
-  - Working directory: `src/src-tauri/`
+  - Command: `cargo check --manifest-path src-tauri/Cargo.toml`
+  - Working directory: repository root
   - Result: pass (warnings only)
+- Release bundle build:
+  - Command: `npm run tauri:build`
+  - Working directory: repository root
+  - Result: pass
+  - Artifacts:
+    - `src-tauri/target/release/bundle/deb/rusty-g6_1.0.4_amd64.deb`
+    - `src-tauri/target/release/bundle/rpm/rusty-g6-1.0.4-1.x86_64.rpm`
+    - `src-tauri/target/release/bundle/appimage/rusty-g6_1.0.4_amd64.AppImage`
 
 ## Manual Hardware Checks (Required)
 
