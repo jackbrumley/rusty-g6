@@ -2,11 +2,18 @@
   --primary-color: #ff4444;
   --primary-hover: #ff6666;
   --secondary-color: #666;
+  --text-bright: #f8fbff;
+  --text-soft: #d6deec;
+  --button-secondary-bg: #141414;
+  --button-secondary-hover: #1d1d1d;
+  --button-secondary-border: rgba(255, 68, 68, 0.35);
+  --button-secondary-border-hover: rgba(255, 68, 68, 0.55);
+  --toggle-off-bg: #7a838f;
   --bg-color: #1a1a1a;
   --card-bg: #2a2a2a;
   --titlebar-bg: #141414;
   --tabs-bg: #222222;
-  --text-color: #e0e0e0;
+  --text-color: var(--text-bright);
   --border-color: #444;
   --success-color: #4caf50;
   --warning-color: #ff9800;
@@ -26,7 +33,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   background-color: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text-bright);
   line-height: 1.4;
   overflow: hidden;
 }
@@ -55,7 +62,7 @@ body {
 .title-bar-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--text-bright);
 }
 
 .title-bar-controls {
@@ -67,8 +74,8 @@ body {
   width: 30px;
   height: 30px;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-color);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-bright);
   cursor: pointer;
   border-radius: 999px;
   display: flex;
@@ -90,7 +97,9 @@ body {
 
 .container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px 15px 15px;
   position: relative;
 }
@@ -98,6 +107,9 @@ body {
 .workspace-shell {
   position: relative;
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -135,7 +147,7 @@ body {
   flex: 1;
   padding: 11px 20px 9px;
   background: transparent;
-  color: var(--secondary-color);
+  color: var(--text-soft);
   border: none;
   border-radius: 8px 8px 0 0;
   cursor: pointer;
@@ -145,13 +157,13 @@ body {
 
 .tab-button.active {
   background: var(--bg-color);
-  color: var(--primary-color);
+  color: var(--text-bright);
   box-shadow: inset 0 2px 0 var(--primary-color);
 }
 
 .tab-button:hover:not(.active) {
   background: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text-bright);
 }
 
 .status-header {
@@ -167,12 +179,12 @@ body {
 }
 
 .subtitle {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   font-size: 0.9rem;
 }
 
 .version-text {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   font-size: 0.8rem;
   margin-top: 6px;
 }
@@ -230,7 +242,7 @@ body {
 }
 
 .update-last-checked {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   font-size: 0.82rem;
 }
 
@@ -315,6 +327,7 @@ body {
 .status-text {
   flex: 1;
   font-size: 0.85rem;
+  color: var(--text-soft);
 }
 
 /* Compact Buttons */
@@ -343,11 +356,13 @@ body {
 }
 
 .btn-compact.btn-secondary {
-  background-color: var(--secondary-color);
+  background-color: var(--button-secondary-bg);
+  border: 1px solid var(--button-secondary-border);
 }
 
 .btn-compact.btn-secondary:hover {
-  background-color: #888;
+  background-color: var(--button-secondary-hover);
+  border-color: var(--button-secondary-border-hover);
 }
 
 .btn-compact.btn-warning {
@@ -416,7 +431,7 @@ body {
 }
 
 .log-message-input::placeholder {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   opacity: 0.6;
 }
 
@@ -499,7 +514,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--secondary-color);
+  background-color: var(--toggle-off-bg);
   transition: var(--transition);
   border-radius: 20px;
 }
@@ -609,7 +624,7 @@ input:checked + .toggle-slider:before {
 }
 
 .info-note {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   font-size: 0.85rem;
 }
 
@@ -617,11 +632,11 @@ input:checked + .toggle-slider:before {
 .toast {
   position: relative;
   width: min(560px, 100%);
-  background: var(--card-bg);
+  background: var(--titlebar-bg);
   border-radius: var(--border-radius);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top: 3px solid var(--border-color);
+  border-left: 3px solid var(--border-color);
   backdrop-filter: blur(4px);
   animation: slideIn 0.3s ease;
   pointer-events: auto;
@@ -663,15 +678,15 @@ input:checked + .toggle-slider:before {
 }
 
 .toast-info {
-  border-top-color: #2196f3;
+  border-left-color: #2196f3;
 }
 
 .toast-success {
-  border-top-color: var(--success-color);
+  border-left-color: var(--success-color);
 }
 
 .toast-error {
-  border-top-color: #f44336;
+  border-left-color: #f44336;
 }
 
 /* Animations */
@@ -710,7 +725,7 @@ input:checked + .toggle-slider:before {
   bottom: 8px;
   right: 12px;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(248, 251, 255, 0.65);
   user-select: none;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -755,9 +770,9 @@ input:checked + .toggle-slider:before {
 }
 
 .readonly-value {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   font-size: 0.75rem;
-  opacity: 0.7;
+  opacity: 0.9;
 }
 
 .readonly-value.enabled {
@@ -824,7 +839,7 @@ input:checked + .toggle-slider:before {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--secondary-color);
+  color: var(--text-soft);
   font-size: 0.8rem;
   text-align: center;
   padding: 20px;
@@ -860,7 +875,7 @@ input:checked + .toggle-slider:before {
 }
 
 .console-timestamp {
-  color: var(--secondary-color);
+  color: var(--text-soft);
   margin-right: 8px;
   font-size: 0.7rem;
 }
