@@ -60,9 +60,9 @@ function checkBasicRequirements() {
     logStep('1', 'Checking basic requirements...');
     
     // Check if we're in the right directory
-    if (!fs.existsSync('src') || !fs.existsSync('src/package.json')) {
+    if (!fs.existsSync('package.json') || !fs.existsSync('src-tauri/Cargo.toml')) {
         logError('This script must be run from the project root directory');
-        logError('Expected structure: ./src/package.json');
+        logError('Expected structure: ./package.json and ./src-tauri/Cargo.toml');
         process.exit(1);
     }
     
@@ -143,7 +143,7 @@ function checkLinuxDependencies() {
 function cleanBuild() {
     logStep('2', 'Cleaning previous build...');
     
-    const distDir = path.join('src', 'dist');
+    const distDir = path.join('dist');
     
     if (fs.existsSync(distDir)) {
         log(`   Removing ${distDir}`);
@@ -153,7 +153,7 @@ function cleanBuild() {
     // Clean Rust target if --clean flag is used
     const args = process.argv.slice(2);
     if (args.includes('--clean') || args.includes('-c')) {
-        const targetDir = path.join('src', 'src-tauri', 'target');
+        const targetDir = path.join('src-tauri', 'target');
         if (fs.existsSync(targetDir)) {
             log(`   Removing ${targetDir} (--clean flag)`);
             fs.rmSync(targetDir, { recursive: true, force: true });
@@ -166,7 +166,7 @@ function cleanBuild() {
 function installDependencies() {
     logStep('3', 'Installing dependencies...');
     
-    const rustDir = path.join('src');
+    const rustDir = process.cwd();
     runCommand('npm install', rustDir, 'Installing npm dependencies');
     
     logSuccess('Dependencies installed');
@@ -175,7 +175,7 @@ function installDependencies() {
 function buildApp() {
     logStep('4', 'Building Tauri application...');
     
-    const rustDir = path.join('src');
+    const rustDir = process.cwd();
     const args = process.argv.slice(2);
     const isDev = args.includes('--dev') || args.includes('-d');
     
@@ -197,7 +197,7 @@ function showResults() {
     
     const platform = os.platform();
     const executableName = platform === 'win32' ? 'rusty-g6.exe' : 'rusty-g6';
-    const executablePath = path.join('src', 'src-tauri', 'target', buildType, executableName);
+    const executablePath = path.join('src-tauri', 'target', buildType, executableName);
     
     if (fs.existsSync(executablePath)) {
         const stats = fs.statSync(executablePath);

@@ -55,7 +55,7 @@ function runCommand(command, cwd = process.cwd()) {
 function checkBasicRequirements() {
     logStep('1', 'Checking basic requirements...');
     
-    if (!fs.existsSync('src') || !fs.existsSync('src/package.json')) {
+    if (!fs.existsSync('package.json') || !fs.existsSync('src-tauri/Cargo.toml')) {
         logError('This script must be run from the project root directory');
         process.exit(1);
     }
@@ -88,7 +88,7 @@ function checkBasicRequirements() {
 function installDependencies() {
     logStep('2', 'Installing dependencies (if needed)...');
     
-    const rustDir = path.join('src');
+    const rustDir = process.cwd();
     const nodeModules = path.join(rustDir, 'node_modules');
     
     if (!fs.existsSync(nodeModules)) {
@@ -106,7 +106,7 @@ function runDev() {
     log(`${colors.cyan}Changes to files will trigger automatic rebuild and restart.${colors.reset}`);
     log(`${colors.yellow}Press Ctrl+C to stop the development server.${colors.reset}\n`);
     
-    const rustDir = path.join('src');
+    const rustDir = process.cwd();
     runCommand('cargo tauri dev', rustDir);
 }
 
