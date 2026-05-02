@@ -44,6 +44,7 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
+  background: var(--bg-color);
 }
 
 /* Custom Title Bar */
@@ -110,6 +111,10 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background:
+    radial-gradient(120% 140% at 10% -20%, rgba(255, 68, 68, 0.14) 0%, rgba(255, 68, 68, 0) 48%),
+    radial-gradient(90% 120% at 100% 0%, rgba(214, 222, 236, 0.08) 0%, rgba(214, 222, 236, 0) 52%),
+    linear-gradient(180deg, rgba(24, 24, 24, 0.98) 0%, rgba(20, 20, 20, 1) 100%);
   overflow: hidden;
 }
 
@@ -354,11 +359,8 @@ body {
 
 /* Status Section */
 .status-section {
-  background: var(--card-bg);
-  border-radius: var(--border-radius);
   padding: 8px 10px;
   margin-bottom: 8px;
-  box-shadow: var(--card-shadow-soft);
 }
 
 .status-line {
@@ -433,10 +435,11 @@ body {
 
 /* Section Styles */
 .surface-card {
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, 0.025);
   border-radius: var(--border-radius);
+  border: none;
   margin-bottom: 8px;
-  box-shadow: var(--card-shadow-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 22px rgba(0, 0, 0, 0.22);
 }
 
 .input-section.compact,
@@ -802,11 +805,8 @@ input:checked + .toggle-slider:before {
 
 /* Info Panel */
 .info-panel {
-  background: var(--card-bg);
-  border-radius: var(--border-radius);
   padding: 30px 20px;
   text-align: center;
-  box-shadow: var(--card-shadow-soft);
   margin-top: 20px;
 }
 

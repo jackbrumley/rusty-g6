@@ -101,7 +101,7 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
             Toggle Permission Warning
           </button>
         </div>
-        <section class="status-section">
+        <section class="status-section surface-card">
           <div class="status-line">
             <span class={`status-indicator ${previewConnected ? "connected" : "disconnected"}`}>
               {previewConnected ? "●" : "○"}

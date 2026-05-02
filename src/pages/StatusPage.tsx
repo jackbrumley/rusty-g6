@@ -30,7 +30,7 @@ export function StatusPage({
         <p class="version-text">v{appVersion || "1.0.x"}</p>
       </header>
 
-      <section class="status-section">
+      <section class="status-section surface-card">
         <div class="status-line">
           <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
             {connected ? "●" : "○"}

@@ -126,7 +126,7 @@ function App() {
         )}
 
         {(activeTab === "output" || activeTab === "input") && !connected && (
-          <div class="info-panel">
+          <div class="info-panel surface-card">
             <p>Connect your SoundBlaster X G6 from the Status tab to begin.</p>
             <p class="info-note">This page only shows controls once a device session is active.</p>
             <button class="btn-compact btn-secondary" onClick={() => navigate("status")}>
