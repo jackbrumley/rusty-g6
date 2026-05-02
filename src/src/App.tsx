@@ -270,6 +270,8 @@ function App() {
         return;
       }
 
+      setConnected(true);
+      setStatus("Connected");
       const deviceSettings = await invoke<G6Settings>("get_device_settings");
       setSettings(deviceSettings);
     } catch (error) {
