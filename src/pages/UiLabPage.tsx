@@ -1,7 +1,9 @@
 import { useState } from "preact/hooks";
+import { IconCopy, IconMinus, IconSquare, IconX } from "@tabler/icons-preact";
 import { EffectControl } from "../components/controls/EffectControl";
 import { SliderControl } from "../components/controls/SliderControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
+import { Tooltip } from "../components/ui/Tooltip";
 import type { ToastType } from "../types/g6";
 
 interface UiLabPageProps {
@@ -35,7 +37,7 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
         : "Unable to contact update endpoint. Please try again in a few minutes.";
 
   return (
-    <section class="debug-section compact">
+    <section class="debug-section compact surface-card">
       <div class="ui-lab-header-row">
         <span class="section-label">UI Lab:</span>
         <button onClick={onBack} class="btn-compact btn-secondary">
@@ -65,20 +67,13 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
             <div class="title-bar-title">Rusty G6</div>
             <div class="title-bar-controls">
               <button class="title-bar-button">
-                <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
+                <IconMinus size={14} stroke={2.3} aria-hidden="true" />
               </button>
               <button class="title-bar-button">
-                <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 6h12v12H6z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="miter" />
-                </svg>
+                <IconSquare size={13} stroke={2.3} aria-hidden="true" />
               </button>
               <button class="title-bar-button close">
-                <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M7 7l10 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-                  <path d="M17 7L7 17" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-                </svg>
+                <IconX size={14} stroke={2.3} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -131,26 +126,41 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
           </button>
         </div>
 
-        <ToggleControl label="Toggle Preview" checked={previewToggle} onChange={setPreviewToggle} />
+        <div class="ui-lab-preview-grid">
+          <div class="ui-lab-preview-cell">
+            <SliderControl
+              label="Slider Preview"
+              value={previewValue}
+              min={0}
+              max={100}
+              tooltip="Shows how slider tooltip help appears when hovering the slider label text."
+              onChange={setPreviewValue}
+            />
+          </div>
 
-        <SliderControl
-          label="Slider Preview"
-          value={previewValue}
-          min={0}
-          max={100}
-          onChange={setPreviewValue}
-        />
+          <div class="ui-lab-preview-cell">
+            <ToggleControl
+              label="Toggle Preview"
+              checked={previewToggle}
+              tooltip="Shows how toggle tooltip help appears when hovering the toggle label text."
+              onChange={setPreviewToggle}
+            />
+          </div>
 
-        <EffectControl
-          name="Effect Preview"
-          enabled={previewEnabled}
-          value={previewValue}
-          disabled={!previewSbxEnabled}
-          onChange={(enabled, value) => {
-            setPreviewEnabled(enabled);
-            setPreviewValue(value);
-          }}
-        />
+          <div class="ui-lab-preview-cell">
+            <EffectControl
+              name="Effect Preview"
+              enabled={previewEnabled}
+              value={previewValue}
+              tooltip="Shows how effect tooltip help appears when hovering the effect label text."
+              disabled={!previewSbxEnabled}
+              onChange={(enabled, value) => {
+                setPreviewEnabled(enabled);
+                setPreviewValue(value);
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <div class="ui-lab-section effects-list">
@@ -182,6 +192,20 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
               <span>Update available</span>
             </button>
           )}
+        </div>
+      </div>
+
+      <div class="ui-lab-section effects-list">
+        <h3>Tooltip Preview</h3>
+        <div class="ui-lab-controls-inline">
+          <Tooltip text="This is the custom app tooltip style: near-black body with a red outline.">
+            <button class="btn-compact btn-secondary">Hover Tooltip Sample</button>
+          </Tooltip>
+          <Tooltip text="Tooltips also appear when focused via keyboard navigation.">
+            <button class="btn-compact">
+              Focus Tooltip Sample <IconCopy size={13} stroke={2.1} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

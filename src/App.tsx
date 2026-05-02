@@ -2,6 +2,7 @@ import "./App.css";
 import { AppShell } from "./components/shell/AppShell";
 import { ToastHost } from "./components/toast/ToastHost";
 import { useDeviceRuntime } from "./hooks/useDeviceRuntime";
+import { useUiInteractionLogger } from "./hooks/useUiInteractionLogger";
 import { useToastManager } from "./hooks/useToastManager";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { DebugPage } from "./pages/DebugPage";
@@ -25,8 +26,7 @@ function App() {
     autostartEnabled,
     showExperimental,
     navigate,
-    connectDevice,
-    disconnectDevice,
+    resetConnection,
     handleSetupUsbPermissions,
     toggleOutput,
     setSbxMode,
@@ -37,11 +37,16 @@ function App() {
     toggleExperimental,
     setLogSeparatorMessage,
     clearTerminal,
+    copySessionLog,
+    openSessionLog,
     handleSetupMicClick,
     setMicrophoneBoost,
   } = useDeviceRuntime({ showToast });
 
+  useUiInteractionLogger();
+
   const {
+    isMaximized,
     handleMinimize,
     handleToggleMaximize,
     handleClose,
@@ -52,6 +57,7 @@ function App() {
   return (
     <AppShell
       activeTab={activeTab}
+      isMaximized={isMaximized}
       onNavigate={navigate}
       onMinimize={handleMinimize}
       onToggleMaximize={handleToggleMaximize}
@@ -66,8 +72,9 @@ function App() {
             status={status}
             appVersion={appVersion}
             permissionError={permissionError}
-            onConnect={() => connectDevice(false)}
-            onDisconnect={disconnectDevice}
+            settings={settings}
+            isLinux={isLinux}
+            onReadDeviceState={readDeviceState}
             onSetupPermissions={handleSetupUsbPermissions}
           />
         )}
@@ -95,17 +102,19 @@ function App() {
 
         {activeTab === "debug" && (
           <DebugPage
-            appVersion={appVersion}
             settings={settings}
             autostartEnabled={autostartEnabled}
             showExperimental={showExperimental}
             logSeparatorMessage={logSeparatorMessage}
             onNavigateUiLab={() => navigate("ui-lab")}
             onReadDeviceState={readDeviceState}
+            onResetConnection={resetConnection}
             onToggleAutostart={toggleAutostart}
             onToggleExperimental={toggleExperimental}
             onSetLogSeparatorMessage={setLogSeparatorMessage}
             onClearTerminal={clearTerminal}
+            onCopySessionLog={copySessionLog}
+            onOpenSessionLog={openSessionLog}
           />
         )}
 

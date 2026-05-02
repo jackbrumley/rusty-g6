@@ -1,8 +1,10 @@
 import type { AppRoute } from "../../app/routes";
 import type { ComponentChildren } from "preact";
+import { IconCopy, IconMinus, IconSquare, IconX } from "@tabler/icons-preact";
 
 interface AppShellProps {
   activeTab: AppRoute;
+  isMaximized: boolean;
   onNavigate: (route: AppRoute) => void;
   onMinimize: () => Promise<void>;
   onToggleMaximize: () => Promise<void>;
@@ -14,6 +16,7 @@ interface AppShellProps {
 
 export function AppShell({
   activeTab,
+  isMaximized,
   onNavigate,
   onMinimize,
   onToggleMaximize,
@@ -31,21 +34,18 @@ export function AppShell({
       >
         <div class="title-bar-title">Rusty G6</div>
         <div class="title-bar-controls">
-          <button class="title-bar-button minimize" onClick={onMinimize} title="Minimize">
-            <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+          <button class="title-bar-button minimize" onClick={onMinimize} aria-label="Minimize window">
+            <IconMinus size={14} stroke={2.3} aria-hidden="true" />
           </button>
-          <button class="title-bar-button" onClick={onToggleMaximize} title="Maximize or Restore">
-            <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6h12v12H6z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="miter" />
-            </svg>
+          <button class="title-bar-button" onClick={onToggleMaximize} aria-label="Maximize or restore window">
+            {isMaximized ? (
+              <IconCopy size={13} stroke={2.3} aria-hidden="true" />
+            ) : (
+              <IconSquare size={13} stroke={2.3} aria-hidden="true" />
+            )}
           </button>
-          <button class="title-bar-button close" onClick={onClose} title="Close">
-            <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 7l10 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-              <path d="M17 7L7 17" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            </svg>
+          <button class="title-bar-button close" onClick={onClose} aria-label="Close application">
+            <IconX size={14} stroke={2.3} aria-hidden="true" />
           </button>
         </div>
       </div>

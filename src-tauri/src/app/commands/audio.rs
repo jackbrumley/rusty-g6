@@ -98,10 +98,18 @@ pub fn set_surround(
                 format!("✅ Surround set to {:?} with value {}", enabled, value),
                 None,
             );
-            Ok(format!("Surround set to {:?} with value {}", enabled, value))
+            Ok(format!(
+                "Surround set to {:?} with value {}",
+                enabled, value
+            ))
         }
         Err(e) => {
-            log_to_console(&app, "error", format!("❌ Set surround failed: {}", e), None);
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set surround failed: {}", e),
+                None,
+            );
             Err(e.to_string())
         }
     }
@@ -139,7 +147,10 @@ pub fn set_crystalizer(
                 format!("✅ Crystalizer set to {:?} with value {}", enabled, value),
                 None,
             );
-            Ok(format!("Crystalizer set to {:?} with value {}", enabled, value))
+            Ok(format!(
+                "Crystalizer set to {:?} with value {}",
+                enabled, value
+            ))
         }
         Err(e) => {
             log_to_console(
@@ -223,7 +234,10 @@ pub fn set_smart_volume(
                 format!("✅ Smart Volume set to {:?} with value {}", enabled, value),
                 None,
             );
-            Ok(format!("Smart Volume set to {:?} with value {}", enabled, value))
+            Ok(format!(
+                "Smart Volume set to {:?} with value {}",
+                enabled, value
+            ))
         }
         Err(e) => {
             log_to_console(
@@ -269,7 +283,10 @@ pub fn set_dialog_plus(
                 format!("✅ Dialog Plus set to {:?} with value {}", enabled, value),
                 None,
             );
-            Ok(format!("Dialog Plus set to {:?} with value {}", enabled, value))
+            Ok(format!(
+                "Dialog Plus set to {:?} with value {}",
+                enabled, value
+            ))
         }
         Err(e) => {
             log_to_console(

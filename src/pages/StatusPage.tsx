@@ -1,10 +1,14 @@
+import type { G6Settings } from "../types/g6";
+import { Tooltip } from "../components/ui/Tooltip";
+
 interface StatusPageProps {
   connected: boolean;
   status: string;
   appVersion: string;
   permissionError: boolean;
-  onConnect: () => void;
-  onDisconnect: () => void;
+  settings: G6Settings | null;
+  isLinux: boolean;
+  onReadDeviceState: () => void;
   onSetupPermissions: () => void;
 }
 
@@ -13,8 +17,9 @@ export function StatusPage({
   status,
   appVersion,
   permissionError,
-  onConnect,
-  onDisconnect,
+  settings,
+  isLinux,
+  onReadDeviceState,
   onSetupPermissions,
 }: StatusPageProps) {
   return (
@@ -31,25 +36,63 @@ export function StatusPage({
             {connected ? "●" : "○"}
           </span>
           <span class="status-text">{status}</span>
-          {!connected ? (
-            <button onClick={onConnect} class="btn-compact">
-              Connect Device
-            </button>
-          ) : (
-            <button onClick={onDisconnect} class="btn-compact btn-secondary">
-              Disconnect
-            </button>
-          )}
           {permissionError && (
-            <button
-              onClick={onSetupPermissions}
-              class="btn-compact btn-warning"
-              title="Automatically set up Linux udev rules for the G6 device. Requires root password."
-            >
-              Fix Permissions
-            </button>
+            <Tooltip text="Automatically sets up Linux USB permissions for the G6. Root authentication is required.">
+              <button onClick={onSetupPermissions} class="btn-compact btn-warning">
+                Fix Permissions
+              </button>
+            </Tooltip>
           )}
         </div>
+        {!connected && !permissionError && (
+          <p class="info-note" style={{ marginTop: "8px" }}>
+            Auto-connect is enabled. Rusty G6 will keep searching for your device.
+          </p>
+        )}
+      </section>
+
+      <section class="debug-section compact surface-card">
+        <div class="status-info-grid">
+          <div class="status-info-tile">
+            <span class="status-info-label">Firmware</span>
+            <span class="status-info-value">
+              {settings?.firmware_info
+                ? `${settings.firmware_info.version}${settings.firmware_info.build ? ` (${settings.firmware_info.build})` : ""}`
+                : "Unknown"}
+            </span>
+          </div>
+          <div class="status-info-tile">
+            <span class="status-info-label">Output</span>
+            <span class="status-info-value">{settings?.output ?? "Unknown"}</span>
+          </div>
+          <div class="status-info-tile">
+            <span class="status-info-label">SBX Mode</span>
+            <span class="status-info-value">{settings?.sbx_enabled ?? "Unknown"}</span>
+          </div>
+          <div class="status-info-tile">
+            <span class="status-info-label">Scout Mode</span>
+            <span class="status-info-value">{settings?.scout_mode ?? "Unknown"}</span>
+          </div>
+          <div class="status-info-tile">
+            <span class="status-info-label">Platform</span>
+            <span class="status-info-value">{isLinux ? "Linux" : "Windows"}</span>
+          </div>
+          <div class="status-info-tile">
+            <span class="status-info-label">Last Read</span>
+            <span class="status-info-value">
+              {settings?.last_read_time
+                ? new Date(settings.last_read_time * 1000).toLocaleTimeString()
+                : "Not yet"}
+            </span>
+          </div>
+        </div>
+        {connected && (
+          <div class="status-action-grid">
+            <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
+              Read Device State
+            </button>
+          </div>
+        )}
       </section>
     </>
   );

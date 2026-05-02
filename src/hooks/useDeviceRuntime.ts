@@ -30,6 +30,14 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
 
   const pollEnabledRef = useRef(false);
 
+  const logUiEvent = async (message: string) => {
+    try {
+      await invoke("log_ui_event", { message });
+    } catch {
+      // no-op
+    }
+  };
+
   const toggleExperimental = (enabled: boolean) => {
     setShowExperimental(enabled);
     localStorage.setItem("rusty-g6-experimental", String(enabled));
@@ -63,6 +71,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     try {
       const version = await invoke<string>("get_app_version");
       setAppVersion(version);
+      await logUiEvent(`Session metadata: app_version=${version}`);
     } catch (error) {
       console.error("Failed to get app version:", error);
     }
@@ -74,6 +83,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       console.log("=== All USB HID Devices ===");
       devices.forEach((device) => console.log(device));
       console.log("===========================");
+      await logUiEvent(`USB scan completed: ${devices.length} device entries observed`);
     } catch (error) {
       console.error("Failed to list USB devices:", error);
     }
@@ -93,6 +103,11 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       setStatus("Connected");
       const deviceSettings = await invoke<G6Settings>("get_device_settings");
       setSettings(deviceSettings);
+      if (deviceSettings.firmware_info) {
+        await logUiEvent(
+          `Device snapshot: firmware=${deviceSettings.firmware_info.version} output=${deviceSettings.output}`
+        );
+      }
     } catch (error) {
       console.error("Error loading settings:", error);
     }
@@ -102,6 +117,11 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     try {
       const deviceSettings = await invoke<G6Settings>("read_device_state");
       setSettings(deviceSettings);
+      if (deviceSettings.firmware_info) {
+        await logUiEvent(
+          `Read device state: firmware=${deviceSettings.firmware_info.version} output=${deviceSettings.output} sbx=${deviceSettings.sbx_enabled}`
+        );
+      }
       showToast(
         "Device state read successfully! All settings now reflect actual device values.",
         "success"
@@ -124,6 +144,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       setPermissionError(false);
       const result = await invoke("connect_device");
       console.log("Connection result:", result);
+      await logUiEvent(`Connection attempt result: ${String(result)}`);
       setConnected(true);
       setStatus("Connected");
       await readDeviceState();
@@ -137,8 +158,10 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       if (errorMsg.includes("Permission denied")) {
         setPermissionError(true);
         setStatus("USB Permission Denied (Linux)");
+        await logUiEvent("Connection failed: USB permission denied");
       } else {
         setStatus("Disconnected");
+        await logUiEvent(`Connection failed: ${errorMsg}`);
       }
     }
   };
@@ -146,6 +169,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const disconnectDevice = async () => {
     try {
       await invoke("disconnect_device");
+      await logUiEvent("Device disconnected by user action");
       setConnected(false);
       setStatus("Disconnected");
       setSettings(null);
@@ -154,10 +178,25 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
   };
 
+  const resetConnection = async () => {
+    try {
+      await invoke("disconnect_device");
+      await logUiEvent("Connection reset requested from debug tools");
+      setConnected(false);
+      setStatus("Searching for device...");
+      setSettings(null);
+      showToast("Connection reset requested. Reconnecting...", "info", 2500);
+      await connectDevice(true);
+    } catch (error) {
+      showToast(`Failed to reset connection: ${error}`, "error");
+    }
+  };
+
   const handleSetupUsbPermissions = async () => {
     try {
       showToast("Setting up USB permissions...", "info");
       const result = await invoke<string>("setup_udev_rules");
+      await logUiEvent("USB permissions setup command succeeded");
       showToast(result, "success", 5000);
       setPermissionError(false);
     } catch (error) {
@@ -181,6 +220,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const toggleOutput = async () => {
     try {
       await invoke("toggle_output");
+      await logUiEvent("Output toggled");
       await loadSettings();
     } catch (error) {
       showToast(`Failed to toggle output: ${error}`, "error");
@@ -190,6 +230,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const setSbxMode = async (enabled: "Enabled" | "Disabled") => {
     try {
       console.log("Setting SBX Mode:", enabled);
+      await logUiEvent(`SBX mode requested: ${enabled}`);
       await invoke("set_sbx_mode", { enabled });
     } catch (error) {
       console.error("Failed to set SBX Mode:", error);
@@ -200,6 +241,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const setScoutMode = async (enabled: "Enabled" | "Disabled") => {
     try {
       console.log("Setting Scout Mode:", enabled);
+      await logUiEvent(`Scout mode requested: ${enabled}`);
       await invoke("set_scout_mode", { enabled });
     } catch (error) {
       console.error("Failed to set Scout Mode:", error);
@@ -214,6 +256,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   ) => {
     try {
       console.log(`Setting ${effectName}:`, { enabled, value });
+      await logUiEvent(`Effect change requested: ${effectName} enabled=${enabled} value=${value}`);
       const result = await invoke(`set_${effectName}`, { enabled, value });
       console.log(`${effectName} result:`, result);
     } catch (error) {
@@ -225,6 +268,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const setMicrophoneBoost = async (dbValue: number) => {
     try {
       console.log("Setting Microphone Boost:", dbValue);
+      await logUiEvent(`Microphone boost requested: ${dbValue} dB`);
       await invoke("set_microphone_boost", { dbValue });
       setMicBoost(dbValue);
       showToast(`Microphone boost set to ${dbValue}dB`, "success", 2000);
@@ -269,11 +313,32 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       await invoke("clear_terminal", {
         message: logSeparatorMessage || null,
       });
+      await logUiEvent("Log separator inserted from debug tools");
       showToast("Log separator added - check terminal for marker", "success", 2000);
       setLogSeparatorMessage("");
     } catch (error) {
       console.error("Failed to add log separator:", error);
       showToast(`Failed to add log separator: ${error}`, "error", 3000);
+    }
+  };
+
+  const copySessionLog = async () => {
+    try {
+      const text = await invoke<string>("get_session_log_text");
+      await invoke("plugin:clipboard-manager|write_text", { text });
+      await logUiEvent(`Session log copied to clipboard (${text.length} chars)`);
+      showToast("Session log copied to clipboard.", "success");
+    } catch (error) {
+      showToast(`Failed to copy session log: ${error}`, "error");
+    }
+  };
+
+  const openSessionLog = async () => {
+    try {
+      await invoke("open_session_log");
+      await logUiEvent("Session log file open requested");
+    } catch (error) {
+      showToast(`Failed to open session log: ${error}`, "error");
     }
   };
 
@@ -346,6 +411,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     navigate,
     connectDevice,
     disconnectDevice,
+    resetConnection,
     handleSetupUsbPermissions,
     toggleOutput,
     setSbxMode,
@@ -356,6 +422,8 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     toggleExperimental,
     setLogSeparatorMessage,
     clearTerminal,
+    copySessionLog,
+    openSessionLog,
     handleSetupMicClick,
     setMicrophoneBoost,
   };

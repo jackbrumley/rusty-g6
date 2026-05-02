@@ -1,6 +1,8 @@
 use crate::app::protocol_console::{clear_messages, get_messages, push_console_message};
 use crate::app::state::AppState;
-use crate::g6_protocol_v2::{build_firmware_query_ascii, build_toggle_output_simple, G6ResponseParser};
+use crate::g6_protocol_v2::{
+    build_firmware_query_ascii, build_toggle_output_simple, G6ResponseParser,
+};
 use crate::g6_spec::ProtocolConsoleMessage;
 use tauri::{AppHandle, State};
 
@@ -79,7 +81,8 @@ pub fn test_protocol_v2(app: AppHandle, state: State<AppState>) -> Result<String
         Err(e) => format!("❌ Parse FAILED: {}", e),
     };
 
-    let parse_msg = ProtocolConsoleMessage::new(parse_level, parse_text, Some(debug_info.to_readable_text()));
+    let parse_msg =
+        ProtocolConsoleMessage::new(parse_level, parse_text, Some(debug_info.to_readable_text()));
     push_console_message(&app, parse_msg);
 
     match parsed {

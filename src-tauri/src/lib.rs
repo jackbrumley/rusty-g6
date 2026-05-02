@@ -7,10 +7,16 @@ use app::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    if let Err(error) = app::session_log::initialize_session_logging() {
+        eprintln!("Failed to initialize session logging: {}", error);
+    }
+    if let Err(error) = app::session_log::initialize_app_logger() {
+        eprintln!("Failed to initialize app logger: {}", error);
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .manage(app::state::create_app_state())
         .setup(app::bootstrap::configure_shell)
@@ -42,6 +48,9 @@ pub fn run() {
             test_output_toggle_v2,
             setup_udev_rules,
             check_usb_permissions,
+            get_session_log_text,
+            open_session_log,
+            log_ui_event,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

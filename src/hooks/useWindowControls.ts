@@ -1,7 +1,33 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useEffect, useState } from "preact/hooks";
 
 export function useWindowControls() {
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+
+    const syncMaximized = async () => {
+      try {
+        setIsMaximized(await appWindow.isMaximized());
+      } catch (error) {
+        console.error("Failed to read maximize state:", error);
+      }
+    };
+
+    syncMaximized();
+    const unlistenPromise = appWindow.onResized(() => {
+      syncMaximized();
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten()).catch(() => {
+        // no-op
+      });
+    };
+  }, []);
+
   const handleMinimize = async () => {
     try {
       const appWindow = getCurrentWindow();
@@ -19,6 +45,7 @@ export function useWindowControls() {
       } else {
         await appWindow.maximize();
       }
+      setIsMaximized(await appWindow.isMaximized());
     } catch (error) {
       console.error("Failed to toggle maximize:", error);
     }
@@ -56,6 +83,7 @@ export function useWindowControls() {
   };
 
   return {
+    isMaximized,
     handleMinimize,
     handleToggleMaximize,
     handleClose,

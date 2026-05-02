@@ -13,6 +13,7 @@
     "tauri:build": "npm run tauri -- build"
   },
   "dependencies": {
+    "@tabler/icons-preact": "^3.41.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-opener": "^2",

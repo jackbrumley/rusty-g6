@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { Tooltip } from "../ui/Tooltip";
 
 interface EffectControlProps {
   name: string;
@@ -6,6 +7,7 @@ interface EffectControlProps {
   value: number;
   onChange: (enabled: boolean, value: number) => void;
   disabled?: boolean;
+  tooltip?: string;
 }
 
 export function EffectControl({
@@ -14,6 +16,7 @@ export function EffectControl({
   value,
   onChange,
   disabled = false,
+  tooltip,
 }: EffectControlProps) {
   const [localValue, setLocalValue] = useState(value);
   const [localEnabled, setLocalEnabled] = useState(enabled);
@@ -43,7 +46,9 @@ export function EffectControl({
 
   return (
     <div class={`control-row ${disabled ? "disabled" : ""}`}>
-      <span class="control-label">{name}</span>
+      <span class="control-label">
+        {tooltip ? <Tooltip text={tooltip}>{name}</Tooltip> : name}
+      </span>
       <label class="toggle-switch">
         <input
           type="checkbox"
