@@ -22,11 +22,11 @@ It exists because there is no official Linux client for the G6, and advanced con
 
 ## What You Can Do
 
+- Tweak your Sound BlasterX G6 audio settings from a simple desktop UI
 - Switch output between speakers and headphones
 - Adjust SBX effects like Surround, Crystalizer, Bass, Smart Volume, and Dialog Plus
-- Configure microphone setup and boost
-- Check app updates from the Settings tab
-- Copy/open session logs for troubleshooting
+- Use the app on Linux and Windows with the same straightforward controls
+
 
 ## Screenshots
 
