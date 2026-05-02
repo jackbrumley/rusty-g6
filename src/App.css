@@ -4,12 +4,15 @@
   --secondary-color: #666;
   --bg-color: #1a1a1a;
   --card-bg: #2a2a2a;
+  --titlebar-bg: #141414;
+  --tabs-bg: #222222;
   --text-color: #e0e0e0;
   --border-color: #444;
   --success-color: #4caf50;
   --warning-color: #ff9800;
   --border-radius: 8px;
   --transition: all 0.3s ease;
+  --card-shadow-soft: 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 
 * {
@@ -31,7 +34,7 @@ body {
   width: 100%;
   max-width: 700px;
   margin: 0 auto;
-  padding: 15px;
+  padding: 12px 15px 15px;
 }
 
 .app-shell {
@@ -50,8 +53,8 @@ body {
   margin-bottom: 0;
   padding: 6px 10px 6px 12px;
   border-radius: 0;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  background: linear-gradient(180deg, #151515 0%, var(--titlebar-bg) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-left: 0;
   border-right: 0;
   user-select: none;
@@ -98,6 +101,13 @@ body {
 
 .titlebar-btn:active {
   transform: none;
+}
+
+.titlebar-btn-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  pointer-events: none;
 }
 
 .titlebar-btn-close {
@@ -177,7 +187,7 @@ header h1 {
   border-radius: var(--border-radius);
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-soft);
 }
 
 .status-bar {
@@ -273,7 +283,7 @@ button {
   border-radius: var(--border-radius);
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-soft);
 }
 
 .output-section h2 {
@@ -302,7 +312,7 @@ button {
   background: var(--card-bg);
   border-radius: var(--border-radius);
   padding: 12px;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-soft);
 }
 
 .effects-section h2 {
@@ -317,12 +327,13 @@ button {
   border-radius: var(--border-radius);
   padding: 12px;
   margin-bottom: 10px;
-  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   transition: var(--transition);
 }
 
 .effect-control:hover {
-  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .effect-header {
@@ -451,7 +462,7 @@ input:checked + .toggle-slider:before {
   border-radius: var(--border-radius);
   padding: 40px;
   text-align: center;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-soft);
 }
 
 .info-panel p {
@@ -468,6 +479,10 @@ input:checked + .toggle-slider:before {
 @media (max-width: 600px) {
   .container {
     padding: 10px;
+  }
+
+  .tab-nav-shell {
+    padding: 8px 10px 0;
   }
 
   header h1 {
@@ -509,31 +524,41 @@ input:checked + .toggle-slider:before {
 }
 
 /* Tab Navigation */
+.tab-nav-shell {
+  width: 100%;
+  padding: 8px 12px 0;
+  background: var(--tabs-bg);
+  box-shadow: none;
+}
+
 .tab-nav {
   display: flex;
   gap: 0;
-  margin-bottom: 15px;
-  background: var(--card-bg);
-  border-radius: var(--border-radius);
-  padding: 4px;
-  border: 1px solid var(--border-color);
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0 4px;
+  box-shadow: none;
+  align-items: flex-end;
 }
 
 .tab-button {
   flex: 1;
-  padding: 10px 20px;
+  padding: 11px 20px 9px;
   background: transparent;
   color: var(--secondary-color);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
   transition: var(--transition);
   font-weight: 600;
 }
 
 .tab-button.active {
-  background: var(--primary-color);
-  color: white;
+  background: var(--bg-color);
+  color: var(--primary-color);
+  box-shadow: inset 0 2px 0 var(--primary-color);
 }
 
 .tab-button:hover:not(.active) {
@@ -546,7 +571,7 @@ input:checked + .toggle-slider:before {
   background: var(--card-bg);
   border-radius: var(--border-radius);
   padding: 15px;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-soft);
 }
 
 .debug-section h2 {
@@ -579,7 +604,7 @@ input:checked + .toggle-slider:before {
   border-radius: var(--border-radius);
   padding: 12px;
   margin-bottom: 15px;
-  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .debug-result pre {
@@ -597,7 +622,7 @@ input:checked + .toggle-slider:before {
   border-radius: var(--border-radius);
   padding: 12px;
   margin-bottom: 15px;
-  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   max-height: 500px;
   overflow-y: auto;
 }
@@ -607,7 +632,7 @@ input:checked + .toggle-slider:before {
   border-radius: var(--border-radius);
   padding: 10px;
   margin-bottom: 10px;
-  border: 1px solid var(--border-color);
+  box-shadow: var(--card-shadow-soft);
 }
 
 .response-item h4 {
@@ -632,7 +657,7 @@ input:checked + .toggle-slider:before {
   background: var(--bg-color);
   border-radius: var(--border-radius);
   padding: 12px;
-  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .modal-overlay {

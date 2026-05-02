@@ -27,20 +27,20 @@ interface UpdateCheckResult {
   notesUrl?: string;
 }
 
-type AppRoute = "output" | "input" | "debug" | "ui-lab";
+type AppRoute = "status" | "output" | "input" | "debug" | "ui-lab";
 
-const DEFAULT_ROUTE: AppRoute = "output";
+const DEFAULT_ROUTE: AppRoute = "status";
 
 const routeFromHash = (hash: string): AppRoute => {
   const normalized = hash.replace(/^#\/?/, "").split("/")[0].trim().toLowerCase();
-  if (normalized === "output" || normalized === "debug" || normalized === "ui-lab") {
+  if (normalized === "status" || normalized === "output" || normalized === "debug" || normalized === "ui-lab") {
     return normalized as AppRoute;
   }
   if (normalized === "input") {
     return "input";
   }
   if (normalized === "main") {
-    return "output";
+    return "status";
   }
   if (normalized === "microphone") {
     return "input";
@@ -336,7 +336,9 @@ function App() {
             &#x2500;
           </button>
           <button class="titlebar-btn" onClick={handleToggleMaximize} aria-label="Maximize or restore">
-            &#x25A1;
+            <svg class="titlebar-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="5" width="14" height="14" rx="1.5" ry="1.5" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
           </button>
           <button class="titlebar-btn titlebar-btn-close" onClick={handleCloseApp} aria-label="Close">
             &#x2715;
@@ -344,43 +346,14 @@ function App() {
         </div>
       </div>
 
-      <main class="container">
-
-      <header>
-        <h1>Rusty G6</h1>
-        <p class="subtitle">SoundBlaster X G6 Control Panel</p>
-        <div class="meta-row">
-          <span class="app-version">v{appVersion || "0.2.x"}</span>
-          {updateResult?.updateAvailable && (
-            <button class="update-pill" onClick={() => setShowUpdateModal(true)}>
-              <span class="update-pill-icon" aria-hidden="true">!</span>
-              <span>Update available</span>
-            </button>
-          )}
-        </div>
-      </header>
-
-      <section class="status-section">
-        <div class="status-bar">
-          <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
-            {connected ? "●" : "○"}
-          </span>
-          <span class="status-text">{status}</span>
-        </div>
-        <div class="connection-buttons">
-          {!connected ? (
-            <button onClick={connectDevice} class="btn-primary">
-              Connect Device
-            </button>
-          ) : (
-            <button onClick={disconnectDevice} class="btn-secondary">
-              Disconnect
-            </button>
-          )}
-        </div>
-      </section>
-
+      <div class="tab-nav-shell">
       <nav class="tab-nav">
+        <button
+          class={`tab-button ${activeTab === "status" ? "active" : ""}`}
+          onClick={() => navigate("status")}
+        >
+          Status
+        </button>
         <button
           class={`tab-button ${activeTab === "output" ? "active" : ""}`}
           onClick={() => navigate("output")}
@@ -400,6 +373,21 @@ function App() {
           Debug
         </button>
       </nav>
+      </div>
+
+      <main class="container">
+
+      {activeTab === "status" && (
+        <StatusTab
+          connected={connected}
+          status={status}
+          appVersion={appVersion}
+          updateAvailable={Boolean(updateResult?.updateAvailable)}
+          onConnectDevice={connectDevice}
+          onDisconnectDevice={disconnectDevice}
+          onOpenUpdateModal={() => setShowUpdateModal(true)}
+        />
+      )}
 
       {activeTab === "output" && connected && settings && (
         <>
@@ -484,10 +472,11 @@ function App() {
 
       {activeTab === "output" && !connected && (
         <div class="info-panel">
-          <p>Connect your SoundBlaster X G6 device to begin.</p>
+          <p>Connect your SoundBlaster X G6 from the Status tab to begin.</p>
           <p class="info-note">
-            Make sure the device is plugged in and drivers are installed.
+            This page only shows output controls once a device session is active.
           </p>
+          <button class="btn-secondary" onClick={() => navigate("status")}>Go to Status</button>
         </div>
       )}
 
@@ -538,6 +527,64 @@ interface EffectControlProps {
   enabled: boolean;
   value: number;
   onChange: (enabled: boolean, value: number) => void;
+}
+
+interface StatusTabProps {
+  connected: boolean;
+  status: string;
+  appVersion: string;
+  updateAvailable: boolean;
+  onConnectDevice: () => void;
+  onDisconnectDevice: () => void;
+  onOpenUpdateModal: () => void;
+}
+
+function StatusTab({
+  connected,
+  status,
+  appVersion,
+  updateAvailable,
+  onConnectDevice,
+  onDisconnectDevice,
+  onOpenUpdateModal,
+}: StatusTabProps) {
+  return (
+    <>
+      <header>
+        <h1>Rusty G6</h1>
+        <p class="subtitle">SoundBlaster X G6 Control Panel</p>
+        <div class="meta-row">
+          <span class="app-version">v{appVersion || "0.2.x"}</span>
+          {updateAvailable && (
+            <button class="update-pill" onClick={onOpenUpdateModal}>
+              <span class="update-pill-icon" aria-hidden="true">!</span>
+              <span>Update available</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      <section class="status-section">
+        <div class="status-bar">
+          <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
+            {connected ? "●" : "○"}
+          </span>
+          <span class="status-text">{status}</span>
+        </div>
+        <div class="connection-buttons">
+          {!connected ? (
+            <button onClick={onConnectDevice} class="btn-primary">
+              Connect Device
+            </button>
+          ) : (
+            <button onClick={onDisconnectDevice} class="btn-secondary">
+              Disconnect
+            </button>
+          )}
+        </div>
+      </section>
+    </>
+  );
 }
 
 function EffectControl({ name, enabled, value, onChange }: EffectControlProps) {
