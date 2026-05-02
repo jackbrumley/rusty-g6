@@ -1,24 +1,18 @@
+mod app;
 mod g6_device;
 mod g6_protocol_v2; // Unified protocol abstraction layer
 mod g6_spec;
 
-use g6_device::G6DeviceManager;
+use app::state::AppState;
 use g6_spec::{EffectState, G6Settings, OutputDevice, ProtocolConsoleMessage, ScoutModeState};
 use log::info;
 use std::sync::Mutex;
 use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, State,
+    AppHandle, Emitter, State,
 };
 
 // Global protocol console storage
 static PROTOCOL_CONSOLE: Mutex<Vec<ProtocolConsoleMessage>> = Mutex::new(Vec::new());
-
-// Application state
-struct AppState {
-    device_manager: Mutex<G6DeviceManager>,
-}
 
 // Tauri Commands
 
@@ -830,13 +824,6 @@ fn test_output_toggle_v2(app: AppHandle, state: State<AppState>) -> Result<Strin
     ))
 }
 
-fn create_tray_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
-    let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-
-    Menu::with_items(app, &[&show, &quit])
-}
-
 #[tauri::command]
 fn configure_microphone() -> Result<String, String> {
     use std::process::Command;
@@ -912,63 +899,11 @@ pub fn run() {
     // Initialize logging with default level "info"
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    // Create device manager
-    let device_manager = G6DeviceManager::new().expect("Failed to initialize G6 Device Manager");
-
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState {
-            device_manager: Mutex::new(device_manager),
-        })
-        .setup(|app| {
-            // Create tray menu
-            let menu = create_tray_menu(app.handle())?;
-
-            // Create tray icon
-            let _tray = TrayIconBuilder::with_id("main-tray")
-                .menu(&menu)
-                .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("Rusty G6")
-                .on_menu_event(|app_handle, event| match event.id.as_ref() {
-                    "quit" => {
-                        std::process::exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app_handle.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { button, .. } = event {
-                        if let tauri::tray::MouseButton::Left = button {
-                            if let Some(window) = tray.app_handle().get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                    }
-                })
-                .build(app)?;
-
-            // Handle window close event to hide instead of exit
-            if let Some(window) = app.get_webview_window("main") {
-                let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        // Prevent the window from closing
-                        api.prevent_close();
-                        // Hide the window instead
-                        let _ = window_clone.hide();
-                    }
-                });
-            }
-
-            Ok(())
-        })
+        .manage(app::state::create_app_state())
+        .setup(app::bootstrap::configure_shell)
         .invoke_handler(tauri::generate_handler![
             connect_device,
             disconnect_device,
