@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    rusty_g6_lib::run()
+    rust_g6_lib::run()
 }

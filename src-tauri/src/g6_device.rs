@@ -4,7 +4,7 @@ use crate::g6_protocol;
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use hidapi::{HidApi, HidDevice};
-use log::{debug, error, info};
+use log::{error, info};
 use std::sync::{Arc, Mutex};
 
 /// G6 Device Manager

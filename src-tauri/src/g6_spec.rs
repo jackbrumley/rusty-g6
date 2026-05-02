@@ -7,10 +7,6 @@ use serde::{Deserialize, Serialize};
 pub const USB_VENDOR_ID: u16 = 0x041e; // Creative Technology Ltd
 pub const USB_PRODUCT_ID: u16 = 0x3256; // Sound Blaster X G6
 
-// Device Configuration
-pub const USB_INTERFACE: i32 = 0;
-pub const USB_TIMEOUT_MS: u64 = 1000;
-
 /// Audio output types
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum OutputDevice {

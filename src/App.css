@@ -28,22 +28,39 @@ body {
 }
 
 .container {
+  width: 100%;
   max-width: 700px;
   margin: 0 auto;
   padding: 15px;
 }
 
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .titlebar {
-  height: 36px;
+  width: 100%;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
-  padding: 0 6px 0 12px;
-  border-radius: var(--border-radius);
+  margin-bottom: 0;
+  padding: 6px 10px 6px 12px;
+  border-radius: 0;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
+  border-left: 0;
+  border-right: 0;
   user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.titlebar:active {
+  cursor: grabbing;
 }
 
 .titlebar-title {
@@ -59,25 +76,36 @@ body {
 
 .titlebar-btn {
   width: 30px;
-  height: 24px;
+  height: 30px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-color);
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
   line-height: 1;
-}
-
-.titlebar-btn:hover {
-  background: var(--bg-color);
+  font-weight: 700;
   transform: none;
 }
 
+.titlebar-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  transform: none;
+}
+
+.titlebar-btn:active {
+  transform: none;
+}
+
+.titlebar-btn-close {
+  background: rgba(239, 68, 68, 0.28);
+}
+
 .titlebar-btn-close:hover {
-  background: #cc3a3a;
+  background: rgba(239, 68, 68, 0.58);
   color: #fff;
 }
 
@@ -98,6 +126,49 @@ header h1 {
 .subtitle {
   color: var(--secondary-color);
   font-size: 0.9rem;
+}
+
+.meta-row {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-version {
+  font-size: 0.8rem;
+  color: var(--secondary-color);
+}
+
+.update-pill {
+  background: var(--primary-color);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-pill:hover {
+  background: var(--primary-hover);
+}
+
+.update-pill-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* Status Section */
@@ -562,6 +633,39 @@ input:checked + .toggle-slider:before {
   border-radius: var(--border-radius);
   padding: 12px;
   border: 1px solid var(--border-color);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.update-modal {
+  width: min(560px, 100%);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.update-last-checked {
+  color: var(--secondary-color);
+  font-size: 0.82rem;
+}
+
+.update-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .debug-info ul {

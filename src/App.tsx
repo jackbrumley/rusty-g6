@@ -1,5 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
@@ -18,21 +19,71 @@ interface G6Settings {
   dialog_plus_value: number;
 }
 
+interface UpdateCheckResult {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  releaseUrl: string;
+  notesUrl?: string;
+}
+
+type AppRoute = "output" | "input" | "debug" | "ui-lab";
+
+const DEFAULT_ROUTE: AppRoute = "output";
+
+const routeFromHash = (hash: string): AppRoute => {
+  const normalized = hash.replace(/^#\/?/, "").split("/")[0].trim().toLowerCase();
+  if (normalized === "output" || normalized === "debug" || normalized === "ui-lab") {
+    return normalized as AppRoute;
+  }
+  if (normalized === "input") {
+    return "input";
+  }
+  if (normalized === "main") {
+    return "output";
+  }
+  if (normalized === "microphone") {
+    return "input";
+  }
+  return DEFAULT_ROUTE;
+};
+
 function App() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
   const [settings, setSettings] = useState<G6Settings | null>(null);
-  const [activeTab, setActiveTab] = useState<"main" | "microphone" | "debug">("main");
+  const [activeTab, setActiveTab] = useState<AppRoute>(routeFromHash(window.location.hash));
   const [micStatus, setMicStatus] = useState<string>("");
   const [micSetupInProgress, setMicSetupInProgress] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const hasTauriRuntime =
     typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
   // Check connection status on mount
   useEffect(() => {
+    const syncRouteFromHash = () => {
+      setActiveTab(routeFromHash(window.location.hash));
+    };
+
+    window.addEventListener("hashchange", syncRouteFromHash);
+    syncRouteFromHash();
+
     checkConnection();
     // List all USB devices for debugging
     listUsbDevices();
+
+    if (hasTauriRuntime) {
+      getVersion().then(setAppVersion).catch(() => {});
+      void checkForUpdates(false);
+    }
+
+    return () => {
+      window.removeEventListener("hashchange", syncRouteFromHash);
+    };
   }, []);
 
   async function listUsbDevices() {
@@ -60,6 +111,57 @@ function App() {
       console.error("Error checking connection:", error);
       setStatus("Error checking connection");
     }
+  }
+
+  function navigate(route: AppRoute) {
+    const nextHash = `#/${route}`;
+    if (window.location.hash === nextHash) {
+      setActiveTab(route);
+      return;
+    }
+    window.location.hash = nextHash;
+  }
+
+  async function checkForUpdates(showModalWhenUpToDate: boolean) {
+    if (!hasTauriRuntime || checkingUpdates) {
+      return;
+    }
+
+    setCheckingUpdates(true);
+    try {
+      const result = await invoke<UpdateCheckResult>("check_for_updates");
+      setUpdateResult(result);
+      setLastCheckedAt(Date.now());
+
+      if (result.updateAvailable || showModalWhenUpToDate) {
+        setShowUpdateModal(true);
+      }
+    } catch (error) {
+      if (showModalWhenUpToDate) {
+        setStatus(`Update check failed: ${error}`);
+      }
+    } finally {
+      setCheckingUpdates(false);
+    }
+  }
+
+  function getLastCheckedLabel() {
+    if (!lastCheckedAt) {
+      return "Not checked yet";
+    }
+
+    const elapsed = Date.now() - lastCheckedAt;
+    if (elapsed < 60_000) {
+      return "Just now";
+    }
+
+    const minutes = Math.floor(elapsed / 60_000);
+    return `${minutes} min ago`;
+  }
+
+  function openReleasePage() {
+    const releaseUrl = updateResult?.releaseUrl || "https://github.com/jackbrumley/rusty-g6/releases/latest";
+    window.open(releaseUrl, "_blank", "noopener,noreferrer");
   }
 
   async function loadSettings() {
@@ -183,18 +285,58 @@ function App() {
     }
 
     const target = event.target as HTMLElement;
+    if (event.detail > 1) {
+      event.preventDefault();
+      return;
+    }
+
     if (event.buttons === 1 && !target.closest("button")) {
+      event.preventDefault();
       await getCurrentWindow().startDragging();
     }
   }
 
+  async function handleToggleMaximize() {
+    if (!hasTauriRuntime) {
+      return;
+    }
+
+    try {
+      const win = getCurrentWindow();
+      if (await win.isMaximized()) {
+        await win.unmaximize();
+      } else {
+        await win.maximize();
+      }
+    } catch (error) {
+      console.error("Failed to toggle maximize:", error);
+    }
+  }
+
+  async function handleTitleBarDoubleClick(event: MouseEvent) {
+    if (!hasTauriRuntime) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button")) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleToggleMaximize();
+  }
+
   return (
-    <main class="container">
-      <div class="titlebar" onMouseDown={handleTitleBarMouseDown}>
+    <div class="app-shell">
+      <div class="titlebar" onMouseDown={handleTitleBarMouseDown} onDblClick={handleTitleBarDoubleClick}>
         <div class="titlebar-title">Rusty G6</div>
         <div class="titlebar-controls">
           <button class="titlebar-btn" onClick={handleMinimizeApp} aria-label="Minimize">
             &#x2500;
+          </button>
+          <button class="titlebar-btn" onClick={handleToggleMaximize} aria-label="Maximize or restore">
+            &#x25A1;
           </button>
           <button class="titlebar-btn titlebar-btn-close" onClick={handleCloseApp} aria-label="Close">
             &#x2715;
@@ -202,9 +344,20 @@ function App() {
         </div>
       </div>
 
+      <main class="container">
+
       <header>
         <h1>Rusty G6</h1>
         <p class="subtitle">SoundBlaster X G6 Control Panel</p>
+        <div class="meta-row">
+          <span class="app-version">v{appVersion || "0.2.x"}</span>
+          {updateResult?.updateAvailable && (
+            <button class="update-pill" onClick={() => setShowUpdateModal(true)}>
+              <span class="update-pill-icon" aria-hidden="true">!</span>
+              <span>Update available</span>
+            </button>
+          )}
+        </div>
       </header>
 
       <section class="status-section">
@@ -229,26 +382,26 @@ function App() {
 
       <nav class="tab-nav">
         <button
-          class={`tab-button ${activeTab === "main" ? "active" : ""}`}
-          onClick={() => setActiveTab("main")}
+          class={`tab-button ${activeTab === "output" ? "active" : ""}`}
+          onClick={() => navigate("output")}
         >
-          Main
+          Output
         </button>
         <button
-          class={`tab-button ${activeTab === "microphone" ? "active" : ""}`}
-          onClick={() => setActiveTab("microphone")}
+          class={`tab-button ${activeTab === "input" ? "active" : ""}`}
+          onClick={() => navigate("input")}
         >
-          Microphone (Linux)
+          Input
         </button>
         <button
           class={`tab-button ${activeTab === "debug" ? "active" : ""}`}
-          onClick={() => setActiveTab("debug")}
+          onClick={() => navigate("debug")}
         >
           Debug
         </button>
       </nav>
 
-      {activeTab === "main" && connected && settings && (
+      {activeTab === "output" && connected && settings && (
         <>
           <section class="output-section">
             <h2>Output</h2>
@@ -329,7 +482,7 @@ function App() {
         </>
       )}
 
-      {activeTab === "main" && !connected && (
+      {activeTab === "output" && !connected && (
         <div class="info-panel">
           <p>Connect your SoundBlaster X G6 device to begin.</p>
           <p class="info-note">
@@ -338,7 +491,7 @@ function App() {
         </div>
       )}
 
-      {activeTab === "microphone" && (
+      {activeTab === "input" && (
         <MicrophoneTab 
           micStatus={micStatus}
           micSetupInProgress={micSetupInProgress}
@@ -348,9 +501,35 @@ function App() {
       )}
 
       {activeTab === "debug" && (
-        <DebugTab connected={connected} />
+        <DebugTab
+          connected={connected}
+          checkingUpdates={checkingUpdates}
+          onCheckForUpdates={() => void checkForUpdates(true)}
+          onOpenUiLab={() => navigate("ui-lab")}
+        />
       )}
-    </main>
+
+      {activeTab === "ui-lab" && <UiLabPage appVersion={appVersion} onBack={() => navigate("debug")} />}
+
+      {showUpdateModal && (
+        <div class="modal-overlay" onClick={() => setShowUpdateModal(false)}>
+          <section class="update-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>{updateResult?.updateAvailable ? "Update Available" : "Rusty G6 is Up to Date"}</h2>
+            <p>
+              {updateResult?.updateAvailable
+                ? `A newer Rusty G6 version is available. Current: v${updateResult.currentVersion} -> Latest: v${updateResult.latestVersion}.`
+                : `You are on the latest version (v${updateResult?.currentVersion || appVersion}).`}
+            </p>
+            <p class="update-last-checked">Last checked: {getLastCheckedLabel()}</p>
+            <div class="update-modal-actions">
+              <button class="btn-secondary" onClick={() => setShowUpdateModal(false)}>Later</button>
+              <button class="btn-primary" onClick={openReleasePage}>Download Latest</button>
+            </div>
+          </section>
+        </div>
+      )}
+      </main>
+    </div>
   );
 }
 
@@ -485,9 +664,12 @@ function MicrophoneTab({ micStatus, micSetupInProgress, onSetupMicrophone, onGet
 
 interface DebugTabProps {
   connected: boolean;
+  checkingUpdates: boolean;
+  onCheckForUpdates: () => void;
+  onOpenUiLab: () => void;
 }
 
-function DebugTab({ connected }: DebugTabProps) {
+function DebugTab({ connected, checkingUpdates, onCheckForUpdates, onOpenUiLab }: DebugTabProps) {
   const [reading, setReading] = useState(false);
   const [readResult, setReadResult] = useState<string>("");
   const [fullReadResults, setFullReadResults] = useState<Array<[string, string]>>([]);
@@ -560,6 +742,13 @@ function DebugTab({ connected }: DebugTabProps) {
         </button>
       </div>
 
+      <div class="debug-controls">
+        <button onClick={onCheckForUpdates} class="btn-secondary" disabled={checkingUpdates}>
+          {checkingUpdates ? "Checking..." : "Check for Updates"}
+        </button>
+        <button onClick={onOpenUiLab} class="btn-secondary">Open UI Lab</button>
+      </div>
+
       {readResult && (
         <div class="debug-result">
           <h3>Result:</h3>
@@ -595,6 +784,89 @@ function DebugTab({ connected }: DebugTabProps) {
           The responses will help us parse device settings.
         </p>
       </div>
+    </section>
+  );
+}
+
+interface UiLabPageProps {
+  appVersion: string;
+  onBack: () => void;
+}
+
+function UiLabPage({ appVersion, onBack }: UiLabPageProps) {
+  const [enabled, setEnabled] = useState(true);
+  const [value, setValue] = useState(45);
+  const [showUpdateBadge, setShowUpdateBadge] = useState(true);
+  const [showUpdatePreviewModal, setShowUpdatePreviewModal] = useState(false);
+
+  return (
+    <section class="debug-section">
+      <h2>UI Lab (internal)</h2>
+      <p class="info-note">Hidden hash route preview for UI states. Access via #/ui-lab.</p>
+
+      <div class="debug-controls">
+        <button onClick={onBack} class="btn-secondary">Back to Debug</button>
+        <button onClick={() => setShowUpdatePreviewModal(true)} class="btn-primary">Open Update Modal Preview</button>
+      </div>
+
+      <div class="info-panel">
+        <p><strong>Header Update Pill Preview</strong></p>
+        <div class="meta-row" style="justify-content: flex-start; margin-top: 10px;">
+          <span class="app-version">v{appVersion || "0.2.x"}</span>
+          {showUpdateBadge && (
+            <button class="update-pill" onClick={() => setShowUpdatePreviewModal(true)}>
+              <span class="update-pill-icon" aria-hidden="true">!</span>
+              <span>Update available</span>
+            </button>
+          )}
+        </div>
+        <div class="debug-controls" style="margin-top: 10px;">
+          <button class="btn-secondary" onClick={() => setShowUpdateBadge((prev) => !prev)}>
+            {showUpdateBadge ? "Hide" : "Show"} Update Pill
+          </button>
+        </div>
+      </div>
+
+      <div class="effect-control">
+        <div class="effect-header">
+          <h3>Effect Control Preview</h3>
+          <label class="toggle-switch">
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled((e.currentTarget as HTMLInputElement).checked)} />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="effect-slider">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={value}
+            onInput={(e) => setValue(parseInt((e.currentTarget as HTMLInputElement).value))}
+            class="slider"
+          />
+          <span class="slider-value">{value}</span>
+        </div>
+      </div>
+
+      <div class="debug-controls">
+        <button class="btn-primary">Primary Button</button>
+        <button class="btn-secondary">Secondary Button</button>
+        <button class="btn-toggle">Toggle Button</button>
+      </div>
+
+      {showUpdatePreviewModal && (
+        <div class="modal-overlay" onClick={() => setShowUpdatePreviewModal(false)}>
+          <section class="update-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>Update Available</h2>
+            <p>A newer Rusty G6 version is available. Current: v{appVersion || "0.2.x"} -&gt; Latest: v0.2.1.</p>
+            <p class="update-last-checked">Last checked: Just now</p>
+            <div class="update-modal-actions">
+              <button class="btn-secondary" onClick={() => setShowUpdatePreviewModal(false)}>Later</button>
+              <button class="btn-primary" onClick={() => setShowUpdatePreviewModal(false)}>Download Latest</button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

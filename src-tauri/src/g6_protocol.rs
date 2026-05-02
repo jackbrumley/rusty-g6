@@ -1,6 +1,6 @@
 /// USB Protocol implementation for SoundBlaster X G6
 /// Based on reverse engineering from soundblaster-x-g6-cli project
-use crate::g6_spec::{EffectState, OutputDevice, SmartVolumePreset};
+use crate::g6_spec::OutputDevice;
 
 // Protocol constants
 const PREFIX: u8 = 0x5a;
@@ -30,16 +30,11 @@ const FEATURE_SURROUND_SLIDER: u8 = 0x01;
 const FEATURE_CRYSTALIZER_SLIDER: u8 = 0x08;
 const FEATURE_BASS_SLIDER: u8 = 0x19;
 const FEATURE_SMART_VOLUME_SLIDER: u8 = 0x05;
-const FEATURE_SMART_VOLUME_SPECIAL: u8 = 0x06;
 const FEATURE_DIALOG_PLUS_SLIDER: u8 = 0x03;
 
 // Toggle values
 const VALUE_ENABLED: u32 = 0x3f800000; // 1.0f as little-endian u32 (bytes: 00 00 80 3f)
 const VALUE_DISABLED: u32 = 0x00000000;
-
-// Smart Volume special values
-const VALUE_SMART_VOLUME_NIGHT: u32 = 0x40000000; // 0.5f (bytes: 00 00 00 40)
-const VALUE_SMART_VOLUME_LOUD: u32 = 0x3f800000; // 1.0f (bytes: 00 00 80 3f)
 
 /// Build a 64-byte USB HID command
 fn build_command(request_type: u16, feature: u8, value: u32) -> Vec<u8> {
@@ -136,18 +131,6 @@ pub fn build_smart_volume_toggle(enabled: bool) -> Vec<Vec<u8>> {
 
 pub fn build_smart_volume_slider(value: u8) -> Vec<Vec<u8>> {
     build_slider_commands(FEATURE_SMART_VOLUME_SLIDER, value)
-}
-
-pub fn build_smart_volume_special(preset: SmartVolumePreset) -> Vec<Vec<u8>> {
-    let value = match preset {
-        SmartVolumePreset::Night => VALUE_SMART_VOLUME_NIGHT,
-        SmartVolumePreset::Loud => VALUE_SMART_VOLUME_LOUD,
-    };
-
-    vec![
-        build_command(REQUEST_DATA, FEATURE_SMART_VOLUME_SPECIAL, value),
-        build_command(REQUEST_COMMIT, FEATURE_SMART_VOLUME_SPECIAL, 0),
-    ]
 }
 
 /// Build commands for dialog plus effect  
@@ -308,20 +291,4 @@ pub fn build_query_3a_variant1() -> Vec<u8> {
 /// Build command 0x3a variant 2 (param: 01 07)
 pub fn build_query_3a_variant2() -> Vec<u8> {
     build_read_command_with_params(CMD_QUERY_3A, 0x01, 0x07)
-}
-
-/// Build full device state read sequence
-/// This sends all the read commands in the order the Creative software uses
-pub fn build_full_device_read_sequence() -> Vec<Vec<u8>> {
-    vec![
-        build_status_query(),      // 0x05
-        build_query_10(),          // 0x10
-        build_query_20(),          // 0x20
-        build_query_30(),          // 0x30
-        build_query_15(),          // 0x15 with param
-        build_query_3a_variant1(), // 0x3a 02 09
-        build_status_query(),      // 0x05 again
-        build_query_39(),          // 0x39 01 04
-        build_query_3a_variant2(), // 0x3a 01 07
-    ]
 }
