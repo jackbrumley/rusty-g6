@@ -79,10 +79,34 @@ interface ToastMessage {
   type: "success" | "error" | "info";
 }
 
+type AppRoute = "status" | "output" | "input" | "debug";
+
+const DEFAULT_ROUTE: AppRoute = "status";
+
+const routeFromHash = (hash: string): AppRoute => {
+  const normalized = hash.replace(/^#\/?/, "").split("/")[0].trim().toLowerCase();
+  if (
+    normalized === "status" ||
+    normalized === "output" ||
+    normalized === "input" ||
+    normalized === "debug"
+  ) {
+    return normalized as AppRoute;
+  }
+  if (normalized === "main") {
+    return "status";
+  }
+  if (normalized === "microphone") {
+    return "input";
+  }
+  return DEFAULT_ROUTE;
+};
+
 function App() {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
   const [settings, setSettings] = useState<G6Settings | null>(null);
+  const [activeTab, setActiveTab] = useState<AppRoute>(routeFromHash(window.location.hash));
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
   const [isLinux, setIsLinux] = useState(true);
@@ -127,6 +151,13 @@ function App() {
 
   // Check connection status on mount
   useEffect(() => {
+    const syncRouteFromHash = () => {
+      setActiveTab(routeFromHash(window.location.hash));
+    };
+
+    window.addEventListener("hashchange", syncRouteFromHash);
+    syncRouteFromHash();
+
     // Detect OS from user agent
     const userAgent = navigator.userAgent.toLowerCase();
     setIsLinux(userAgent.includes("linux"));
@@ -152,6 +183,7 @@ function App() {
     });
 
     return () => {
+      window.removeEventListener("hashchange", syncRouteFromHash);
       unlistenPromise.then((unlisten) => unlisten());
     };
   }, []);
@@ -170,7 +202,7 @@ function App() {
 
   // Auto-connect loop
   useEffect(() => {
-    let interval: number;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (!connected) {
       // Initial check
       connectDevice(true);
@@ -180,7 +212,11 @@ function App() {
         connectDevice(true);
       }, 3000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [connected]);
 
   async function checkPermissionsAndSetup() {
@@ -213,6 +249,15 @@ function App() {
     } catch (error) {
       console.error("Failed to list USB devices:", error);
     }
+  }
+
+  function navigate(route: AppRoute) {
+    const nextHash = `#/${route}`;
+    if (window.location.hash === nextHash) {
+      setActiveTab(route);
+      return;
+    }
+    window.location.hash = nextHash;
   }
 
   async function loadSettings() {
@@ -281,6 +326,21 @@ function App() {
       } else {
         setStatus("Disconnected");
       }
+    }
+  }
+
+  async function disconnectDevice() {
+    try {
+      await invoke("disconnect_device");
+      setConnected(false);
+      setStatus("Disconnected");
+      setSettings(null);
+    } catch (error) {
+      setToast({
+        message: `Failed to disconnect: ${error}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 3000);
     }
   }
 
@@ -463,6 +523,19 @@ function App() {
     }
   };
 
+  const handleToggleMaximize = async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      if (await appWindow.isMaximized()) {
+        await appWindow.unmaximize();
+      } else {
+        await appWindow.maximize();
+      }
+    } catch (error) {
+      console.error("Failed to toggle maximize:", error);
+    }
+  };
+
   const handleClose = async () => {
     try {
       const appWindow = getCurrentWindow();
@@ -486,8 +559,15 @@ function App() {
     }
   };
 
+  const handleTitleBarDoubleClick = async (e: MouseEvent) => {
+    if (!(e.target as HTMLElement).closest(".title-bar-button")) {
+      e.preventDefault();
+      await handleToggleMaximize();
+    }
+  };
+
   return (
-    <div class="app">
+    <div class="app-shell">
       {toast && (
         <Toast
           message={toast.message}
@@ -496,10 +576,12 @@ function App() {
         />
       )}
 
-      {/* Custom Title Bar */}
-      <div class="title-bar" onMouseDown={handleTitleBarMouseDown}>
+      <div
+        class="title-bar"
+        onMouseDown={handleTitleBarMouseDown}
+        onDblClick={handleTitleBarDoubleClick}
+      >
         <div class="title-bar-title">Rusty G6</div>
-        <div class="title-bar-subtitle">SoundBlaster X G6 Control Panel</div>
         <div class="title-bar-controls">
           <button
             class="title-bar-button minimize"
@@ -507,6 +589,25 @@ function App() {
             title="Minimize"
           >
             ─
+          </button>
+          <button
+            class="title-bar-button"
+            onClick={handleToggleMaximize}
+            title="Maximize or Restore"
+          >
+            <svg class="title-bar-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect
+                x="5"
+                y="5"
+                width="14"
+                height="14"
+                rx="1.5"
+                ry="1.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
           </button>
           <button
             class="title-bar-button close"
@@ -518,268 +619,304 @@ function App() {
         </div>
       </div>
 
+      <div class="tab-nav-shell">
+        <nav class="tab-nav">
+          <button
+            class={`tab-button ${activeTab === "status" ? "active" : ""}`}
+            onClick={() => navigate("status")}
+          >
+            Status
+          </button>
+          <button
+            class={`tab-button ${activeTab === "output" ? "active" : ""}`}
+            onClick={() => navigate("output")}
+          >
+            Output
+          </button>
+          <button
+            class={`tab-button ${activeTab === "input" ? "active" : ""}`}
+            onClick={() => navigate("input")}
+          >
+            Input
+          </button>
+          <button
+            class={`tab-button ${activeTab === "debug" ? "active" : ""}`}
+            onClick={() => navigate("debug")}
+          >
+            Debug
+          </button>
+        </nav>
+      </div>
+
       <main class="container">
-        {/* Status Section - Compact horizontal layout */}
-        <section class="status-section">
-          <div class="status-line">
-            <span
-              class={`status-indicator ${
-                connected ? "connected" : "disconnected"
-              }`}
-            >
-              {connected ? "●" : "○"}
-            </span>
-            <span class="status-text">{status}</span>
-            {permissionError && (
-              <button
-                onClick={handleSetupUsbPermissions}
-                class="btn-compact btn-warning"
-                title="Automatically set up Linux udev rules for the G6 device. Requires root password."
-              >
-                Fix Permissions
-              </button>
-            )}
-          </div>
-        </section>
-
-
-        {connected && settings && (
+        {activeTab === "status" && (
           <>
-            {/* Input Section - Horizontal layout */}
-            <section class="input-section compact">
-              <div class="section-line">
-                <span class="section-label">Input:</span>
-                {showExperimental ? (
-                  <button
-                    onClick={handleSetupMicClick}
-                    class="btn-compact"
-                    title={
-                      isLinux
-                        ? "Configure ALSA mixer for microphone input"
-                        : undefined
-                    }
-                  >
-                    Setup Mic
+            <header class="status-header">
+              <h1>Rusty G6</h1>
+              <p class="subtitle">SoundBlaster X G6 Control Panel</p>
+              <p class="version-text">v{appVersion || "1.0.x"}</p>
+            </header>
+
+            <section class="status-section">
+              <div class="status-line">
+                <span
+                  class={`status-indicator ${
+                    connected ? "connected" : "disconnected"
+                  }`}
+                >
+                  {connected ? "●" : "○"}
+                </span>
+                <span class="status-text">{status}</span>
+                {!connected ? (
+                  <button onClick={() => connectDevice(false)} class="btn-compact">
+                    Connect Device
                   </button>
                 ) : (
-                  <span class="info-note" style={{ fontSize: "0.75rem" }}>
-                    Experimental on Linux. Recommended to use motherboard input
-                    for reliability.
-                  </span>
+                  <button onClick={disconnectDevice} class="btn-compact btn-secondary">
+                    Disconnect
+                  </button>
                 )}
-              </div>
-
-              {showExperimental && (
-                /* Microphone Boost Control - Using reusable SliderControl */
-                <SliderControl
-                  label="Mic Boost:"
-                  value={micBoost}
-                  min={0}
-                  max={30}
-                  step={10}
-                  onChange={setMicrophoneBoost}
-                  formatValue={(val) => (val > 0 ? `+${val}dB` : `${val}dB`)}
-                />
-              )}
-            </section>
-
-            {/* Output Section - Horizontal layout */}
-            <section class="output-section compact">
-              <div class="section-line">
-                <span class="section-label">Output:</span>
-                <span class="section-value">{settings.output}</span>
-                <button onClick={toggleOutput} class="btn-compact">
-                  Toggle Output
-                </button>
-              </div>
-
-              <div class="effects-list">
-                <h3>Audio Effects</h3>
-
-                {/* Using reusable ToggleControl components */}
-                <ToggleControl
-                  label="Scout Mode"
-                  checked={settings.scout_mode === "Enabled"}
-                  onChange={(enabled) =>
-                    setScoutMode(enabled ? "Enabled" : "Disabled")
-                  }
-                />
-
-                <ToggleControl
-                  label="SBX Mode"
-                  checked={settings.sbx_enabled === "Enabled"}
-                  onChange={(enabled) =>
-                    setSbxMode(enabled ? "Enabled" : "Disabled")
-                  }
-                />
-
-                <EffectControl
-                  name="Surround"
-                  enabled={settings.surround_enabled === "Enabled"}
-                  value={settings.surround_value}
-                  onChange={(enabled, value) =>
-                    setEffect(
-                      "surround",
-                      enabled ? "Enabled" : "Disabled",
-                      value
-                    )
-                  }
-                  disabled={settings.sbx_enabled === "Disabled"}
-                />
-
-                <EffectControl
-                  name="Crystalizer"
-                  enabled={settings.crystalizer_enabled === "Enabled"}
-                  value={settings.crystalizer_value}
-                  onChange={(enabled, value) =>
-                    setEffect(
-                      "crystalizer",
-                      enabled ? "Enabled" : "Disabled",
-                      value
-                    )
-                  }
-                  disabled={settings.sbx_enabled === "Disabled"}
-                />
-
-                <EffectControl
-                  name="Bass"
-                  enabled={settings.bass_enabled === "Enabled"}
-                  value={settings.bass_value}
-                  onChange={(enabled, value) =>
-                    setEffect("bass", enabled ? "Enabled" : "Disabled", value)
-                  }
-                  disabled={settings.sbx_enabled === "Disabled"}
-                />
-
-                <EffectControl
-                  name="Smart Volume"
-                  enabled={settings.smart_volume_enabled === "Enabled"}
-                  value={settings.smart_volume_value}
-                  onChange={(enabled, value) =>
-                    setEffect(
-                      "smart_volume",
-                      enabled ? "Enabled" : "Disabled",
-                      value
-                    )
-                  }
-                  disabled={settings.sbx_enabled === "Disabled"}
-                />
-
-                <EffectControl
-                  name="Dialog Plus"
-                  enabled={settings.dialog_plus_enabled === "Enabled"}
-                  value={settings.dialog_plus_value}
-                  onChange={(enabled, value) =>
-                    setEffect(
-                      "dialog_plus",
-                      enabled ? "Enabled" : "Disabled",
-                      value
-                    )
-                  }
-                  disabled={settings.sbx_enabled === "Disabled"}
-                />
-              </div>
-            </section>
-
-            {/* Debug Section - Vertical layout */}
-            <section class="debug-section compact">
-              {/* App Version */}
-              <div class="read-only-item">
-                <span class="readonly-label">App Version:</span>
-                <span class="readonly-value">{appVersion || "Unknown"}</span>
-              </div>
-
-              {/* Firmware Version - ALWAYS VISIBLE */}
-              <div class="read-only-item">
-                <span class="readonly-label">Firmware:</span>
-                <span class="readonly-value">
-                  {settings.firmware_info
-                    ? settings.firmware_info.version
-                    : "Unknown"}
-                </span>
-              </div>
-
-              {/* Device Information */}
-              {(settings.equalizer || settings.extended_params) && (
-                <div class="device-details">
-                  {settings.equalizer && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Equalizer:</span>
-                      <span class="readonly-value">
-                        {settings.equalizer.enabled} •{" "}
-                        {settings.equalizer.bands.length} bands (Read-only)
-                      </span>
-                    </div>
-                  )}
-
-                  {settings.extended_params && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Extended Params:</span>
-                      <span class="readonly-value">
-                        {
-                          Object.values(settings.extended_params).filter(
-                            (v) => v !== null
-                          ).length
-                        }
-                        /15 detected (Read-only)
-                      </span>
-                    </div>
-                  )}
-
-                  {settings.last_read_time && (
-                    <div class="read-only-item">
-                      <span class="readonly-label">Last Read:</span>
-                      <span class="readonly-value">
-                        {new Date(
-                          settings.last_read_time * 1000
-                        ).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div class="debug-controls">
-                <ToggleControl
-                  label="Auto-start with system"
-                  checked={autostartEnabled}
-                  onChange={toggleAutostart}
-                />
-                <ToggleControl
-                  label="Experimental Features"
-                  checked={showExperimental}
-                  onChange={toggleExperimental}
-                />
-                <input
-                  type="text"
-                  class="log-message-input"
-                  placeholder="Optional: Add a note to the log separator..."
-                  value={logSeparatorMessage}
-                  onInput={(e) => setLogSeparatorMessage(e.currentTarget.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      clearTerminal();
-                    }
-                  }}
-                />
-                <button
-                  onClick={clearTerminal}
-                  class="btn-compact btn-full-width"
-                  title="Add a visual separator marker in the terminal logs with optional message"
-                >
-                  Add Log Separator
-                </button>
+                {permissionError && (
+                  <button
+                    onClick={handleSetupUsbPermissions}
+                    class="btn-compact btn-warning"
+                    title="Automatically set up Linux udev rules for the G6 device. Requires root password."
+                  >
+                    Fix Permissions
+                  </button>
+                )}
               </div>
             </section>
           </>
         )}
 
-        {!connected && (
+        {activeTab === "output" && connected && settings && (
+          <section class="output-section compact">
+            <div class="section-line">
+              <span class="section-label">Output:</span>
+              <span class="section-value">{settings.output}</span>
+              <button onClick={toggleOutput} class="btn-compact">
+                Toggle Output
+              </button>
+            </div>
+
+            <div class="effects-list">
+              <h3>Audio Effects</h3>
+
+              <ToggleControl
+                label="Scout Mode"
+                checked={settings.scout_mode === "Enabled"}
+                onChange={(enabled) =>
+                  setScoutMode(enabled ? "Enabled" : "Disabled")
+                }
+              />
+
+              <ToggleControl
+                label="SBX Mode"
+                checked={settings.sbx_enabled === "Enabled"}
+                onChange={(enabled) =>
+                  setSbxMode(enabled ? "Enabled" : "Disabled")
+                }
+              />
+
+              <EffectControl
+                name="Surround"
+                enabled={settings.surround_enabled === "Enabled"}
+                value={settings.surround_value}
+                onChange={(enabled, value) =>
+                  setEffect(
+                    "surround",
+                    enabled ? "Enabled" : "Disabled",
+                    value
+                  )
+                }
+                disabled={settings.sbx_enabled === "Disabled"}
+              />
+
+              <EffectControl
+                name="Crystalizer"
+                enabled={settings.crystalizer_enabled === "Enabled"}
+                value={settings.crystalizer_value}
+                onChange={(enabled, value) =>
+                  setEffect(
+                    "crystalizer",
+                    enabled ? "Enabled" : "Disabled",
+                    value
+                  )
+                }
+                disabled={settings.sbx_enabled === "Disabled"}
+              />
+
+              <EffectControl
+                name="Bass"
+                enabled={settings.bass_enabled === "Enabled"}
+                value={settings.bass_value}
+                onChange={(enabled, value) =>
+                  setEffect("bass", enabled ? "Enabled" : "Disabled", value)
+                }
+                disabled={settings.sbx_enabled === "Disabled"}
+              />
+
+              <EffectControl
+                name="Smart Volume"
+                enabled={settings.smart_volume_enabled === "Enabled"}
+                value={settings.smart_volume_value}
+                onChange={(enabled, value) =>
+                  setEffect(
+                    "smart_volume",
+                    enabled ? "Enabled" : "Disabled",
+                    value
+                  )
+                }
+                disabled={settings.sbx_enabled === "Disabled"}
+              />
+
+              <EffectControl
+                name="Dialog Plus"
+                enabled={settings.dialog_plus_enabled === "Enabled"}
+                value={settings.dialog_plus_value}
+                onChange={(enabled, value) =>
+                  setEffect(
+                    "dialog_plus",
+                    enabled ? "Enabled" : "Disabled",
+                    value
+                  )
+                }
+                disabled={settings.sbx_enabled === "Disabled"}
+              />
+            </div>
+          </section>
+        )}
+
+        {activeTab === "input" && connected && settings && (
+          <section class="input-section compact">
+            <div class="section-line">
+              <span class="section-label">Input:</span>
+              {showExperimental ? (
+                <button
+                  onClick={handleSetupMicClick}
+                  class="btn-compact"
+                  title={
+                    isLinux
+                      ? "Configure ALSA mixer for microphone input"
+                      : undefined
+                  }
+                >
+                  Setup Mic
+                </button>
+              ) : (
+                <span class="info-note" style={{ fontSize: "0.75rem" }}>
+                  Experimental on Linux. Recommended to use motherboard input
+                  for reliability.
+                </span>
+              )}
+            </div>
+
+            {showExperimental && (
+              <SliderControl
+                label="Mic Boost:"
+                value={micBoost}
+                min={0}
+                max={30}
+                step={10}
+                onChange={setMicrophoneBoost}
+                formatValue={(val) => (val > 0 ? `+${val}dB` : `${val}dB`)}
+              />
+            )}
+          </section>
+        )}
+
+        {activeTab === "debug" && (
+          <section class="debug-section compact">
+            <div class="read-only-item">
+              <span class="readonly-label">App Version:</span>
+              <span class="readonly-value">{appVersion || "Unknown"}</span>
+            </div>
+
+            <div class="read-only-item">
+              <span class="readonly-label">Firmware:</span>
+              <span class="readonly-value">
+                {settings?.firmware_info
+                  ? settings.firmware_info.version
+                  : "Unknown"}
+              </span>
+            </div>
+
+            {(settings?.equalizer || settings?.extended_params) && (
+              <div class="device-details">
+                {settings.equalizer && (
+                  <div class="read-only-item">
+                    <span class="readonly-label">Equalizer:</span>
+                    <span class="readonly-value">
+                      {settings.equalizer.enabled} • {settings.equalizer.bands.length} bands (Read-only)
+                    </span>
+                  </div>
+                )}
+
+                {settings.extended_params && (
+                  <div class="read-only-item">
+                    <span class="readonly-label">Extended Params:</span>
+                    <span class="readonly-value">
+                      {Object.values(settings.extended_params).filter((v) => v !== null).length}/15 detected (Read-only)
+                    </span>
+                  </div>
+                )}
+
+                {settings.last_read_time && (
+                  <div class="read-only-item">
+                    <span class="readonly-label">Last Read:</span>
+                    <span class="readonly-value">
+                      {new Date(settings.last_read_time * 1000).toLocaleTimeString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div class="debug-controls">
+              <button onClick={readDeviceState} class="btn-compact btn-secondary">
+                Read Device State
+              </button>
+              <ToggleControl
+                label="Auto-start with system"
+                checked={autostartEnabled}
+                onChange={toggleAutostart}
+              />
+              <ToggleControl
+                label="Experimental Features"
+                checked={showExperimental}
+                onChange={toggleExperimental}
+              />
+              <input
+                type="text"
+                class="log-message-input"
+                placeholder="Optional: Add a note to the log separator..."
+                value={logSeparatorMessage}
+                onInput={(e) => setLogSeparatorMessage(e.currentTarget.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    clearTerminal();
+                  }
+                }}
+              />
+              <button
+                onClick={clearTerminal}
+                class="btn-compact btn-full-width"
+                title="Add a visual separator marker in the terminal logs with optional message"
+              >
+                Add Log Separator
+              </button>
+            </div>
+          </section>
+        )}
+
+        {(activeTab === "output" || activeTab === "input") && !connected && (
           <div class="info-panel">
-            <p>Connect your SoundBlaster X G6 device to begin.</p>
+            <p>Connect your SoundBlaster X G6 from the Status tab to begin.</p>
             <p class="info-note">
-              Make sure the device is plugged in and drivers are installed.
+              This page only shows controls once a device session is active.
             </p>
+            <button class="btn-compact btn-secondary" onClick={() => navigate("status")}>Go to Status</button>
           </div>
         )}
       </main>
