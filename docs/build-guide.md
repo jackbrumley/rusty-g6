@@ -5,7 +5,8 @@
 **Use this for development** - opens the app and restarts automatically when you change files:
 
 ```bash
-node dev.js
+npm install
+npm run tauri:dev
 ```
 
 This runs `cargo tauri dev` which:
@@ -19,14 +20,13 @@ This runs `cargo tauri dev` which:
 **Use this to create an executable** - builds the final app but doesn't run it:
 
 ```bash
-node build.js              # Release build (optimized, smaller)
-node build.js --dev        # Debug build (faster to build, larger file)
-node build.js --clean      # Clean build (removes cache first)
+npm install
+npm run tauri:build
 ```
 
 This runs `cargo tauri build` which creates standalone executables in:
-- `src/src-tauri/target/release/rusty-g6` (release)
-- `src/src-tauri/target/debug/rusty-g6` (debug)
+- `src-tauri/target/release/rusty-g6` (release)
+- `src-tauri/target/debug/rusty-g6` (debug)
 
 ## Prerequisites
 

@@ -1,125 +1,96 @@
+<p align="center">
+  <img src="src-tauri/icons/128x128.png" alt="Rusty G6 Logo" width="96" height="96" />
+</p>
 
-![Rusty G6 Logo](src-tauri/icons/128x128.png)
+<h1 align="center">Rusty G6</h1>
 
-# Rusty G6
+<p align="center">Simple desktop control panel for the Sound BlasterX G6.</p>
 
-**Cross-platform GUI for SoundBlaster X G6 control**
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-f1c40f" alt="MIT License" /></a>
+  <a href="https://github.com/jackbrumley/rusty-g6"><img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-4f46e5" alt="Platform" /></a>
+  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Built%20With-Tauri-14b8a6" alt="Built with Tauri" /></a>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)](https://github.com/jackbrumley/rusty-g6)
-[![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri-24C8DB)](https://tauri.app/)
+<p align="center">
+  <a href="https://github.com/jackbrumley/rusty-g6/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-ef4444?style=for-the-badge" alt="Download Latest Release" /></a>
+</p>
 
-*Modern GUI for controlling SoundBlaster X G6 features on Linux and Windows*
+Rusty G6 is a GUI app that lets you control Sound BlasterX G6 features without command-line tools.
 
----
+It exists because there is no official Linux client for the G6, and advanced controls are hard to access outside Creative's Windows software. Rusty G6 provides a cleaner desktop experience for Linux users and is also available on Windows.
 
-## Features
+## What You Can Do
 
-- **Output Control** - Switch between Speakers and Headphones
-- **Surround Sound** - Enable/disable and adjust intensity (0-100)
-- **Crystalizer** - Control clarity enhancement (0-100)
-- **Bass Boost** - Adjust bass levels (0-100)
-- **Smart Volume** - Volume normalization with Night/Loud presets (0-100)
-- **Dialog Plus** - Voice clarity enhancement (0-100)
-- **Microphone Setup** - One-click microphone configuration for Linux
-- **Settings Persistence** - Preferences saved automatically
-- **System Tray** - Minimize to tray, quick access via tray icon
-
-## Why Rusty G6?
-
-Creative provides excellent Windows software but offers no support for Linux or macOS. While the G6 functions as a basic USB audio interface on these platforms, all advanced features are completely inaccessible.
-
-The only existing solution is [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) - a command-line tool. Rusty G6 is the first graphical interface for controlling the G6 outside of Windows.
+- Switch output between speakers and headphones
+- Adjust SBX effects like Surround, Crystalizer, Bass, Smart Volume, and Dialog Plus
+- Configure microphone setup and boost
+- Check app updates from the Settings tab
+- Copy/open session logs for troubleshooting
 
 ## Screenshots
 
 ![Screenshot 1](docs/screenshots/screenshot-1.png)
-
 ![Screenshot 2](docs/screenshots/screenshot-2.png)
-
 ![Screenshot 3](docs/screenshots/screenshot-3.png)
 
-## Installation
+## Install
 
-All Linux packages automatically install dependencies and configure USB permissions. No manual setup required!
+Download the latest release here:
 
-### Debian/Ubuntu/Mint
+- **[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
 
-```bash
-# Download the .deb package from releases
-sudo apt install ./rusty-g6_0.1.0_amd64.deb
-```
+### Linux
 
-The package automatically:
-- Installs libusb dependency
-- Creates udev rule for USB access
-- Configures permissions
+Linux packages include dependency and USB permission setup.
 
-### Fedora/RHEL/CentOS
+- `.deb` (Debian/Ubuntu/Mint)
+- `.rpm` (Fedora/RHEL/CentOS)
+- `.AppImage` (portable Linux)
 
-```bash
-# Download the .rpm package from releases
-sudo dnf install rusty-g6-0.1.0-1.x86_64.rpm
-```
-
-### Arch/Manjaro/SteamOS
-
-```bash
-# Install from AUR
-yay -S rusty-g6-bin
-# or
-paru -S rusty-g6-bin
-```
+Install by opening the package from the release page with your distro's package installer.
 
 ### Windows
 
-Download and run the `.msi` installer. No additional setup required.
+Download and run the `.msi` installer from the latest release.
 
-### Download
+## Why This Project Exists
 
-**[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
+There is no official Linux client for the G6. On Linux, the device works as a basic audio interface, but advanced controls are not easily available.
 
-### Building from Source
+Rusty G6 builds on the reverse-engineering work from [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) and provides a user-friendly desktop interface.
+
+## Build From Source
 
 ```bash
 git clone https://github.com/jackbrumley/rusty-g6
 cd rusty-g6
-node build.js
+npm install
+npm run tauri:build
 ```
 
-See [docs/build-guide.md](docs/build-guide.md) for more detailed instructions.
+For more detail, see [docs/build-guide.md](docs/build-guide.md).
+
+## Technical Notes
+
+- USB Vendor ID: `041e` (Creative Technology Ltd)
+- USB Product ID: `3256` (Sound BlasterX G6)
+- Protocol: USB HID with interrupt transfers
+
+Documentation:
+
+- [USB Protocol Implementation](docs/usb-protocol.md)
+- [Reference USB Specification](docs/rusty-g6-usb-spec.md)
 
 ## Disclaimer
 
-This software communicates directly with USB hardware using reverse-engineered protocols. **Use at your own risk.** The authors are not responsible for any damages to your system or device.
-
-## Technology
-
-- **[Tauri](https://tauri.app/)** - Desktop framework
-- **[Rust](https://www.rust-lang.org/)** - Backend and USB communication
-- **[Preact](https://preactjs.com/)** - Frontend UI
-- **[rusb/hidapi](https://github.com/libusb/libusb)** - USB HID communication
-
-## Technical Details
-
-- **USB Vendor ID**: `041e` (Creative Technology Ltd)
-- **USB Product ID**: `3256` (Sound Blaster X G6)
-- **Protocol**: USB HID with interrupt transfers
-
-### Documentation
-
-- **[USB Protocol Implementation](docs/usb-protocol.md)** - Our implementation details
-- **[Original USB Specification](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-spec.txt)** - Hex command reference
-- **[Build Guide](docs/build-guide.md)** - How to build from source
+This software communicates directly with USB hardware using reverse-engineered protocols. Use at your own risk.
 
 ## Credits
 
-This project is built on the reverse engineering work by **[Nils Skowasch](https://github.com/nils-skowasch)**.
-
-His [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project reverse-engineered the complete USB protocol for the G6. Rusty G6 uses this protocol documentation for all USB communication.
-
-**If you find this project useful, please also star the [original CLI project](https://github.com/nils-skowasch/soundblaster-x-g6-cli).**
+Special thanks to **[Nils Skowasch](https://github.com/nils-skowasch)** and the
+[soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project for the protocol reverse engineering foundation.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT - see [LICENSE](LICENSE).
