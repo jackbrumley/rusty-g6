@@ -7,7 +7,7 @@
 <p align="center">Simple desktop interface for Sound BlasterX G6 controls, no command line needed.</p>
 
 <p align="center">
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-f1c40f" alt="MIT License" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License" /></a>
   <a href="https://github.com/jackbrumley/rusty-g6"><img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-4f46e5" alt="Platform" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Built%20With-Tauri-14b8a6" alt="Built with Tauri" /></a>
 </p>
@@ -28,6 +28,16 @@ Download the latest release here:
 
 - **[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
 
+Release package options:
+
+- Windows (Most users): Setup EXE (no admin)
+- Windows (IT/Admin): System MSI
+- Linux (Debian/Ubuntu): `.deb`
+- Linux (Fedora/RHEL): `.rpm`
+- Linux (Portable): `.AppImage`
+
+Setup EXE installs per-user (no admin). MSI is a system-wide install intended for IT/admin deployment.
+
 ## What You Can Do
 
 - Tweak your Sound BlasterX G6 audio settings from a simple desktop UI
@@ -46,20 +56,6 @@ Download the latest release here:
 ![Rusty G6 main dashboard on Linux](docs/screenshots/screenshot-1.png)
 ![Sound BlasterX G6 output and profile controls](docs/screenshots/screenshot-2.png)
 ![SBX effects controls in Rusty G6 desktop app](docs/screenshots/screenshot-3.png)
-
-### Linux
-
-Linux packages include dependency and USB permission setup.
-
-- `.deb` (Debian/Ubuntu/Mint)
-- `.rpm` (Fedora/RHEL/CentOS)
-- `.AppImage` (portable Linux)
-
-Install by opening the package from the release page with your distro's package installer.
-
-### Windows
-
-Download and run the `.msi` installer from the latest release.
 
 ## FAQ
 
