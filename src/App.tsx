@@ -864,7 +864,12 @@ function App() {
           </section>
         )}
 
-        {activeTab === "ui-lab" && <UiLabPage onBack={() => navigate("debug")} />}
+        {activeTab === "ui-lab" && (
+          <UiLabPage
+            onBack={() => navigate("debug")}
+            onToast={(type, message, durationMs) => showToast(message, type, durationMs)}
+          />
+        )}
 
         {(activeTab === "output" || activeTab === "input") && !connected && (
           <div class="info-panel">
@@ -895,9 +900,10 @@ function App() {
 
 interface UiLabPageProps {
   onBack: () => void;
+  onToast: (type: "success" | "error" | "info", message: string, durationMs?: number) => void;
 }
 
-function UiLabPage({ onBack }: UiLabPageProps) {
+function UiLabPage({ onBack, onToast }: UiLabPageProps) {
   const [previewToggle, setPreviewToggle] = useState(true);
   const [previewValue, setPreviewValue] = useState(42);
   const [previewEnabled, setPreviewEnabled] = useState(true);
@@ -907,7 +913,6 @@ function UiLabPage({ onBack }: UiLabPageProps) {
   const [showUpdatePill, setShowUpdatePill] = useState(true);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateState, setUpdateState] = useState<"available" | "uptodate" | "error">("available");
-  const [toastType, setToastType] = useState<"success" | "error" | "info" | null>(null);
 
   const updateTitle =
     updateState === "available"
@@ -1068,9 +1073,9 @@ function UiLabPage({ onBack }: UiLabPageProps) {
       <div class="ui-lab-section effects-list">
         <h3>Toast Preview</h3>
         <div class="ui-lab-controls-inline">
-          <button class="btn-compact" onClick={() => setToastType("success")}>Show Success Toast</button>
-          <button class="btn-compact btn-secondary" onClick={() => setToastType("info")}>Show Info Toast</button>
-          <button class="btn-compact btn-warning" onClick={() => setToastType("error")}>Show Error Toast</button>
+          <button class="btn-compact" onClick={() => onToast("success", "Settings applied successfully.", 3500)}>Show Success Toast</button>
+          <button class="btn-compact btn-secondary" onClick={() => onToast("info", "Update check started.", 3500)}>Show Info Toast</button>
+          <button class="btn-compact btn-warning" onClick={() => onToast("error", "Failed to apply setting.", 3500)}>Show Error Toast</button>
         </div>
       </div>
 
@@ -1090,20 +1095,6 @@ function UiLabPage({ onBack }: UiLabPageProps) {
         </div>
       )}
 
-      {toastType && (
-        <Toast
-          message={
-            toastType === "success"
-              ? "Settings applied successfully."
-              : toastType === "info"
-                ? "Update check started."
-                : "Failed to apply setting."
-          }
-          type={toastType}
-          durationMs={3500}
-          onDismiss={() => setToastType(null)}
-        />
-      )}
     </section>
   );
 }
