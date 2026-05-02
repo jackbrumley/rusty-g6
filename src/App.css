@@ -370,6 +370,15 @@ body {
   font-size: 0.9rem;
 }
 
+.status-line-centered {
+  justify-content: center;
+}
+
+.status-line-centered .status-text {
+  flex: 0;
+  text-align: center;
+}
+
 .status-indicator {
   font-size: 1rem;
   transition: var(--transition);

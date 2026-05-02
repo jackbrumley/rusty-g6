@@ -8,7 +8,7 @@ use log::{error, info};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// G6 Device Manager
 pub struct G6DeviceManager {
@@ -891,6 +891,13 @@ impl G6DeviceManager {
                 }
             }
         }
+
+        settings.last_read_time = Some(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or(Duration::from_secs(0))
+                .as_secs(),
+        );
 
         info!("Device state read complete");
 

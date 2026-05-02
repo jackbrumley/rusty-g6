@@ -51,6 +51,7 @@ pub fn run() {
             get_session_log_text,
             open_session_log,
             log_ui_event,
+            check_for_updates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

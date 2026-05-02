@@ -1,6 +1,6 @@
 [package]
 name = "rusty-g6"
-version = "1.0.4"
+version = "1.0.5"
 description = "Cross-platform GUI for SoundBlaster X G6 control"
 authors = ["Rusty G6 Team"]
 license = "MIT"
@@ -30,6 +30,7 @@ log = "0.4"
 dirs = "5.0"
 chrono = "0.4"
 tauri-plugin-clipboard-manager = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # USB communication libraries
 rusb = "0.9"

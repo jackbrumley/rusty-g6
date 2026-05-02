@@ -10,6 +10,8 @@ interface StatusPageProps {
   isLinux: boolean;
   onReadDeviceState: () => void;
   onSetupPermissions: () => void;
+  showUpdatePill: boolean;
+  onOpenUpdateModal: () => void;
 }
 
 export function StatusPage({
@@ -21,6 +23,8 @@ export function StatusPage({
   isLinux,
   onReadDeviceState,
   onSetupPermissions,
+  showUpdatePill,
+  onOpenUpdateModal,
 }: StatusPageProps) {
   return (
     <>
@@ -28,10 +32,18 @@ export function StatusPage({
         <h1>Rusty G6</h1>
         <p class="subtitle">SoundBlaster X G6 Control Panel</p>
         <p class="version-text">v{appVersion || "1.0.x"}</p>
+        {showUpdatePill && (
+          <button class="update-pill" onClick={onOpenUpdateModal}>
+            <span class="update-pill-icon" aria-hidden="true">
+              !
+            </span>
+            <span>Update available</span>
+          </button>
+        )}
       </header>
 
       <section class="status-section surface-card">
-        <div class="status-line">
+        <div class="status-line status-line-centered">
           <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
             {connected ? "●" : "○"}
           </span>

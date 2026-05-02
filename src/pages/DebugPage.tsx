@@ -4,14 +4,21 @@ import type { G6Settings } from "../types/g6";
 
 interface DebugPageProps {
   settings: G6Settings | null;
+  appVersion: string;
   autostartEnabled: boolean;
   showExperimental: boolean;
+  checkingUpdates: boolean;
+  updateAvailable: boolean;
+  latestVersion: string | null;
+  lastCheckedLabel: string;
   logSeparatorMessage: string;
   onNavigateUiLab: () => void;
   onReadDeviceState: () => void;
   onResetConnection: () => void;
   onToggleAutostart: (enabled: boolean) => void;
   onToggleExperimental: (enabled: boolean) => void;
+  onCheckForUpdates: () => void;
+  onOpenUpdateModal: () => void;
   onSetLogSeparatorMessage: (value: string) => void;
   onClearTerminal: () => void;
   onCopySessionLog: () => void;
@@ -20,14 +27,21 @@ interface DebugPageProps {
 
 export function DebugPage({
   settings,
+  appVersion,
   autostartEnabled,
   showExperimental,
+  checkingUpdates,
+  updateAvailable,
+  latestVersion,
+  lastCheckedLabel,
   logSeparatorMessage,
   onNavigateUiLab,
   onReadDeviceState,
   onResetConnection,
   onToggleAutostart,
   onToggleExperimental,
+  onCheckForUpdates,
+  onOpenUpdateModal,
   onSetLogSeparatorMessage,
   onClearTerminal,
   onCopySessionLog,
@@ -72,6 +86,38 @@ export function DebugPage({
               checked={showExperimental}
               onChange={onToggleExperimental}
             />
+          </div>
+        </div>
+      </section>
+
+      <section class="debug-section compact surface-card">
+        <div class="debug-log-tools">
+          <div class="debug-log-card">
+            <h3>Updates</h3>
+            <div class="device-details">
+              <div class="read-only-item">
+                <span class="readonly-label">Current Version:</span>
+                <span class="readonly-value">v{appVersion || "1.0.x"}</span>
+              </div>
+              <div class="read-only-item">
+                <span class="readonly-label">Latest Version:</span>
+                <span class="readonly-value">{latestVersion ? `v${latestVersion}` : "Unknown"}</span>
+              </div>
+              <div class="read-only-item">
+                <span class="readonly-label">Last Checked:</span>
+                <span class="readonly-value">{lastCheckedLabel}</span>
+              </div>
+            </div>
+            <div class="debug-log-actions">
+              <button onClick={onCheckForUpdates} class="btn-compact btn-secondary" disabled={checkingUpdates}>
+                {checkingUpdates ? "Checking..." : "Check for Updates"}
+              </button>
+              {updateAvailable && (
+                <button onClick={onOpenUpdateModal} class="btn-compact btn-secondary">
+                  View Update
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </section>

@@ -5,9 +5,10 @@ import {
   enable as enableAutostart,
   isEnabled as isAutostartEnabled,
 } from "@tauri-apps/plugin-autostart";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { routeFromHash, type AppRoute } from "../app/routes";
-import type { G6Settings, ToastType } from "../types/g6";
+import type { G6Settings, ToastType, UpdateCheckResult } from "../types/g6";
 
 interface UseDeviceRuntimeProps {
   showToast: (message: string, type: ToastType, durationMs?: number) => void;
@@ -27,6 +28,11 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const [showExperimental, setShowExperimental] = useState(
     () => localStorage.getItem("rusty-g6-experimental") === "true"
   );
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
 
   const pollEnabledRef = useRef(false);
 
@@ -342,6 +348,74 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
   };
 
+  const openLatestReleasePage = async () => {
+    const releaseUrl = updateResult?.releaseUrl || "https://github.com/jackbrumley/rusty-g6/releases/latest";
+    try {
+      await openUrl(releaseUrl);
+      await logUiEvent(`Opened release page: ${releaseUrl}`);
+    } catch (error) {
+      showToast(`Failed to open release page: ${error}`, "error");
+    }
+  };
+
+  const checkForUpdates = async (showUpToDateToast: boolean) => {
+    if (checkingUpdates) {
+      return;
+    }
+
+    setCheckingUpdates(true);
+    setUpdateError(null);
+    try {
+      const result = await invoke<UpdateCheckResult>("check_for_updates");
+      setUpdateResult(result);
+      setLastCheckedAt(Date.now());
+      await logUiEvent(
+        `Update check completed: current=${result.currentVersion} latest=${result.latestVersion} available=${result.updateAvailable}`
+      );
+
+      if (result.updateAvailable) {
+        setShowUpdateModal(true);
+      } else if (showUpToDateToast) {
+        showToast("You are already on the latest version.", "info");
+      }
+    } catch (error) {
+      const message = String(error);
+      setUpdateError(message);
+      await logUiEvent(`Update check failed: ${message}`);
+      if (showUpToDateToast) {
+        showToast(`Failed to check for updates: ${message}`, "error");
+      } else {
+        console.log("Background update check failed:", error);
+      }
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  const getLastCheckedLabel = () => {
+    if (!lastCheckedAt) {
+      return "Not checked yet";
+    }
+
+    const elapsedMs = Date.now() - lastCheckedAt;
+    if (elapsedMs < 60_000) {
+      return "Just now";
+    }
+
+    const elapsedMinutes = Math.floor(elapsedMs / 60_000);
+    if (elapsedMinutes < 60) {
+      return `${elapsedMinutes} min ago`;
+    }
+
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    if (elapsedHours < 24) {
+      return `${elapsedHours} hr ago`;
+    }
+
+    const elapsedDays = Math.floor(elapsedHours / 24);
+    return `${elapsedDays} day${elapsedDays === 1 ? "" : "s"} ago`;
+  };
+
   useEffect(() => {
     const syncRouteFromHash = () => {
       setActiveTab(routeFromHash(window.location.hash));
@@ -358,6 +432,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
     listUsbDevices();
     loadVersion();
+    checkForUpdates(false);
     isAutostartEnabled().then(setAutostartEnabled).catch(console.error);
 
     const unlistenPromise = listen("device-update", () => {
@@ -408,6 +483,11 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     permissionError,
     autostartEnabled,
     showExperimental,
+    checkingUpdates,
+    updateResult,
+    showUpdateModal,
+    updateError,
+    lastCheckedLabel: getLastCheckedLabel(),
     navigate,
     connectDevice,
     disconnectDevice,
@@ -424,6 +504,9 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     clearTerminal,
     copySessionLog,
     openSessionLog,
+    checkForUpdates,
+    setShowUpdateModal,
+    openLatestReleasePage,
     handleSetupMicClick,
     setMicrophoneBoost,
   };

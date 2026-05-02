@@ -1,5 +1,5 @@
 
-![Rusty G6 Logo](src/src-tauri/icons/128x128.png)
+![Rusty G6 Logo](src-tauri/icons/128x128.png)
 
 # Rusty G6
 

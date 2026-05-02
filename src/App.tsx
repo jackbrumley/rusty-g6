@@ -20,6 +20,11 @@ function App() {
     activeTab,
     appVersion,
     isLinux,
+    checkingUpdates,
+    updateResult,
+    showUpdateModal,
+    updateError,
+    lastCheckedLabel,
     logSeparatorMessage,
     micBoost,
     permissionError,
@@ -39,6 +44,9 @@ function App() {
     clearTerminal,
     copySessionLog,
     openSessionLog,
+    checkForUpdates,
+    setShowUpdateModal,
+    openLatestReleasePage,
     handleSetupMicClick,
     setMicrophoneBoost,
   } = useDeviceRuntime({ showToast });
@@ -76,6 +84,8 @@ function App() {
             isLinux={isLinux}
             onReadDeviceState={readDeviceState}
             onSetupPermissions={handleSetupUsbPermissions}
+            showUpdatePill={Boolean(updateResult?.updateAvailable)}
+            onOpenUpdateModal={() => setShowUpdateModal(true)}
           />
         )}
 
@@ -103,14 +113,21 @@ function App() {
         {activeTab === "debug" && (
           <DebugPage
             settings={settings}
+            appVersion={appVersion}
             autostartEnabled={autostartEnabled}
             showExperimental={showExperimental}
+            checkingUpdates={checkingUpdates}
+            updateAvailable={Boolean(updateResult?.updateAvailable)}
+            latestVersion={updateResult?.latestVersion ?? null}
+            lastCheckedLabel={lastCheckedLabel}
             logSeparatorMessage={logSeparatorMessage}
             onNavigateUiLab={() => navigate("ui-lab")}
             onReadDeviceState={readDeviceState}
             onResetConnection={resetConnection}
             onToggleAutostart={toggleAutostart}
             onToggleExperimental={toggleExperimental}
+            onCheckForUpdates={() => checkForUpdates(true)}
+            onOpenUpdateModal={() => setShowUpdateModal(true)}
             onSetLogSeparatorMessage={setLogSeparatorMessage}
             onClearTerminal={clearTerminal}
             onCopySessionLog={copySessionLog}
@@ -135,6 +152,36 @@ function App() {
           </div>
         )}
       </main>
+
+      {showUpdateModal && (
+        <div class="modal-overlay" onClick={() => setShowUpdateModal(false)}>
+          <section class="update-modal" onClick={(event) => event.stopPropagation()}>
+            <h2>{updateResult?.updateAvailable ? "Update Available" : "Rusty G6 is Up to Date"}</h2>
+            <p>
+              {updateResult?.updateAvailable
+                ? `A newer Rusty G6 version is available. Current: v${updateResult.currentVersion} -> Latest: v${updateResult.latestVersion}.`
+                : "You are already running the latest available version."}
+            </p>
+            {updateError && <p class="info-note">Last check error: {updateError}</p>}
+            <p class="update-last-checked">Last checked: {lastCheckedLabel}</p>
+            <p class="info-note">Updates are currently installed manually from the GitHub release page.</p>
+            <div class="update-modal-actions">
+              <button class="btn-compact btn-secondary" onClick={() => setShowUpdateModal(false)}>
+                Later
+              </button>
+              {updateResult?.updateAvailable ? (
+                <button class="btn-compact" onClick={openLatestReleasePage}>
+                  Open Release Page
+                </button>
+              ) : (
+                <button class="btn-compact" onClick={() => setShowUpdateModal(false)}>
+                  Close
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       <ToastHost toast={toast} onDismiss={dismissToast} onPause={pauseToast} onResume={resumeToast} />
     </AppShell>
