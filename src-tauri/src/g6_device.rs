@@ -36,6 +36,23 @@ impl G6DeviceManager {
         self.device.lock().unwrap().is_some()
     }
 
+    /// Check if the G6 USB interface required for communication is currently available.
+    pub fn is_g6_interface_available(&self) -> Result<bool> {
+        const G6_INTERFACE: i32 = 4;
+
+        let api = HidApi::new().context("Failed to refresh HID API for availability check")?;
+        for device_info in api.device_list() {
+            if device_info.vendor_id() == USB_VENDOR_ID
+                && device_info.product_id() == USB_PRODUCT_ID
+                && device_info.interface_number() == G6_INTERFACE
+            {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Connect to the G6 device
     pub fn connect(&self) -> Result<()> {
         const MAX_RETRIES: u32 = 3;

@@ -25,7 +25,6 @@ function App() {
     showUpdateModal,
     updateError,
     lastCheckedLabel,
-    retryInSeconds,
     logSeparatorMessage,
     micBoost,
     permissionError,
@@ -83,7 +82,6 @@ function App() {
             permissionError={permissionError}
             settings={settings}
             isLinux={isLinux}
-            retryInSeconds={retryInSeconds}
             onReadDeviceState={readDeviceState}
             onSetupPermissions={handleSetupUsbPermissions}
             showUpdatePill={Boolean(updateResult?.updateAvailable)}
