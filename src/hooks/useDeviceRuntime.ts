@@ -15,6 +15,9 @@ interface UseDeviceRuntimeProps {
 }
 
 export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
+  const CONNECT_TIMEOUT_MS = 1000;
+  const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000] as const;
+
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
   const [settings, setSettings] = useState<G6Settings | null>(null);
@@ -33,8 +36,46 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
+  const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
 
-  const pollEnabledRef = useRef(false);
+  const isConnectingRef = useRef(false);
+  const connectAttemptRef = useRef(0);
+  const retryStepRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTargetAtRef = useRef<number | null>(null);
+
+  const clearRetryTimer = () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    if (retryCountdownIntervalRef.current) {
+      clearInterval(retryCountdownIntervalRef.current);
+      retryCountdownIntervalRef.current = null;
+    }
+
+    retryTargetAtRef.current = null;
+    setRetryInSeconds(null);
+  };
+
+  const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Connection timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  };
 
   const logUiEvent = async (message: string) => {
     try {
@@ -138,7 +179,14 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
   };
 
-  const connectDevice = async (silent = false) => {
+  const connectDevice = async (silent = false): Promise<boolean> => {
+    if (isConnectingRef.current) {
+      return false;
+    }
+
+    isConnectingRef.current = true;
+    const attemptId = ++connectAttemptRef.current;
+
     try {
       if (!silent) {
         console.log("Attempting to connect to G6 device...");
@@ -148,13 +196,24 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       }
 
       setPermissionError(false);
-      const result = await invoke("connect_device");
+
+      const result = await withTimeout(invoke("connect_device"), CONNECT_TIMEOUT_MS);
+      if (attemptId !== connectAttemptRef.current) {
+        return false;
+      }
+
       console.log("Connection result:", result);
       await logUiEvent(`Connection attempt result: ${String(result)}`);
       setConnected(true);
       setStatus("Connected");
-      await readDeviceState();
+      await loadSettings();
+      retryStepRef.current = 0;
+      return true;
     } catch (error) {
+      if (attemptId !== connectAttemptRef.current) {
+        return false;
+      }
+
       if (!silent) {
         console.error("Connection failed:", error);
       }
@@ -168,6 +227,12 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       } else {
         setStatus("Disconnected");
         await logUiEvent(`Connection failed: ${errorMsg}`);
+      }
+
+      return false;
+    } finally {
+      if (attemptId === connectAttemptRef.current) {
+        isConnectingRef.current = false;
       }
     }
   };
@@ -447,27 +512,77 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   }, []);
 
   useEffect(() => {
-    pollEnabledRef.current = connected;
-  }, [connected]);
-
-  useEffect(() => {
     if (settings) {
       setMicBoost(settings.microphone_boost);
     }
   }, [settings]);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-    if (!connected) {
-      connectDevice(true);
-      interval = setInterval(() => {
-        connectDevice(true);
-      }, 3000);
-    }
-    return () => {
-      if (interval) {
-        clearInterval(interval);
+    let cancelled = false;
+
+    const scheduleNextAttempt = (delayMs: number) => {
+      clearRetryTimer();
+      retryTargetAtRef.current = Date.now() + delayMs;
+      setRetryInSeconds(Math.max(1, Math.ceil(delayMs / 1000)));
+
+      retryCountdownIntervalRef.current = setInterval(() => {
+        if (!retryTargetAtRef.current) {
+          setRetryInSeconds(null);
+          if (retryCountdownIntervalRef.current) {
+            clearInterval(retryCountdownIntervalRef.current);
+            retryCountdownIntervalRef.current = null;
+          }
+          return;
+        }
+
+        const remainingMs = retryTargetAtRef.current - Date.now();
+        if (remainingMs <= 0) {
+          setRetryInSeconds(null);
+          if (retryCountdownIntervalRef.current) {
+            clearInterval(retryCountdownIntervalRef.current);
+            retryCountdownIntervalRef.current = null;
+          }
+          return;
+        }
+
+        setRetryInSeconds(Math.max(1, Math.ceil(remainingMs / 1000)));
+      }, 250);
+
+      retryTimerRef.current = setTimeout(() => {
+        if (!cancelled) {
+          attemptConnect();
+        }
+      }, delayMs);
+    };
+
+    const attemptConnect = async () => {
+      const success = await connectDevice(true);
+      if (cancelled) {
+        return;
       }
+
+      if (success) {
+        retryStepRef.current = 0;
+        clearRetryTimer();
+        return;
+      }
+
+      const delayIndex = Math.min(retryStepRef.current, RETRY_DELAYS_MS.length - 1);
+      const nextDelay = RETRY_DELAYS_MS[delayIndex];
+      retryStepRef.current = Math.min(delayIndex + 1, RETRY_DELAYS_MS.length - 1);
+      scheduleNextAttempt(nextDelay);
+    };
+
+    if (!connected) {
+      attemptConnect();
+    } else {
+      retryStepRef.current = 0;
+      clearRetryTimer();
+    }
+
+    return () => {
+      cancelled = true;
+      clearRetryTimer();
     };
   }, [connected]);
 
@@ -488,6 +603,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     showUpdateModal,
     updateError,
     lastCheckedLabel: getLastCheckedLabel(),
+    retryInSeconds,
     navigate,
     connectDevice,
     disconnectDevice,

@@ -6,6 +6,10 @@ use tauri::{AppHandle, Emitter, State};
 pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
 
+    if manager.is_connected() {
+        return Ok("Already connected".to_string());
+    }
+
     match manager.list_devices() {
         Ok(devices) => {
             eprintln!("=== USB Devices Found ===");
@@ -29,13 +33,7 @@ pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, 
         }
     });
 
-    manager
-        .synchronize_with_device()
-        .map(|_| "Connected and synchronized successfully".to_string())
-        .map_err(|e| {
-            eprintln!("Failed to synchronize with device: {}", e);
-            format!("Connected but synchronization failed: {}", e)
-        })
+    Ok("Connected successfully".to_string())
 }
 
 #[tauri::command]

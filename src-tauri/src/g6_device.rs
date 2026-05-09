@@ -42,6 +42,11 @@ impl G6DeviceManager {
         const RETRY_DELAY_MS: u64 = 500;
         const G6_INTERFACE: i32 = 4;
 
+        if self.is_connected() {
+            info!("Connect requested while already connected; reusing current handle");
+            return Ok(());
+        }
+
         let mut last_error = None;
 
         for attempt in 1..=MAX_RETRIES {

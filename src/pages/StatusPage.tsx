@@ -8,6 +8,7 @@ interface StatusPageProps {
   permissionError: boolean;
   settings: G6Settings | null;
   isLinux: boolean;
+  retryInSeconds: number | null;
   onReadDeviceState: () => void;
   onSetupPermissions: () => void;
   showUpdatePill: boolean;
@@ -21,6 +22,7 @@ export function StatusPage({
   permissionError,
   settings,
   isLinux,
+  retryInSeconds,
   onReadDeviceState,
   onSetupPermissions,
   showUpdatePill,
@@ -59,6 +61,8 @@ export function StatusPage({
         {!connected && !permissionError && (
           <p class="info-note" style={{ marginTop: "8px" }}>
             Auto-connect is enabled. Rusty G6 will keep searching for your device.
+            {retryInSeconds !== null ? ` Next retry in ${retryInSeconds}s.` : ""}
+            If this persists, try unplugging and reconnecting the G6 USB cable.
           </p>
         )}
       </section>
