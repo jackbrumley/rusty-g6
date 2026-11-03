@@ -37,6 +37,10 @@ Options:
   --insecure-skip-verify  Skip checksum verification (not recommended)
   -h, --help              Show this help message
 
+Environment:
+  RUSTY_G6_GITHUB_TOKEN   GitHub token for API requests (avoids the anonymous rate limit)
+  RUSTY_G6_NO_RELAUNCH    Set to 1 to not start Rusty G6 after installing
+
 Examples:
   curl -sf ${INSTALL_BASE_URL}/install.sh | bash
   curl -sf ${INSTALL_BASE_URL}/install.sh | bash -s -- --appimage
@@ -222,6 +226,9 @@ install_appimage=false
 non_interactive=false
 skip_verify=false
 relaunch=true
+if [[ "${RUSTY_G6_NO_RELAUNCH:-}" == "1" || "${RUSTY_G6_NO_RELAUNCH:-}" == "true" ]]; then
+  relaunch=false
+fi
 version=""
 
 while [[ $# -gt 0 ]]; do
