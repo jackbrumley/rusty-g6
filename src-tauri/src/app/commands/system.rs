@@ -4,7 +4,7 @@ use tauri::AppHandle;
 
 #[tauri::command]
 pub fn quit_application(app: AppHandle) {
-    app.exit(0);
+    crate::app::tray::quit(&app);
 }
 
 #[tauri::command]

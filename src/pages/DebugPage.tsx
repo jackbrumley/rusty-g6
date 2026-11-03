@@ -9,6 +9,7 @@ interface DebugPageProps {
   settings: G6Settings | null;
   appVersion: string;
   autostartEnabled: boolean;
+  closeToTray: boolean;
   showExperimental: boolean;
   checkingUpdates: boolean;
   updateAvailable: boolean;
@@ -19,6 +20,7 @@ interface DebugPageProps {
   onReadDeviceState: () => void;
   onResetConnection: () => void;
   onToggleAutostart: (enabled: boolean) => void;
+  onToggleCloseToTray: (enabled: boolean) => void;
   onToggleExperimental: (enabled: boolean) => void;
   onCheckForUpdates: () => void;
   onOpenUpdateModal: () => void;
@@ -32,6 +34,7 @@ export function DebugPage({
   settings,
   appVersion,
   autostartEnabled,
+  closeToTray,
   showExperimental,
   checkingUpdates,
   updateAvailable,
@@ -42,6 +45,7 @@ export function DebugPage({
   onReadDeviceState,
   onResetConnection,
   onToggleAutostart,
+  onToggleCloseToTray,
   onToggleExperimental,
   onCheckForUpdates,
   onOpenUpdateModal,
@@ -75,6 +79,12 @@ export function DebugPage({
                 label="Auto-start with system"
                 checked={autostartEnabled}
                 onChange={onToggleAutostart}
+              />
+              <ToggleControl
+                label="Close to tray"
+                checked={closeToTray}
+                onChange={onToggleCloseToTray}
+                tooltip="Closing the window keeps Rusty G6 running in the system tray. Use Quit in the tray menu to exit."
               />
             </div>
           </div>

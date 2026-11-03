@@ -2,6 +2,16 @@ use crate::app::state::AppState;
 use crate::g6_spec::G6Settings;
 use tauri::{AppHandle, Emitter, State};
 
+/// The device connected, disconnected or changed: refresh the UI (it
+/// re-reads the cached settings on "device-update") and the tray's output
+/// item.
+pub fn notify_device_changed(app: &AppHandle) {
+    if let Err(e) = app.emit("device-update", ()) {
+        eprintln!("Failed to emit device update: {}", e);
+    }
+    crate::app::tray::sync_output_state(app);
+}
+
 #[tauri::command(async)]
 pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
@@ -27,19 +37,17 @@ pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, 
     })?;
 
     let app_clone = app.clone();
-    manager.start_listener(move || {
-        if let Err(e) = app_clone.emit("device-update", ()) {
-            eprintln!("Failed to emit device update: {}", e);
-        }
-    });
+    manager.start_listener(move || notify_device_changed(&app_clone));
+    crate::app::tray::sync_output_state(&app);
 
     Ok("Connected successfully".to_string())
 }
 
 #[tauri::command(async)]
-pub fn disconnect_device(state: State<AppState>) -> Result<String, String> {
+pub fn disconnect_device(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
     manager.disconnect();
+    crate::app::tray::sync_output_state(&app);
     Ok("Disconnected successfully".to_string())
 }
 
@@ -65,9 +73,7 @@ pub fn read_device_state(app: AppHandle, state: State<AppState>) -> Result<G6Set
         manager.read_device_state().map_err(|e| format!("{:#}", e))
     };
     // A read may reopen or reset the device; tell the UI either way.
-    if let Err(e) = app.emit("device-update", ()) {
-        eprintln!("Failed to emit device update: {}", e);
-    }
+    notify_device_changed(&app);
     result
 }
 

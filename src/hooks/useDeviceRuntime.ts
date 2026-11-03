@@ -8,7 +8,7 @@ import {
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { routeFromHash, type AppRoute } from "../app/routes";
-import type { G6Settings, ToastType, UpdateCheckResult } from "../types/g6";
+import type { AppSettings, G6Settings, ToastType, UpdateCheckResult } from "../types/g6";
 
 interface UseDeviceRuntimeProps {
   showToast: (message: string, type: ToastType, durationMs?: number) => void;
@@ -31,6 +31,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const [micBoost, setMicBoost] = useState(0);
   const [permissionError, setPermissionError] = useState(false);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [closeToTray, setCloseToTray] = useState(true);
   const [showExperimental, setShowExperimental] = useState(
     () => localStorage.getItem("rusty-g6-experimental") === "true"
   );
@@ -87,6 +88,17 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     } catch (error) {
       console.error("Failed to toggle autostart:", error);
       showToast(`Failed to toggle auto-start: ${error}`, "error");
+    }
+  };
+
+  const toggleCloseToTray = async (enabled: boolean) => {
+    try {
+      const updated = await invoke<AppSettings>("set_close_to_tray", { enabled });
+      setCloseToTray(updated.close_to_tray);
+      showToast(`Close to tray ${enabled ? "enabled" : "disabled"}`, "success");
+    } catch (error) {
+      console.error("Failed to change close to tray:", error);
+      showToast(`Failed to change close to tray: ${error}`, "error");
     }
   };
 
@@ -523,6 +535,9 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     loadVersion();
     checkForUpdates(false);
     isAutostartEnabled().then(setAutostartEnabled).catch(console.error);
+    invoke<AppSettings>("get_app_settings")
+      .then((appSettings) => setCloseToTray(appSettings.close_to_tray))
+      .catch(console.error);
 
     const unlistenPromise = listen("device-update", () => {
       console.log("Device update event received - refreshing state from memory");
@@ -571,6 +586,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     micBoost,
     permissionError,
     autostartEnabled,
+    closeToTray,
     showExperimental,
     checkingUpdates,
     installingUpdate,
@@ -589,6 +605,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     setEffect,
     readDeviceState,
     toggleAutostart,
+    toggleCloseToTray,
     toggleExperimental,
     setLogSeparatorMessage,
     clearTerminal,

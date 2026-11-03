@@ -17,7 +17,8 @@ RUN test -n "${NODE_VERSION}" && test -n "${RUST_VERSION}" \
     || { echo "Build this image with scripts/build-linux-release.mjs, which passes the pinned versions." >&2; exit 1; }
 
 # libudev-dev and libusb-1.0-0-dev: hidapi and rusb (USB/HID access to the G6).
-# libayatana-appindicator3-dev: the system tray icon.
+# libayatana-appindicator3-dev: required by tauri-cli when bundling (the Linux
+# tray itself is a ksni StatusNotifierItem over pure-Rust DBus, no libdbus).
 # xdg-utils: Tauri bundles xdg-open into the AppImage (opener plugin).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \

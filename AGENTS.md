@@ -55,8 +55,14 @@ Rusty G6's variations from the standard:
   `.deb`/`.rpm` install it in their post-install scripts
   (`src-tauri/scripts/{deb,rpm}/`).
 - **Build dependencies:** `libudev-dev`, `libusb-1.0-0-dev` (hidapi/rusb) and
-  `libayatana-appindicator3-dev` (tray), in
+  `libayatana-appindicator3-dev` (required by tauri-cli for bundling, although
+  the Linux tray is a ksni StatusNotifierItem over pure-Rust DBus), in
   `src-tauri/packaging/linux/Containerfile`.
+- **App shell:** tray, close-to-tray and `--start-hidden` follow the
+  standard's "App Shell" section (`src-tauri/src/app/tray/`). The tray menu
+  has one app-specific item between Open and Quit: the Speakers/Headphones
+  switch, which shares `perform_toggle_output` with the UI's toggle. The
+  `close_to_tray` setting lives in `~/.config/rusty-g6/settings.json`.
 
 ## Checks
 

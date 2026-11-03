@@ -2,18 +2,28 @@ use crate::app::protocol_console::log_to_console;
 use crate::app::state::AppState;
 use crate::g6_spec::{EffectState, OutputDevice, ScoutModeState};
 use log::info;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 #[tauri::command(async)]
-pub fn toggle_output(app: AppHandle, state: State<AppState>) -> Result<String, String> {
+pub fn toggle_output(app: AppHandle) -> Result<String, String> {
+    let result = perform_toggle_output(&app);
+    crate::app::commands::device::notify_device_changed(&app);
+    result
+}
+
+/// Switches between speakers and headphones. The one path for the UI's
+/// output toggle and the tray's output item; the listener reports the
+/// device's confirmation to both.
+pub fn perform_toggle_output(app: &AppHandle) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!("User initiated: Toggle Output");
 
+    let state = app.state::<AppState>();
     let manager = state.device_manager.lock().unwrap();
     let current = manager.get_settings().output;
 
     log_to_console(
-        &app,
+        app,
         "command",
         format!("🔄 Toggle Output (V2 Protocol) from {:?}", current),
         Some("Using 2-command sequence: routing + commit".to_string()),
@@ -23,7 +33,7 @@ pub fn toggle_output(app: AppHandle, state: State<AppState>) -> Result<String, S
         Ok(_) => {
             let new_settings = manager.get_settings();
             log_to_console(
-                &app,
+                app,
                 "info",
                 format!("✅ Output toggled to {:?}", new_settings.output),
                 None,
@@ -31,7 +41,7 @@ pub fn toggle_output(app: AppHandle, state: State<AppState>) -> Result<String, S
             Ok(format!("Output toggled to {:?}", new_settings.output))
         }
         Err(e) => {
-            log_to_console(&app, "error", format!("❌ Toggle failed: {:#}", e), None);
+            log_to_console(app, "error", format!("❌ Toggle failed: {:#}", e), None);
             Err(format!("{:#}", e))
         }
     }

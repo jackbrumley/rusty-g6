@@ -1,9 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import type { ToastType } from "../types/g6";
 
-export function useWindowControls() {
+/// Where the backend parked the main window (`tray::WindowParking`).
+type WindowParking = "tray" | "taskbar";
+
+export function useWindowControls(
+  showToast: (message: string, type: ToastType, durationMs?: number) => void
+) {
   const [isMaximized, setIsMaximized] = useState(false);
+  const trayFallbackNotifiedRef = useRef(false);
+
+  const notifyIfParkedInTaskbar = (parking: WindowParking | null) => {
+    if (parking === "taskbar" && !trayFallbackNotifiedRef.current) {
+      trayFallbackNotifiedRef.current = true;
+      showToast("System tray is unavailable on this desktop. Minimized to taskbar instead.", "info", 4200);
+    }
+  };
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -28,12 +42,13 @@ export function useWindowControls() {
     };
   }, []);
 
+  // Parks the window: hidden to the tray when one exists, else minimized.
   const handleMinimize = async () => {
     try {
-      const appWindow = getCurrentWindow();
-      await appWindow.minimize();
+      notifyIfParkedInTaskbar(await invoke<WindowParking>("minimize_to_tray_or_taskbar"));
     } catch (error) {
-      console.error("Failed to minimize window:", error);
+      console.error("Failed to park window:", error);
+      await getCurrentWindow().minimize();
     }
   };
 
@@ -51,11 +66,13 @@ export function useWindowControls() {
     }
   };
 
+  // Honors the close-to-tray setting: parks the window, or quits Rusty G6.
   const handleClose = async () => {
     try {
-      await invoke("quit_application");
+      notifyIfParkedInTaskbar(await invoke<WindowParking | null>("close_main_window"));
     } catch (error) {
       console.error("Failed to close window:", error);
+      await getCurrentWindow().close();
     }
   };
 

@@ -30,6 +30,7 @@ function App() {
     micBoost,
     permissionError,
     autostartEnabled,
+    closeToTray,
     showExperimental,
     navigate,
     resetConnection,
@@ -40,6 +41,7 @@ function App() {
     setEffect,
     readDeviceState,
     toggleAutostart,
+    toggleCloseToTray,
     toggleExperimental,
     setLogSeparatorMessage,
     clearTerminal,
@@ -62,7 +64,7 @@ function App() {
     handleClose,
     handleTitleBarMouseDown,
     handleTitleBarDoubleClick,
-  } = useWindowControls();
+  } = useWindowControls(showToast);
 
   return (
     <AppShell
@@ -121,6 +123,7 @@ function App() {
             settings={settings}
             appVersion={appVersion}
             autostartEnabled={autostartEnabled}
+            closeToTray={closeToTray}
             showExperimental={showExperimental}
             checkingUpdates={checkingUpdates}
             updateAvailable={Boolean(updateResult?.updateAvailable)}
@@ -131,6 +134,7 @@ function App() {
             onReadDeviceState={readDeviceState}
             onResetConnection={resetConnection}
             onToggleAutostart={toggleAutostart}
+            onToggleCloseToTray={toggleCloseToTray}
             onToggleExperimental={toggleExperimental}
             onCheckForUpdates={() => checkForUpdates(true)}
             onOpenUpdateModal={() => setShowUpdateModal(true)}

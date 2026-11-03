@@ -70,3 +70,8 @@ export interface UpdateCheckResult {
   releaseUrl: string;
   notesUrl: string | null;
 }
+
+/// Backend settings (`app::settings::AppSettings`).
+export interface AppSettings {
+  close_to_tray: boolean;
+}
