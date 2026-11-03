@@ -3,6 +3,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ToastType } from "../types/g6";
 
+type ResizeDirection = "East" | "North" | "NorthEast" | "NorthWest" | "South" | "SouthEast" | "SouthWest" | "West";
+
 /// Where the backend parked the main window (`tray::WindowParking`).
 type WindowParking = "tray" | "taskbar";
 
@@ -99,8 +101,29 @@ export function useWindowControls(
     }
   };
 
+  // The window has no decorations, so the corner overlays start resizing.
+  const handleResizeMouseDown = (direction: ResizeDirection) => async (event: MouseEvent) => {
+    if (event.buttons !== 1) {
+      return;
+    }
+
+    if (isMaximized) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+      await getCurrentWindow().startResizeDragging(direction);
+    } catch (error) {
+      console.error("Failed to start resize dragging:", error);
+    }
+  };
+
   return {
     isMaximized,
+    handleResizeMouseDown,
     handleMinimize,
     handleToggleMaximize,
     handleClose,

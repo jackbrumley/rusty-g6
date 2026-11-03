@@ -15,6 +15,8 @@
         "title": "Rusty G6",
         "width": 620,
         "height": 540,
+        "minWidth": 520,
+        "minHeight": 440,
         "resizable": true,
         "center": true,
         "decorations": false,
@@ -32,6 +34,7 @@
           "permissions": [
             "core:default",
             "core:window:allow-start-dragging",
+            "core:window:allow-start-resize-dragging",
             "core:window:allow-minimize",
             "core:window:allow-maximize",
             "core:window:allow-unmaximize",

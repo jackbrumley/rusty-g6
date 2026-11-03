@@ -11,6 +11,7 @@ interface AppShellProps {
   onClose: () => Promise<void>;
   onTitleBarMouseDown: (e: MouseEvent) => Promise<void>;
   onTitleBarDoubleClick: (e: MouseEvent) => Promise<void>;
+  onResizeMouseDown: (direction: "NorthWest" | "NorthEast" | "SouthWest" | "SouthEast") => (e: MouseEvent) => Promise<void>;
   children: ComponentChildren;
 }
 
@@ -23,10 +24,18 @@ export function AppShell({
   onClose,
   onTitleBarMouseDown,
   onTitleBarDoubleClick,
+  onResizeMouseDown,
   children,
 }: AppShellProps) {
   return (
     <div class="app-shell">
+      <div class="resize-overlay" data-no-drag="true">
+        <div class="resize-corner resize-corner-nw" data-no-drag="true" onMouseDown={(event) => void onResizeMouseDown("NorthWest")(event)} />
+        <div class="resize-corner resize-corner-ne" data-no-drag="true" onMouseDown={(event) => void onResizeMouseDown("NorthEast")(event)} />
+        <div class="resize-corner resize-corner-sw" data-no-drag="true" onMouseDown={(event) => void onResizeMouseDown("SouthWest")(event)} />
+        <div class="resize-corner resize-corner-se" data-no-drag="true" onMouseDown={(event) => void onResizeMouseDown("SouthEast")(event)} />
+      </div>
+
       <div
         class="title-bar"
         onMouseDown={onTitleBarMouseDown}

@@ -64,6 +64,7 @@ function App() {
     handleClose,
     handleTitleBarMouseDown,
     handleTitleBarDoubleClick,
+    handleResizeMouseDown,
   } = useWindowControls(showToast);
 
   return (
@@ -76,6 +77,7 @@ function App() {
       onClose={handleClose}
       onTitleBarMouseDown={handleTitleBarMouseDown}
       onTitleBarDoubleClick={handleTitleBarDoubleClick}
+      onResizeMouseDown={handleResizeMouseDown}
     >
       <main class="container">
         {activeTab === "status" && (
