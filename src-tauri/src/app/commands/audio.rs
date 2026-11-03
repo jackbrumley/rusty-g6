@@ -4,7 +4,7 @@ use crate::g6_spec::{EffectState, OutputDevice, ScoutModeState};
 use log::info;
 use tauri::{AppHandle, State};
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn toggle_output(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     info!("------------------------------------------------------------");
     info!("User initiated: Toggle Output");
@@ -31,13 +31,13 @@ pub fn toggle_output(app: AppHandle, state: State<AppState>) -> Result<String, S
             Ok(format!("Output toggled to {:?}", new_settings.output))
         }
         Err(e) => {
-            log_to_console(&app, "error", format!("❌ Toggle failed: {}", e), None);
-            Err(e.to_string())
+            log_to_console(&app, "error", format!("❌ Toggle failed: {:#}", e), None);
+            Err(format!("{:#}", e))
         }
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_output(
     app: AppHandle,
     state: State<AppState>,
@@ -60,13 +60,18 @@ pub fn set_output(
             Ok(format!("Output set to {:?}", output))
         }
         Err(e) => {
-            log_to_console(&app, "error", format!("❌ Set output failed: {}", e), None);
-            Err(e.to_string())
+            log_to_console(
+                &app,
+                "error",
+                format!("❌ Set output failed: {:#}", e),
+                None,
+            );
+            Err(format!("{:#}", e))
         }
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_surround(
     app: AppHandle,
     state: State<AppState>,
@@ -115,7 +120,7 @@ pub fn set_surround(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_crystalizer(
     app: AppHandle,
     state: State<AppState>,
@@ -164,7 +169,7 @@ pub fn set_crystalizer(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_bass(
     app: AppHandle,
     state: State<AppState>,
@@ -202,7 +207,7 @@ pub fn set_bass(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_smart_volume(
     app: AppHandle,
     state: State<AppState>,
@@ -251,7 +256,7 @@ pub fn set_smart_volume(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_dialog_plus(
     app: AppHandle,
     state: State<AppState>,
@@ -300,7 +305,7 @@ pub fn set_dialog_plus(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_sbx_mode(
     app: AppHandle,
     state: State<AppState>,
@@ -339,7 +344,7 @@ pub fn set_sbx_mode(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_scout_mode(
     app: AppHandle,
     state: State<AppState>,
@@ -378,7 +383,7 @@ pub fn set_scout_mode(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_microphone_boost(
     app: AppHandle,
     state: State<AppState>,

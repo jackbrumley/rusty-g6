@@ -2,7 +2,7 @@ use crate::app::state::AppState;
 use crate::g6_spec::G6Settings;
 use tauri::{AppHandle, Emitter, State};
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
 
@@ -36,32 +36,42 @@ pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, 
     Ok("Connected successfully".to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn disconnect_device(state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
     manager.disconnect();
     Ok("Disconnected successfully".to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn is_device_connected(state: State<AppState>) -> bool {
     let manager = state.device_manager.lock().unwrap();
     manager.is_connected()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_device_settings(state: State<AppState>) -> Result<G6Settings, String> {
     let manager = state.device_manager.lock().unwrap();
     Ok(manager.get_settings())
 }
 
-#[tauri::command]
-pub fn read_device_state(state: State<AppState>) -> Result<G6Settings, String> {
-    let manager = state.device_manager.lock().unwrap();
-    manager.read_device_state().map_err(|e| e.to_string())
+/// Device commands run off the main thread (`async`): a read of an
+/// unresponsive G6 takes seconds while it heals the handle, and a command on
+/// the main thread would freeze the window meanwhile.
+#[tauri::command(async)]
+pub fn read_device_state(app: AppHandle, state: State<AppState>) -> Result<G6Settings, String> {
+    let result = {
+        let manager = state.device_manager.lock().unwrap();
+        manager.read_device_state().map_err(|e| format!("{:#}", e))
+    };
+    // A read may reopen or reset the device; tell the UI either way.
+    if let Err(e) = app.emit("device-update", ()) {
+        eprintln!("Failed to emit device update: {}", e);
+    }
+    result
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn synchronize_device(state: State<AppState>) -> Result<String, String> {
     let manager = state.device_manager.lock().unwrap();
     manager
@@ -70,7 +80,7 @@ pub fn synchronize_device(state: State<AppState>) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
     let manager = state.device_manager.lock().unwrap();
     manager.list_devices().map_err(|e| e.to_string())

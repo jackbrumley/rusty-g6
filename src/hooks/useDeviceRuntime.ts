@@ -16,6 +16,10 @@ interface UseDeviceRuntimeProps {
 
 export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
   const CONNECT_TIMEOUT_MS = 1000;
+  // A read of an unresponsive G6 heals the handle (reopen, then USB reset)
+  // before it fails, which takes a few seconds; the backend emits
+  // "device-update" when it finishes either way.
+  const READ_TIMEOUT_MS = 15000;
 
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Disconnected");
@@ -156,7 +160,8 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
       );
     } catch (error) {
       console.error("Failed to read device state:", error);
-      showToast(`Failed to read device state: ${error}`, "error");
+      await logUiEvent(`Read device state failed: ${String(error)}`);
+      showToast(`Failed to read device state: ${error}`, "error", 8000);
     }
   };
 
@@ -164,7 +169,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     try {
       const deviceSettings = await withTimeout(
         invoke<G6Settings>("read_device_state"),
-        CONNECT_TIMEOUT_MS
+        READ_TIMEOUT_MS
       );
       setSettings(deviceSettings);
       if (deviceSettings.firmware_info) {

@@ -4,11 +4,35 @@ use crate::g6_protocol_v2;
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use hidapi::{HidApi, HidDevice};
-use log::{error, info};
+use log::{error, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// The G6 accepted the handle but did not answer: state queries returned no
+/// valid data, or a write was not acknowledged. Seen after a cold boot, when
+/// the G6 takes HID output reports on the control pipe but sends nothing on
+/// its interrupt IN endpoint until it is re-enumerated (docs/TODO.md).
+#[derive(Debug)]
+pub struct DeviceUnresponsive(pub String);
+
+impl std::fmt::Display for DeviceUnresponsive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "G6 is not responding: {}", self.0)
+    }
+}
+
+impl std::error::Error for DeviceUnresponsive {}
+
+fn is_unresponsive(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<DeviceUnresponsive>().is_some()
+}
+
+/// A state read stops after this many queries in a row get no packet at
+/// all: a healthy G6 answers each query within a few milliseconds, so
+/// waiting out the remaining queries (500 ms each) only delays recovery.
+const MAX_SILENT_QUERIES: u32 = 2;
 
 /// G6 Device Manager
 pub struct G6DeviceManager {
@@ -16,6 +40,17 @@ pub struct G6DeviceManager {
     device: Arc<Mutex<Option<HidDevice>>>,
     current_settings: Arc<Mutex<G6Settings>>,
     command_active: Arc<AtomicBool>,
+    /// Whether `current_settings` reflects the device: set by a state read
+    /// that parsed data or by a change event from the device, cleared on
+    /// (re)connect, disconnect and unacknowledged writes. Toggles and the
+    /// tray label only trust the cached output while this is set.
+    state_confirmed: Arc<AtomicBool>,
+    /// The event listener thread is started once and follows whatever handle
+    /// `device` holds, so reconnects never stack up extra readers.
+    listener_started: AtomicBool,
+    /// A USB reset was tried for the current unresponsive episode; cleared
+    /// by the next successful read so a dead device is never reset in a loop.
+    usb_reset_attempted: AtomicBool,
 }
 
 impl G6DeviceManager {
@@ -28,12 +63,21 @@ impl G6DeviceManager {
             device: Arc::new(Mutex::new(None)),
             current_settings: Arc::new(Mutex::new(G6Settings::default())),
             command_active: Arc::new(AtomicBool::new(false)),
+            state_confirmed: Arc::new(AtomicBool::new(false)),
+            listener_started: AtomicBool::new(false),
+            usb_reset_attempted: AtomicBool::new(false),
         })
     }
 
     /// Check if a G6 device is connected
     pub fn is_connected(&self) -> bool {
         self.device.lock().unwrap().is_some()
+    }
+
+    /// Whether the cached settings were confirmed by the device since the
+    /// handle was opened (see `state_confirmed`).
+    pub fn is_state_confirmed(&self) -> bool {
+        self.is_connected() && self.state_confirmed.load(Ordering::SeqCst)
     }
 
     /// Check if the G6 USB interface required for communication is currently available.
@@ -158,6 +202,7 @@ impl G6DeviceManager {
                     info!("Device: {} {}", manufacturer, product);
 
                     *self.device.lock().unwrap() = Some(device);
+                    self.state_confirmed.store(false, Ordering::SeqCst);
                     return Ok(());
                 }
                 Err(e) => {
@@ -179,18 +224,23 @@ impl G6DeviceManager {
     /// Disconnect from the G6 device
     pub fn disconnect(&self) {
         *self.device.lock().unwrap() = None;
+        self.state_confirmed.store(false, Ordering::SeqCst);
         info!("Disconnected from G6 device");
     }
 
-    /// Send commands to the G6 device (DATA + COMMIT pair)
-    fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<()> {
+    /// Send commands to the G6 device (DATA + COMMIT pair). Returns whether
+    /// the device acknowledged the batch with at least one response packet.
+    /// An unacknowledged batch is logged and marks the cached state as
+    /// unconfirmed, so the next toggle re-reads the device first.
+    fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<bool> {
         // Signal listener to pause
         self.command_active.store(true, Ordering::SeqCst);
 
         // Ensure strictly scoped lock
-        let result = (|| -> Result<()> {
+        let result = (|| -> Result<bool> {
             let device_guard = self.device.lock().unwrap();
             let device = device_guard.as_ref().context("Device not connected")?;
+            let mut acknowledged = false;
 
             for (_i, command) in commands.iter().enumerate() {
                 // Helper logging
@@ -221,6 +271,7 @@ impl G6DeviceManager {
                         };
 
                         if response.len() >= 2 && response[0] == 0x5a {
+                            acknowledged = true;
                             let rx_hex: String =
                                 response.iter().map(|b| format!("{:02x}", b)).collect();
                             let rx_desc = g6_protocol_v2::describe_packet(&response);
@@ -232,11 +283,20 @@ impl G6DeviceManager {
                     }
                 }
             }
-            Ok(())
+            Ok(acknowledged)
         })();
 
         // Resume listener
         self.command_active.store(false, Ordering::SeqCst);
+
+        if let Ok(false) = result {
+            warn!(
+                "UNCONFIRMED WRITE: the G6 sent no acknowledgement for {} command(s); \
+                 cached state is no longer trusted",
+                commands.len()
+            );
+            self.state_confirmed.store(false, Ordering::SeqCst);
+        }
 
         result
     }
@@ -295,6 +355,7 @@ impl G6DeviceManager {
             let device = device_guard.as_ref().context("Device not connected")?;
 
             let mut responses = Vec::new();
+            let mut consecutive_silent = 0;
             info!("Sending {} read commands to G6 device", commands.len());
 
             for (i, command) in commands.iter().enumerate() {
@@ -322,6 +383,7 @@ impl G6DeviceManager {
 
                 let mut matched_response = None;
                 let mut all_received = Vec::new();
+                let mut packets_seen = 0;
                 let start_time = std::time::Instant::now();
 
                 while start_time.elapsed().as_millis() < 500 {
@@ -330,6 +392,7 @@ impl G6DeviceManager {
                     match device.read_timeout(&mut buffer, 100) {
                         // 100ms per read
                         Ok(bytes_read) if bytes_read > 0 => {
+                            packets_seen += 1;
                             let response = if buffer[0] == 0x00 && bytes_read > 1 {
                                 buffer[1..bytes_read].to_vec()
                             } else {
@@ -373,10 +436,24 @@ impl G6DeviceManager {
                     );
                     responses.push(resp);
                 } else {
-                    error!("  ✗ No matching response for command {} (0x{:02x}). Received {} packet(s) total.", 
+                    error!("  ✗ No matching response for command {} (0x{:02x}). Received {} packet(s) total.",
                         i + 1, cmd_type, all_received.len());
                     // No fallback used - return empty if not matched
                     responses.push(Vec::new());
+                }
+
+                if packets_seen == 0 {
+                    consecutive_silent += 1;
+                    if consecutive_silent >= MAX_SILENT_QUERIES {
+                        return Err(DeviceUnresponsive(format!(
+                            "{} state queries in a row got no packet at all \
+                             (the HID handle is open and writes succeed, but nothing comes back)",
+                            consecutive_silent
+                        ))
+                        .into());
+                    }
+                } else {
+                    consecutive_silent = 0;
                 }
                 std::thread::sleep(Duration::from_millis(5));
             }
@@ -387,14 +464,21 @@ impl G6DeviceManager {
         result
     }
 
-    /// Start the event listener thread
+    /// Start the event listener thread. It runs for the life of the app and
+    /// reads from whatever handle is current, so calling this again after a
+    /// reconnect is a no-op.
     pub fn start_listener<F>(&self, on_event: F)
     where
         F: Fn() + Send + Sync + 'static,
     {
+        if self.listener_started.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
         let device_arc = self.device.clone();
         let settings_arc = self.current_settings.clone();
         let active_arc = self.command_active.clone();
+        let confirmed_arc = self.state_confirmed.clone();
 
         thread::spawn(move || {
             info!("Device Event Listener Started");
@@ -464,6 +548,7 @@ impl G6DeviceManager {
                                         // Output switching
                                         DeviceEvent::OutputChanged(output) => {
                                             settings.output = *output;
+                                            confirmed_arc.store(true, Ordering::SeqCst);
                                             info!("Detected {:?}", event);
                                         }
 
@@ -553,6 +638,7 @@ impl G6DeviceManager {
                         error!("Read error in listener (possibly disconnected): {}", e);
                         // Clear the device on error to trigger reconnection flow
                         *device_arc.lock().unwrap() = None;
+                        confirmed_arc.store(false, Ordering::SeqCst);
                         // Notify UI of disconnect
                         on_event();
                         // Sleep a bit longer before next attempt
@@ -568,22 +654,53 @@ impl G6DeviceManager {
     /// Toggle output between speakers and headphones
     /// Now using Protocol V2 (clean 2-command version)
     pub fn toggle_output(&self) -> Result<()> {
-        let current = self.current_settings.lock().unwrap().output;
+        // The toggle target comes from the cached output, so it must be the
+        // device's real output. Without this check a device that never
+        // answered left the cache at its default (Headphones) and every click
+        // re-sent "switch to Speakers": one relay click, then nothing.
+        if !self.state_confirmed.load(Ordering::SeqCst) {
+            info!("Output state not confirmed by the device; reading it before toggling");
+            self.read_device_state()
+                .context("Cannot toggle output: the current output is unknown")?;
+        }
 
-        // Calculate target state
-        let target = match current {
-            OutputDevice::Headphones => OutputDevice::Speakers,
-            OutputDevice::Speakers => OutputDevice::Headphones,
-        };
+        let current = self.current_settings.lock().unwrap().output;
+        let target = toggle_target(current);
 
         // Use V2 protocol - just 2 commands instead of 30!
         let commands = crate::g6_protocol_v2::build_toggle_output_simple(current);
 
-        self.send_commands(commands)?;
+        let acknowledged = self.send_commands(commands)?;
+        info!("Output toggle command sent: {:?} → {:?}", current, target);
+        if !acknowledged {
+            self.verify_unacknowledged_output_write(target)?;
+        }
 
         // State will be updated by listener when device confirms the change
-        info!("Output toggle command sent: {:?} → {:?}", current, target);
         Ok(())
+    }
+
+    /// An output write got no acknowledgement: re-read the device (healing
+    /// the handle if needed) to learn whether the switch happened.
+    fn verify_unacknowledged_output_write(&self, target: OutputDevice) -> Result<()> {
+        warn!(
+            "Output switch to {:?} was not acknowledged; re-reading device state",
+            target
+        );
+        let settings = self.read_device_state()?;
+        if settings.output == target {
+            info!(
+                "Device reports {:?} after re-read; the switch took effect",
+                target
+            );
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(
+                "Output switch to {:?} was not applied (device reports {:?})",
+                target,
+                settings.output
+            ))
+        }
     }
 
     /// Set output device
@@ -595,10 +712,13 @@ impl G6DeviceManager {
             crate::g6_protocol_v2::build_commit_output(),
         ];
 
-        self.send_commands(commands)?;
+        let acknowledged = self.send_commands(commands)?;
 
         // State will be updated by listener when device confirms
         info!("Set output command sent using V2: {:?}", output);
+        if !acknowledged {
+            self.verify_unacknowledged_output_write(output)?;
+        }
         Ok(())
     }
 
@@ -786,18 +906,96 @@ impl G6DeviceManager {
         self.current_settings.lock().unwrap().clone()
     }
 
-    /// Read current device state from hardware
-    /// Sends read commands and parses responses directly to update settings
+    /// Read current device state from hardware and update the cached
+    /// settings. Fails unless at least one response was parsed.
+    ///
+    /// When the device does not answer, the handle is healed before giving
+    /// up, escalating like a manual replug would:
+    /// 1. close and reopen the HID handle, read again;
+    /// 2. (Linux) reset the G6 on the USB bus, reconnect, read again.
+    ///
+    /// Every step is logged so the next occurrence is diagnosable.
     pub fn read_device_state(&self) -> Result<G6Settings> {
         if !self.is_connected() {
             return Err(anyhow::anyhow!("Device not connected"));
         }
 
-        // Refresh HidApi connection to handle device path changes (e.g., after suspend/resume)
-        info!("Refreshing device connection before reading state...");
-        let new_api = HidApi::new().context("Failed to refresh HID API for read")?;
-        *self.api.lock().unwrap() = new_api;
+        let error = match self.read_state_once() {
+            Ok(settings) => return Ok(settings),
+            Err(error) if is_unresponsive(&error) => error,
+            Err(error) => return Err(error),
+        };
 
+        warn!(
+            "SELF-HEAL: {}. Reopening the HID handle (software replug)...",
+            error
+        );
+        self.disconnect();
+        self.connect()
+            .context("Self-heal: reopening the G6 HID handle failed")?;
+        let error = match self.read_state_once() {
+            Ok(settings) => {
+                info!("SELF-HEAL: device answered after reopening the HID handle");
+                return Ok(settings);
+            }
+            Err(error) if is_unresponsive(&error) => error,
+            Err(error) => return Err(error),
+        };
+
+        self.reset_usb_and_read(error)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn reset_usb_and_read(&self, error: anyhow::Error) -> Result<G6Settings> {
+        if self.usb_reset_attempted.swap(true, Ordering::SeqCst) {
+            error!(
+                "SELF-HEAL FAILED: {} after reopening the handle, and a USB reset was already tried. \
+                 Unplug and replug the G6.",
+                error
+            );
+            return Err(error.context(
+                "The G6 is still not responding after a USB reset. Unplug and replug it",
+            ));
+        }
+
+        warn!(
+            "SELF-HEAL: {} after reopening the handle. Resetting the G6 on the USB bus...",
+            error
+        );
+        self.disconnect();
+        reset_usb_device().context("Self-heal: USB reset failed")?;
+        info!("SELF-HEAL: USB reset done; reconnecting");
+        self.connect()
+            .context("Self-heal: reconnecting after the USB reset failed")?;
+        match self.read_state_once() {
+            Ok(settings) => {
+                info!("SELF-HEAL: device answered after the USB reset");
+                Ok(settings)
+            }
+            Err(error) => {
+                error!(
+                    "SELF-HEAL FAILED: {} even after a USB reset. Unplug and replug the G6.",
+                    error
+                );
+                Err(error.context(
+                    "The G6 is still not responding after a USB reset. Unplug and replug it",
+                ))
+            }
+        }
+    }
+
+    /// Windows: the G6 is bound to the HID driver, so libusb cannot reset it.
+    #[cfg(not(target_os = "linux"))]
+    fn reset_usb_and_read(&self, error: anyhow::Error) -> Result<G6Settings> {
+        error!(
+            "SELF-HEAL FAILED: {} after reopening the handle. Unplug and replug the G6.",
+            error
+        );
+        Err(error.context("The G6 is not responding. Unplug and replug it"))
+    }
+
+    /// One state read on the current handle, without recovery.
+    fn read_state_once(&self) -> Result<G6Settings> {
         info!("Reading complete device state from G6...");
 
         // Build all read commands using V2 protocol
@@ -808,110 +1006,14 @@ impl G6DeviceManager {
 
         info!("Processing {} read responses...", responses.len());
 
-        // Parse all responses and update settings
         let mut settings = self.current_settings.lock().unwrap();
-
-        for response in &responses {
-            if response.is_empty() || response.len() < 2 {
-                continue;
-            }
-
-            // Parse response based on command family
-            let cmd_family = response[1];
-
-            match cmd_family {
-                0x07 => {
-                    // Firmware query - use ResponseParser
-                    use crate::g6_protocol_v2::{G6ResponseParser, ParsedResponse};
-                    let (result, _debug) = G6ResponseParser::parse(response);
-
-                    if let Ok(ParsedResponse::FirmwareInfo(info)) = result {
-                        settings.firmware_info = Some(info);
-                        info!(
-                            "Firmware: {}",
-                            settings.firmware_info.as_ref().unwrap().version
-                        );
-                    }
-                }
-                0x2c => {
-                    // Output routing - use ResponseParser for more accurate parsing
-                    use crate::g6_protocol_v2::{G6ResponseParser, ParsedResponse};
-                    let (result, _debug) = G6ResponseParser::parse(response);
-
-                    if let Ok(ParsedResponse::OutputDevice(output)) = result {
-                        settings.output = output;
-                        info!("Output: {:?}", output);
-                    }
-                }
-                _ => {
-                    // For other command families, try event parser
-                    use crate::g6_protocol_v2::G6EventParser;
-                    let events = G6EventParser::parse(response);
-
-                    for event in &events {
-                        use crate::g6_protocol_v2::DeviceEvent;
-                        match event {
-                            DeviceEvent::SbxModeChanged(state) => {
-                                settings.sbx_enabled = *state;
-                                info!("SBX Mode: {:?}", state);
-                            }
-                            DeviceEvent::ScoutModeChanged(state) => {
-                                settings.scout_mode = *state;
-                                info!("Scout Mode: {:?}", state);
-                            }
-                            DeviceEvent::SurroundToggled(state) => {
-                                settings.surround_enabled = *state;
-                                info!("Surround enabled: {:?}", state);
-                            }
-                            DeviceEvent::SurroundValueChanged(value) => {
-                                settings.surround_value = *value;
-                                info!("Surround value: {}", value);
-                            }
-                            DeviceEvent::CrystalizerToggled(state) => {
-                                settings.crystalizer_enabled = *state;
-                                info!("Crystalizer enabled: {:?}", state);
-                            }
-                            DeviceEvent::CrystalizerValueChanged(value) => {
-                                settings.crystalizer_value = *value;
-                                info!("Crystalizer value: {}", value);
-                            }
-                            DeviceEvent::BassToggled(state) => {
-                                settings.bass_enabled = *state;
-                                info!("Bass enabled: {:?}", state);
-                            }
-                            DeviceEvent::BassValueChanged(value) => {
-                                settings.bass_value = *value;
-                                info!("Bass value: {}", value);
-                            }
-                            DeviceEvent::SmartVolumeToggled(state) => {
-                                settings.smart_volume_enabled = *state;
-                                info!("Smart Volume enabled: {:?}", state);
-                            }
-                            DeviceEvent::SmartVolumeValueChanged(value) => {
-                                settings.smart_volume_value = *value;
-                                info!("Smart Volume value: {}", value);
-                            }
-                            DeviceEvent::DialogPlusToggled(state) => {
-                                settings.dialog_plus_enabled = *state;
-                                info!("Dialog Plus enabled: {:?}", state);
-                            }
-                            DeviceEvent::DialogPlusValueChanged(value) => {
-                                settings.dialog_plus_value = *value;
-                                info!("Dialog Plus value: {}", value);
-                            }
-                            DeviceEvent::DigitalFilterChanged(filter) => {
-                                settings.digital_filter = Some(*filter);
-                                info!("Digital filter: {:?}", filter);
-                            }
-                            DeviceEvent::AudioConfigChanged(config) => {
-                                settings.audio_config = Some(*config);
-                                info!("Audio config: {:?}", config);
-                            }
-                            _ => {} // Ignore other events
-                        }
-                    }
-                }
-            }
+        let parsed = apply_read_responses(&mut settings, &responses);
+        if parsed == 0 {
+            return Err(DeviceUnresponsive(format!(
+                "none of the {} state queries got a usable response",
+                responses.len()
+            ))
+            .into());
         }
 
         settings.last_read_time = Some(
@@ -920,8 +1022,14 @@ impl G6DeviceManager {
                 .unwrap_or(Duration::from_secs(0))
                 .as_secs(),
         );
+        self.state_confirmed.store(true, Ordering::SeqCst);
+        self.usb_reset_attempted.store(false, Ordering::SeqCst);
 
-        info!("Device state read complete");
+        info!(
+            "Device state read complete ({}/{} responses parsed)",
+            parsed,
+            responses.len()
+        );
 
         // Return updated settings
         Ok(settings.clone())
@@ -1006,8 +1114,214 @@ impl G6DeviceManager {
     }
 }
 
+/// The output a toggle switches to.
+fn toggle_target(current: OutputDevice) -> OutputDevice {
+    match current {
+        OutputDevice::Headphones => OutputDevice::Speakers,
+        OutputDevice::Speakers => OutputDevice::Headphones,
+    }
+}
+
+/// Applies state-read responses to `settings`. Returns how many responses
+/// carried data that was parsed; empty (unanswered) responses count as none.
+fn apply_read_responses(settings: &mut G6Settings, responses: &[Vec<u8>]) -> usize {
+    use crate::g6_protocol_v2::{DeviceEvent, G6EventParser, G6ResponseParser, ParsedResponse};
+
+    let mut parsed = 0;
+    for response in responses {
+        if response.len() < 2 {
+            continue;
+        }
+
+        match response[1] {
+            0x07 => {
+                // Firmware query
+                if let (Ok(ParsedResponse::FirmwareInfo(info)), _) =
+                    G6ResponseParser::parse(response)
+                {
+                    info!("Firmware: {}", info.version);
+                    settings.firmware_info = Some(info);
+                    parsed += 1;
+                }
+            }
+            0x2c => {
+                // Output routing
+                if let (Ok(ParsedResponse::OutputDevice(output)), _) =
+                    G6ResponseParser::parse(response)
+                {
+                    info!("Output: {:?}", output);
+                    settings.output = output;
+                    parsed += 1;
+                }
+            }
+            _ => {
+                let mut applied = false;
+                for event in G6EventParser::parse(response) {
+                    match event {
+                        DeviceEvent::SbxModeChanged(state) => {
+                            settings.sbx_enabled = state;
+                            info!("SBX Mode: {:?}", state);
+                        }
+                        DeviceEvent::ScoutModeChanged(state) => {
+                            settings.scout_mode = state;
+                            info!("Scout Mode: {:?}", state);
+                        }
+                        DeviceEvent::SurroundToggled(state) => {
+                            settings.surround_enabled = state;
+                            info!("Surround enabled: {:?}", state);
+                        }
+                        DeviceEvent::SurroundValueChanged(value) => {
+                            settings.surround_value = value;
+                            info!("Surround value: {}", value);
+                        }
+                        DeviceEvent::CrystalizerToggled(state) => {
+                            settings.crystalizer_enabled = state;
+                            info!("Crystalizer enabled: {:?}", state);
+                        }
+                        DeviceEvent::CrystalizerValueChanged(value) => {
+                            settings.crystalizer_value = value;
+                            info!("Crystalizer value: {}", value);
+                        }
+                        DeviceEvent::BassToggled(state) => {
+                            settings.bass_enabled = state;
+                            info!("Bass enabled: {:?}", state);
+                        }
+                        DeviceEvent::BassValueChanged(value) => {
+                            settings.bass_value = value;
+                            info!("Bass value: {}", value);
+                        }
+                        DeviceEvent::SmartVolumeToggled(state) => {
+                            settings.smart_volume_enabled = state;
+                            info!("Smart Volume enabled: {:?}", state);
+                        }
+                        DeviceEvent::SmartVolumeValueChanged(value) => {
+                            settings.smart_volume_value = value;
+                            info!("Smart Volume value: {}", value);
+                        }
+                        DeviceEvent::DialogPlusToggled(state) => {
+                            settings.dialog_plus_enabled = state;
+                            info!("Dialog Plus enabled: {:?}", state);
+                        }
+                        DeviceEvent::DialogPlusValueChanged(value) => {
+                            settings.dialog_plus_value = value;
+                            info!("Dialog Plus value: {}", value);
+                        }
+                        DeviceEvent::DigitalFilterChanged(filter) => {
+                            settings.digital_filter = Some(filter);
+                            info!("Digital filter: {:?}", filter);
+                        }
+                        DeviceEvent::AudioConfigChanged(config) => {
+                            settings.audio_config = Some(config);
+                            info!("Audio config: {:?}", config);
+                        }
+                        _ => continue, // Ignore other events
+                    }
+                    applied = true;
+                }
+                if applied {
+                    parsed += 1;
+                }
+            }
+        }
+    }
+    parsed
+}
+
+/// Resets the G6 on the USB bus (USBDEVFS_RESET through libusb): the same
+/// re-enumeration a physical replug causes, without the power cycle. Needs
+/// write access to the G6's usbfs node, which the udev rule grants.
+#[cfg(target_os = "linux")]
+fn reset_usb_device() -> Result<()> {
+    let devices = rusb::devices().context("Failed to list USB devices")?;
+    for device in devices.iter() {
+        let Ok(descriptor) = device.device_descriptor() else {
+            continue;
+        };
+        if descriptor.vendor_id() != USB_VENDOR_ID || descriptor.product_id() != USB_PRODUCT_ID {
+            continue;
+        }
+        info!(
+            "Resetting G6 at USB bus {:03} device {:03}",
+            device.bus_number(),
+            device.address()
+        );
+        let handle = device
+            .open()
+            .context("Failed to open the G6 USB device (check the udev rule)")?;
+        return match handle.reset() {
+            // NotFound: the device re-enumerated as part of the reset.
+            Ok(()) | Err(rusb::Error::NotFound) => Ok(()),
+            Err(error) => Err(anyhow::anyhow!("USB reset failed: {}", error)),
+        };
+    }
+    Err(anyhow::anyhow!("G6 not found on the USB bus"))
+}
+
 impl Default for G6DeviceManager {
     fn default() -> Self {
         Self::new().expect("Failed to create G6DeviceManager")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hex(text: &str) -> Vec<u8> {
+        (0..text.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
+            .collect()
+    }
+
+    /// Responses captured from a healthy G6 (session log, 2026-11-03).
+    fn healthy_responses() -> Vec<Vec<u8>> {
+        vec![
+            hex("5a0710322e312e3235303930332e313332340000"),
+            hex("5a2c0501020000000000"),
+            hex("5a260b08ffff05000000"),
+            hex("5a1108010096000000803f00000000"),
+        ]
+    }
+
+    #[test]
+    fn unanswered_read_parses_nothing() {
+        // After a cold boot every query came back empty; that must not count
+        // as a successful read.
+        let mut settings = G6Settings::default();
+        let responses = vec![Vec::new(); 14];
+        assert_eq!(apply_read_responses(&mut settings, &responses), 0);
+        assert!(settings.firmware_info.is_none());
+    }
+
+    #[test]
+    fn healthy_read_applies_firmware_output_and_modes() {
+        let mut settings = G6Settings::default();
+        let parsed = apply_read_responses(&mut settings, &healthy_responses());
+        assert_eq!(parsed, 4);
+        assert_eq!(settings.firmware_info.unwrap().version, "2.1.250903.1324");
+        assert_eq!(settings.output, OutputDevice::Speakers);
+        assert_eq!(settings.sbx_enabled, EffectState::Enabled);
+        assert_eq!(settings.surround_enabled, EffectState::Enabled);
+    }
+
+    #[test]
+    fn toggle_target_flips_output() {
+        assert_eq!(
+            toggle_target(OutputDevice::Speakers),
+            OutputDevice::Headphones
+        );
+        assert_eq!(
+            toggle_target(OutputDevice::Headphones),
+            OutputDevice::Speakers
+        );
+    }
+
+    #[test]
+    fn unresponsive_errors_are_recognised_through_context() {
+        let error: anyhow::Error = DeviceUnresponsive("silent".to_string()).into();
+        let error = error.context("while reading");
+        assert!(is_unresponsive(&error));
+        assert!(!is_unresponsive(&anyhow::anyhow!("Device not connected")));
     }
 }
