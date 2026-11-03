@@ -18,6 +18,7 @@ RUN test -n "${NODE_VERSION}" && test -n "${RUST_VERSION}" \
 
 # libudev-dev and libusb-1.0-0-dev: hidapi and rusb (USB/HID access to the G6).
 # libayatana-appindicator3-dev: the system tray icon.
+# xdg-utils: Tauri bundles xdg-open into the AppImage (opener plugin).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
@@ -37,6 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         rsync \
         squashfs-tools \
+        xdg-utils \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
