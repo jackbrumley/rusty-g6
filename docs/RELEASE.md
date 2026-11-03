@@ -84,7 +84,7 @@ the in-app updater and the one-line installers serve the new version.
 
 - An older installed version offers the update and **Update Now** installs and
   relaunches it.
-- `curl -sf https://brumley.info/rusty-g6/install.sh | bash` installs the new
+- `curl --proto '=https' --tlsv1.2 -sSf https://brumley.info/rusty-g6/install.sh | bash` installs the new
   version.
 
 ## When Something Fails

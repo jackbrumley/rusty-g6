@@ -7,19 +7,19 @@
     linux: {
       system: {
         label: 'System Install',
-        command: 'curl -sf ' + BASE + '/install.sh | bash',
+        command: 'curl --proto \'=https\' --tlsv1.2 -sSf ' + BASE + '/install.sh | bash',
         hint: 'Open <strong>Terminal</strong> and run:',
         note: 'Installs the .deb (Debian, Ubuntu, Mint) or .rpm (Fedora) and asks for your password.',
       },
       appimage: {
         label: 'AppImage',
-        command: 'curl -sf ' + BASE + '/install.sh | bash -s -- --appimage',
+        command: 'curl --proto \'=https\' --tlsv1.2 -sSf ' + BASE + '/install.sh | bash -s -- --appimage',
         hint: 'Open <strong>Terminal</strong> and run:',
         note: 'Installs to ~/.local/bin for any distro. Asks for your password once to let the app reach the G6 over USB.',
       },
       uninstall: {
         label: 'Uninstall',
-        command: 'curl -sf ' + BASE + '/uninstall.sh | bash',
+        command: 'curl --proto \'=https\' --tlsv1.2 -sSf ' + BASE + '/uninstall.sh | bash',
         hint: 'Open <strong>Terminal</strong> and run:',
         note: '',
       },

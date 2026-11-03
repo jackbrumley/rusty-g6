@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Rusty G6 one-line installer for Linux.
-#   curl -sf https://brumley.info/rusty-g6/install.sh | bash
+#   curl --proto '=https' --tlsv1.2 -sSf https://brumley.info/rusty-g6/install.sh | bash
 # The in-app updater re-runs this same script, so keep its options stable.
 
 REPO="jackbrumley/rusty-g6"
@@ -47,8 +47,8 @@ Environment:
   RUSTY_G6_NO_RELAUNCH    Set to 1 to not start Rusty G6 after installing
 
 Examples:
-  curl -sf ${INSTALL_BASE_URL}/install.sh | bash
-  curl -sf ${INSTALL_BASE_URL}/install.sh | bash -s -- --appimage
+  curl --proto '=https' --tlsv1.2 -sSf ${INSTALL_BASE_URL}/install.sh | bash
+  curl --proto '=https' --tlsv1.2 -sSf ${INSTALL_BASE_URL}/install.sh | bash -s -- --appimage
 EOF
 }
 
@@ -200,7 +200,7 @@ install_udev_rule() {
   if ! acquire_root; then
     warn "could not get root access, so the USB permission rule was not installed."
     warn "Rusty G6 won't be able to reach the G6 until you run:"
-    warn "  curl -sf ${INSTALL_BASE_URL}/install.sh | bash -s -- --appimage"
+    warn "  curl --proto '=https' --tlsv1.2 -sSf ${INSTALL_BASE_URL}/install.sh | bash -s -- --appimage"
     warn "from a terminal and enter your password."
     return 0
   fi

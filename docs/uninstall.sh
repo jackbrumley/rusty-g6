@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Rusty G6 uninstaller for Linux.
-#   curl -sf https://brumley.info/rusty-g6/uninstall.sh | bash
+#   curl --proto '=https' --tlsv1.2 -sSf https://brumley.info/rusty-g6/uninstall.sh | bash
 
 BIN_NAME="rusty-g6"
 UDEV_RULE_PATH="/etc/udev/rules.d/50-soundblaster-x-g6.rules"

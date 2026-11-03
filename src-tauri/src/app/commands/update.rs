@@ -116,9 +116,9 @@ fn unix_update_command() -> String {
             .unwrap_or(false);
 
     if is_appimage {
-        format!("curl -sf {INSTALL_SITE}/install.sh | bash -s -- --appimage")
+        format!("curl --proto '=https' --tlsv1.2 -sSf {INSTALL_SITE}/install.sh | bash -s -- --appimage")
     } else {
-        format!("curl -sf {INSTALL_SITE}/install.sh | bash")
+        format!("curl --proto '=https' --tlsv1.2 -sSf {INSTALL_SITE}/install.sh | bash")
     }
 }
 
