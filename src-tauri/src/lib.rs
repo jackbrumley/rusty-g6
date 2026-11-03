@@ -5,8 +5,13 @@ mod g6_spec;
 
 use app::commands::*;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+/// Options parsed from the command line in `main.rs`.
+pub struct LaunchOptions {
+    /// The in-app updater relaunched this version because the install failed.
+    pub update_failed: bool,
+}
+
+pub fn run(launch: LaunchOptions) {
     if let Err(error) = app::session_log::initialize_session_logging() {
         eprintln!("Failed to initialize session logging: {}", error);
     }
@@ -18,8 +23,15 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(app::state::create_app_state())
-        .setup(app::bootstrap::configure_shell)
+        .setup(move |app| {
+            app::bootstrap::configure_shell(app)?;
+            if launch.update_failed {
+                app::commands::update::show_update_failed_dialog(app.handle());
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             connect_device,
             disconnect_device,
@@ -52,6 +64,7 @@ pub fn run() {
             open_session_log,
             log_ui_event,
             check_for_updates,
+            install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

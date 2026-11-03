@@ -21,6 +21,7 @@ function App() {
     appVersion,
     isLinux,
     checkingUpdates,
+    installingUpdate,
     updateResult,
     showUpdateModal,
     updateError,
@@ -47,6 +48,7 @@ function App() {
     checkForUpdates,
     setShowUpdateModal,
     openLatestReleasePage,
+    installUpdate,
     handleSetupMicClick,
     setMicrophoneBoost,
   } = useDeviceRuntime({ showToast });
@@ -159,15 +161,19 @@ function App() {
             </p>
             {updateError && <p class="info-note">Last check error: {updateError}</p>}
             <p class="update-last-checked">Last checked: {lastCheckedLabel}</p>
-            <p class="info-note">Updates are currently installed manually from the GitHub release page.</p>
             <div class="update-modal-actions">
               <button class="btn-compact btn-secondary" onClick={() => setShowUpdateModal(false)}>
                 Later
               </button>
               {updateResult?.updateAvailable ? (
-                <button class="btn-compact" onClick={openLatestReleasePage}>
-                  Open Release Page
-                </button>
+                <>
+                  <button class="btn-compact btn-secondary" onClick={openLatestReleasePage}>
+                    View Release Notes
+                  </button>
+                  <button class="btn-compact" onClick={installUpdate} disabled={installingUpdate}>
+                    {installingUpdate ? "Updating..." : "Update Now"}
+                  </button>
+                </>
               ) : (
                 <button class="btn-compact" onClick={() => setShowUpdateModal(false)}>
                   Close

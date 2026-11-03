@@ -31,6 +31,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     () => localStorage.getItem("rusty-g6-experimental") === "true"
   );
   const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -418,6 +419,25 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
   };
 
+  // Re-runs the one-line installer in the background; the app exits and the
+  // installer relaunches the new version (see RELEASE_STANDARD.md).
+  const installUpdate = async () => {
+    if (installingUpdate) {
+      return;
+    }
+
+    setInstallingUpdate(true);
+    try {
+      showToast("Starting update... Rusty G6 will restart shortly.", "info");
+      await logUiEvent(`Installing update to v${updateResult?.latestVersion ?? "latest"}`);
+      await invoke("install_update");
+    } catch (error) {
+      setInstallingUpdate(false);
+      showToast(`Failed to start update: ${error}`, "error");
+      await logUiEvent(`Failed to start update: ${error}`);
+    }
+  };
+
   const checkForUpdates = async (showUpToDateToast: boolean) => {
     if (checkingUpdates) {
       return;
@@ -548,6 +568,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     autostartEnabled,
     showExperimental,
     checkingUpdates,
+    installingUpdate,
     updateResult,
     showUpdateModal,
     updateError,
@@ -571,6 +592,7 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     checkForUpdates,
     setShowUpdateModal,
     openLatestReleasePage,
+    installUpdate,
     handleSetupMicClick,
     setMicrophoneBoost,
   };

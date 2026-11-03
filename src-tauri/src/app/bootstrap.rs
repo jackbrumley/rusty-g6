@@ -26,10 +26,8 @@ pub fn configure_shell(app: &mut tauri::App<tauri::Wry>) -> Result<(), Box<dyn s
             };
 
             if last_available != Some(available) {
-                let _ = app_handle.emit(
-                    "device-availability",
-                    DeviceAvailabilityEvent { available },
-                );
+                let _ =
+                    app_handle.emit("device-availability", DeviceAvailabilityEvent { available });
                 last_available = Some(available);
             }
 

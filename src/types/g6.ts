@@ -68,4 +68,5 @@ export interface UpdateCheckResult {
   latestVersion: string;
   updateAvailable: boolean;
   releaseUrl: string;
+  notesUrl: string | null;
 }
