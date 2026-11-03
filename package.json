@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "npm run tauri -- dev",
-    "tauri:build": "npm run tauri -- build"
+    "tauri:build": "npm run tauri -- build",
+    "release:linux": "node scripts/build-linux-release.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "release:notes": "node scripts/release-notes-template.mjs",
+    "release:verify": "node scripts/verify-release.mjs",
+    "release:promote": "node scripts/promote-release.mjs"
   },
   "dependencies": {
     "@tabler/icons-preact": "^3.41.1",

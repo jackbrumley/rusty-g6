@@ -30,3 +30,6 @@ pnpm-debug.log*
 reference-systems/
 packet-capture/
 session-ses_*.md
+
+# Release packaging output
+release-artifacts/
