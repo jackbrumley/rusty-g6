@@ -45,6 +45,11 @@ Rusty G6's variations from the standard:
   `scripts/release-assets.mjs`.
 - **Install site:** `https://brumley.info/rusty-g6` (GitHub Pages from
   `main:/docs`).
+- **App ID:** `info.brumley.rustyg6` (Tauri `identifier`, Wayland app_id,
+  launcher `src-tauri/packaging/info.brumley.rustyg6.desktop`; `APP_ID` in
+  `src-tauri/src/app/identity.rs`). Before v1.0.8 it was `com.rusty-g6` with a
+  `rusty-g6.desktop` launcher, which the installers clean up. Config stays in
+  `~/.config/rusty-g6`.
 - **Post-install:** the AppImage install adds the udev rule
   `/etc/udev/rules.d/50-soundblaster-x-g6.rules` itself (needs root once); the
   `.deb`/`.rpm` install it in their post-install scripts

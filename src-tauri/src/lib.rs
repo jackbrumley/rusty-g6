@@ -12,6 +12,7 @@ pub struct LaunchOptions {
 }
 
 pub fn run(launch: LaunchOptions) {
+    app::identity::configure_app_identity();
     if let Err(error) = app::session_log::initialize_session_logging() {
         eprintln!("Failed to initialize session logging: {}", error);
     }

@@ -3685,6 +3685,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs 5.0.1",
+ "gtk",
  "hidapi",
  "libc",
  "log",

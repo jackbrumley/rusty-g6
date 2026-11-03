@@ -86,6 +86,7 @@ fi
 # User-local AppImage install.
 for path in \
   "${HOME}/.local/bin/${BIN_NAME}" \
+  "${HOME}/.local/share/applications/info.brumley.rustyg6.desktop" \
   "${HOME}/.local/share/applications/${BIN_NAME}.desktop" \
   "${HOME}/.local/share/icons/hicolor/256x256/apps/${BIN_NAME}.png" \
   "${HOME}/.config/autostart/${BIN_NAME}.desktop"; do

@@ -38,6 +38,10 @@ tauri-plugin-dialog = "2"
 rusb = "0.9"
 hidapi = { version = "2.6", features = ["linux-static-hidraw"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Sets the GTK prgname / Wayland app_id (same gtk version Tauri uses).
+gtk = "0.18"
+
 [target.'cfg(unix)'.dependencies]
 # setsid() detaches the in-app updater from the app's session.
 libc = "0.2"

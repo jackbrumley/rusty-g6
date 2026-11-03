@@ -28,6 +28,22 @@ cd /build
 npm ci
 npm run tauri:build
 
+# The deb/rpm desktop template renders a Hidden stub (the real launcher ships
+# as info.brumley.rustyg6.desktop), and the AppImage reuses that template.
+# tauri.conf.json bundle.linux.appimage.files overrides the stub by the
+# bundler's generated filename; fail if that drifts and the AppImage's
+# top-level launcher is the hidden stub.
+for appdir in "${bundle_dir}"/appimage/*.AppDir; do
+    for launcher in "$appdir"/*.desktop; do
+        if grep -qx 'Hidden=true' "$launcher"; then
+            echo "AppImage launcher check failed: $launcher is the hidden bundler stub." >&2
+            echo "Update bundle.linux.appimage.files in tauri.conf.json to the bundler's generated desktop filename." >&2
+            exit 1
+        fi
+        echo "AppImage launcher check passed: $(basename "$launcher")"
+    done
+done
+
 for bundle in deb rpm appimage; do
     rm -rf "/out/${bundle}"
     mkdir -p "/out/${bundle}"

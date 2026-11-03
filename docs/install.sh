@@ -7,6 +7,11 @@ set -euo pipefail
 
 REPO="jackbrumley/rusty-g6"
 BIN_NAME="rusty-g6"
+# App ID (RELEASE_STANDARD.md "App Identity"): the launcher must be named
+# <APP_ID>.desktop so desktops match the running window to it.
+APP_ID="info.brumley.rustyg6"
+# Launchers written by earlier installers, removed on install.
+LEGACY_USER_LAUNCHERS=("rusty-g6.desktop")
 INSTALL_BASE_URL="https://brumley.info/rusty-g6"
 UDEV_RULE_PATH="/etc/udev/rules.d/50-soundblaster-x-g6.rules"
 
@@ -210,9 +215,21 @@ EOF
   log "USB permission rule installed. If the G6 is plugged in, unplug it and plug it back in."
 }
 
+remove_legacy_user_launchers() {
+  local name path
+  for name in "${LEGACY_USER_LAUNCHERS[@]}"; do
+    path="${HOME}/.local/share/applications/${name}"
+    if [[ -e "$path" || -L "$path" ]]; then
+      log "Removing old launcher: ${path}"
+      rm -f "$path"
+    fi
+  done
+}
+
 remove_user_appimage() {
   local user_binary="${HOME}/.local/bin/${BIN_NAME}"
-  local user_desktop="${HOME}/.local/share/applications/${BIN_NAME}.desktop"
+  local user_desktop="${HOME}/.local/share/applications/${APP_ID}.desktop"
+  remove_legacy_user_launchers
   for path in "$user_binary" "$user_desktop"; do
     if [[ -e "$path" || -L "$path" ]]; then
       log "Removing previous user install: ${path}"
@@ -360,7 +377,8 @@ else
     fi
   fi
 
-  cat > "${desktop_dir}/${BIN_NAME}.desktop" <<EOF
+  remove_legacy_user_launchers
+  cat > "${desktop_dir}/${APP_ID}.desktop" <<EOF
 [Desktop Entry]
 Name=Rusty G6
 Comment=Control panel for the Sound BlasterX G6
@@ -369,7 +387,7 @@ Icon=${BIN_NAME}
 Terminal=false
 Type=Application
 Categories=AudioVideo;Audio;Settings;
-StartupWMClass=${BIN_NAME}
+StartupWMClass=${APP_ID}
 StartupNotify=true
 EOF
   log "Desktop launcher created"

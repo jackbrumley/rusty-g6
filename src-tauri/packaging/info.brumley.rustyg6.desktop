@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Rusty G6
+Comment=Control panel for the Sound BlasterX G6
+Exec=rusty-g6
+Icon=rusty-g6
+Terminal=false
+Categories=AudioVideo;Audio;Settings;
+StartupWMClass=info.brumley.rustyg6
+StartupNotify=true
