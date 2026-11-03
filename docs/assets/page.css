@@ -1,28 +1,48 @@
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --border: #e2e5ea;
-  --text: #14161c;
-  --muted: #5b6472;
+  --bg: #ffffff;
+  --surface: rgba(255, 255, 255, 0.82);
+  --border: #ece6e6;
+  --text: #1a1414;
+  --muted: #625a5a;
   --accent: #e5483f;
-  --accent-2: #ff7a45;
-  --code-bg: #14161d;
-  --code-text: #e7ebf2;
-  --code-border: #262a36;
+  --accent-2: #ff8a3d;
+  --code-bg: #16131a;
+  --code-text: #eee9ea;
+  --code-border: #2a2430;
   --success: #10b981;
+  --hero-wash:
+    radial-gradient(ellipse 55% 85% at 88% 5%, rgba(255, 138, 61, 0.24) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 90% at 5% 0%, rgba(229, 72, 63, 0.16) 0%, transparent 70%),
+    linear-gradient(180deg, #fbf1ef 0%, #fcf4f0 100%);
+  --panel-shadow: 0 1px 2px rgba(26, 20, 20, 0.05), 0 18px 50px rgba(229, 72, 63, 0.10);
+  --tile-bg: linear-gradient(145deg, #fde4df, #fff3ea);
+  --tile-rim: rgba(26, 20, 20, 0.06);
+  --tile-glow: 0 10px 26px rgba(229, 72, 63, 0.18);
+  --icon-glow: none;
+  --shot-shadow: 0 8px 28px rgba(26, 20, 20, 0.12);
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1117;
-    --surface: #181b24;
-    --border: #262a36;
-    --text: #f2f4f8;
-    --muted: #9aa3b2;
+    --bg: #0f0c10;
+    --surface: rgba(26, 21, 28, 0.88);
+    --border: #2c2430;
+    --text: #f5f1f2;
+    --muted: #b0a6aa;
     --accent: #ff5a4f;
-    --code-bg: #0a0c11;
-    --code-border: #2a2f3c;
+    --code-bg: #0b090d;
+    --code-border: #2e2733;
+    --hero-wash:
+      radial-gradient(ellipse 55% 85% at 88% 5%, rgba(255, 138, 61, 0.22) 0%, transparent 70%),
+      radial-gradient(ellipse 70% 90% at 5% 0%, rgba(229, 72, 63, 0.26) 0%, transparent 70%),
+      linear-gradient(180deg, #24120f 0%, #1a0f12 100%);
+    --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    --tile-bg: linear-gradient(145deg, #4a2a2a, #3a2a2a);
+    --tile-rim: rgba(255, 255, 255, 0.16);
+    --tile-glow: 0 8px 30px rgba(255, 90, 79, 0.35);
+    --icon-glow: drop-shadow(0 0 8px rgba(255, 90, 79, 0.55));
+    --shot-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -39,11 +59,16 @@ body {
 
 a { color: var(--accent); }
 
-.page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 32px 16px 40px;
+/* Hero */
+
+.hero {
+  background: var(--hero-wash);
+  clip-path: polygon(0 0, 100% 0, 100% 80%, 26% 100%, 0 90%);
+  padding: 28px 16px 150px;
+  overflow: hidden;
 }
+
+.hero-inner { max-width: 960px; margin: 0 auto; }
 
 .crumb a {
   color: var(--muted);
@@ -52,31 +77,78 @@ a { color: var(--accent); }
 }
 .crumb a:hover { color: var(--text); }
 
-.hero {
+.hero-row {
   display: flex;
-  gap: 20px;
   align-items: center;
-  margin: 28px 0 32px;
+  justify-content: space-between;
+  gap: 32px;
+  margin-top: 40px;
 }
 
-.hero-icon { flex: none; width: 88px; height: 88px; }
+.hero-copy { max-width: 540px; }
+
+.hero-tile {
+  display: inline-grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 24px;
+  background: var(--tile-bg);
+  box-shadow: inset 0 0 0 1px var(--tile-rim), inset 0 1px 0 rgba(255, 255, 255, 0.35), var(--tile-glow);
+}
+
+.hero-tile img { width: 64px; height: 64px; filter: var(--icon-glow); }
 
 .hero h1 {
-  margin: 0 0 6px;
-  font-size: 2.2rem;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  margin: 22px 0 0;
+  font-size: clamp(2.6rem, 7vw, 3.8rem);
+  font-weight: 300;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
 }
 
-.tagline { margin: 0; color: var(--muted); font-size: 1.05rem; }
+.tagline {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
 
-/* Install widget */
+.hero-art {
+  flex: none;
+  width: 360px;
+  height: auto;
+  margin-right: -20px;
+}
+
+/* Page body */
+
+.page {
+  max-width: 992px; /* 960px of content, matching .hero-inner, plus side padding */
+  margin: -110px auto 0;
+  padding: 0 16px 48px;
+  position: relative;
+}
+
+/* Install panel */
 
 .install {
-  padding: 24px;
+  position: relative;
+  padding: 28px 28px 24px;
   background: var(--surface);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 18px;
+  box-shadow: var(--panel-shadow);
+  overflow: hidden;
+}
+
+.install::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
 .platform-labels {
@@ -209,39 +281,80 @@ a { color: var(--accent); }
 
 /* Content */
 
-h2 { font-size: 1.15rem; margin: 0 0 12px; }
+h2 {
+  margin: 0 0 16px;
+  font-size: 1.6rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
 
-.features, .shots { margin-top: 40px; }
+.features, .shots { margin-top: 64px; }
 
-.features ul { margin: 0; padding-left: 1.2rem; color: var(--muted); }
-.features li + li { margin-top: 4px; }
+.features ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.features li {
+  position: relative;
+  padding: 14px 16px 14px 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.features li::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 21px;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  transform: rotate(45deg);
+}
 
 .shot-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
 }
 
 .shot-row img {
   width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
+  box-shadow: var(--shot-shadow);
 }
 
 .footer {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 48px;
+  margin-top: 64px;
   font-size: 0.85rem;
   color: var(--muted);
 }
 .footer a { color: var(--muted); }
 
-@media (max-width: 520px) {
-  .hero { flex-direction: column; align-items: flex-start; }
-  .install { padding: 18px 14px; }
+@media (max-width: 760px) {
+  .hero { padding-bottom: 140px; }
+  .hero-row { position: relative; margin-top: 28px; }
+  .hero-copy { position: relative; z-index: 1; }
+  .hero-art {
+    position: absolute;
+    right: -110px;
+    top: -30px;
+    width: 280px;
+    opacity: 0.4;
+  }
+  .install { padding: 22px 14px 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

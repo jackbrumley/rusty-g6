@@ -6,20 +6,46 @@
   <title>Rusty G6 · Install</title>
   <meta name="description" content="Rusty G6 is a free, open-source control panel for the Sound BlasterX G6 on Linux and Windows. Install it with one command." />
   <link rel="icon" href="assets/icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
   <link rel="stylesheet" href="assets/page.css" />
 </head>
 <body>
-  <main class="page">
-    <nav class="crumb"><a href="/">← All apps</a></nav>
-
-    <header class="hero">
-      <img class="hero-icon" src="assets/icon.png" alt="" width="88" height="88" />
-      <div>
-        <h1>Rusty G6</h1>
-        <p class="tagline">A simple control panel for the Sound BlasterX G6 on Linux and Windows. Switch between speakers and headphones and tweak SBX effects, no command line needed.</p>
+  <header class="hero">
+    <div class="hero-inner">
+      <nav class="crumb"><a href="/">← All apps</a></nav>
+      <div class="hero-row">
+        <div class="hero-copy">
+          <span class="hero-tile"><img src="assets/icon.png" alt="" width="64" height="64" /></span>
+          <h1>Rusty G6</h1>
+          <p class="tagline">A simple control panel for the Sound BlasterX G6 on Linux and Windows. Switch between speakers and headphones and tweak SBX effects, no command line needed.</p>
+        </div>
+        <svg class="hero-art" viewBox="0 0 420 340" aria-hidden="true">
+          <defs>
+            <linearGradient id="h1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ff5a4f" stop-opacity="0.8" />
+              <stop offset="1" stop-color="#ff8a3d" stop-opacity="0.12" />
+            </linearGradient>
+            <linearGradient id="h2" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ff8a3d" stop-opacity="0.7" />
+              <stop offset="1" stop-color="#e5483f" stop-opacity="0.06" />
+            </linearGradient>
+            <linearGradient id="h3" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#c2185b" stop-opacity="0.05" />
+              <stop offset="1" stop-color="#e5483f" stop-opacity="0.45" />
+            </linearGradient>
+          </defs>
+          <polygon points="250,40 362.6,105 362.6,235 250,300 137.4,235 137.4,105" fill="url(#h3)" />
+          <polygon points="150,150 219.3,190 219.3,270 150,310 80.7,270 80.7,190" fill="url(#h1)" />
+          <polygon points="350,30 402,60 402,120 350,150 298,120 298,60" fill="url(#h2)" />
+          <polyline points="137.4,105 250,40 362.6,105" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1" />
+        </svg>
       </div>
-    </header>
+    </div>
+  </header>
 
+  <main class="page">
     <section class="install" aria-label="Install">
       <div class="platform-labels" id="platform-labels" role="tablist">
         <button type="button" class="platform-label" data-platform="linux" role="tab">Linux</button>
