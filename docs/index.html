@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rusty G6 · Install</title>
+  <meta name="description" content="Rusty G6 is a free, open-source control panel for the Sound BlasterX G6 on Linux and Windows. Install it with one command." />
+  <link rel="icon" href="assets/icon.png" type="image/png" />
+  <link rel="stylesheet" href="assets/page.css" />
+</head>
+<body>
+  <main class="page">
+    <nav class="crumb"><a href="/">← All apps</a></nav>
+
+    <header class="hero">
+      <img class="hero-icon" src="assets/icon.png" alt="" width="88" height="88" />
+      <div>
+        <h1>Rusty G6</h1>
+        <p class="tagline">A simple control panel for the Sound BlasterX G6 on Linux and Windows. Switch between speakers and headphones and tweak SBX effects, no command line needed.</p>
+      </div>
+    </header>
+
+    <section class="install" aria-label="Install">
+      <div class="platform-labels" id="platform-labels" role="tablist">
+        <button type="button" class="platform-label" data-platform="linux" role="tab">Linux</button>
+        <button type="button" class="platform-label" data-platform="windows" role="tab">Windows</button>
+        <div class="platform-tab-indicator" id="platform-tab-indicator"></div>
+      </div>
+
+      <p class="install-hint" id="install-hint" aria-live="polite"></p>
+
+      <div class="install-code-wrapper">
+        <pre class="install-code-block" id="install-code"></pre>
+        <button type="button" class="install-copy-btn" id="install-copy-btn" aria-label="Copy command"></button>
+      </div>
+      <div class="install-variants" id="install-variants"></div>
+      <p class="install-note" id="install-note"></p>
+
+      <p class="manual">
+        Prefer to download it yourself?
+        <a href="https://github.com/jackbrumley/rusty-g6/releases/latest">Get the installers from GitHub</a>
+        (.deb, .rpm, AppImage, setup.exe, MSI).
+      </p>
+    </section>
+
+    <section class="features">
+      <h2>What it does</h2>
+      <ul>
+        <li>Switch the G6 output between speakers and headphones</li>
+        <li>Adjust SBX effects: Surround, Crystalizer, Bass, Smart Volume and Dialog Plus</li>
+        <li>Works on Linux, where Creative doesn't provide an app, and on Windows</li>
+      </ul>
+    </section>
+
+    <section class="shots">
+      <h2>Screenshots</h2>
+      <div class="shot-row">
+        <img src="screenshots/screenshot-1.png" alt="Rusty G6 main dashboard" width="620" height="572" />
+        <img src="screenshots/screenshot-2.png" alt="Output and profile controls" width="620" height="572" />
+        <img src="screenshots/screenshot-3.png" alt="SBX effects controls" width="620" height="572" />
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="https://github.com/jackbrumley/rusty-g6">Source on GitHub</a>
+      <span aria-hidden="true">·</span>
+      <span>MIT licence</span>
+      <span aria-hidden="true">·</span>
+      <span>Not affiliated with Creative Technology.</span>
+    </footer>
+  </main>
+
+  <script src="assets/install-widget.js" defer></script>
+</body>
+</html>

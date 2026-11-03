@@ -1,0 +1,249 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --text: #14161c;
+  --muted: #5b6472;
+  --accent: #e5483f;
+  --accent-2: #ff7a45;
+  --code-bg: #14161d;
+  --code-text: #e7ebf2;
+  --code-border: #262a36;
+  --success: #10b981;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1117;
+    --surface: #181b24;
+    --border: #262a36;
+    --text: #f2f4f8;
+    --muted: #9aa3b2;
+    --accent: #ff5a4f;
+    --code-bg: #0a0c11;
+    --code-border: #2a2f3c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 40px;
+}
+
+.crumb a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.crumb a:hover { color: var(--text); }
+
+.hero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin: 28px 0 32px;
+}
+
+.hero-icon { flex: none; width: 88px; height: 88px; }
+
+.hero h1 {
+  margin: 0 0 6px;
+  font-size: 2.2rem;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.tagline { margin: 0; color: var(--muted); font-size: 1.05rem; }
+
+/* Install widget */
+
+.install {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.platform-labels {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  padding-bottom: 4px;
+}
+
+.platform-label {
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.25rem 0.6rem 0.15rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.platform-label:hover,
+.platform-label.active { color: var(--text); }
+.platform-label:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.platform-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.install-hint {
+  margin: 20px 0 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.install-hint strong { color: var(--text); font-weight: 600; }
+
+.install-code-wrapper { position: relative; min-width: 0; }
+
+.install-code-block {
+  margin: 0;
+  min-height: 2.6rem;
+  display: flex;
+  align-items: center;
+  padding: 0.7rem 3.25rem 0.7rem 0.9rem;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 10px;
+  color: var(--code-text);
+  font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
+  font-size: 0.85rem;
+  white-space: pre;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.install-code-block::-webkit-scrollbar { height: 4px; }
+.install-code-block::-webkit-scrollbar-track { background: transparent; }
+.install-code-block::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 2px; }
+
+.install-copy-btn {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--code-bg);
+  border: none;
+  border-left: 1px solid var(--code-border);
+  border-radius: 0 9px 9px 0;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.install-copy-btn:hover { color: #fff; background: #1d212b; }
+.install-copy-btn.copied { color: var(--success); }
+
+.install-variants {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  min-height: 24px;
+}
+
+.install-variant-btn {
+  background: transparent;
+  border: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+}
+.install-variant-btn:hover { color: var(--text); }
+.install-variant-btn.active { color: var(--accent); font-weight: 600; }
+
+.install-note {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.manual {
+  margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.88rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Content */
+
+h2 { font-size: 1.15rem; margin: 0 0 12px; }
+
+.features, .shots { margin-top: 40px; }
+
+.features ul { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+.features li + li { margin-top: 4px; }
+
+.shot-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.shot-row img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 48px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.footer a { color: var(--muted); }
+
+@media (max-width: 520px) {
+  .hero { flex-direction: column; align-items: flex-start; }
+  .install { padding: 18px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .platform-tab-indicator { transition: none; }
+}
