@@ -43,7 +43,12 @@ hidapi = { version = "2.6", features = ["linux-static-hidraw"] }
 gtk = "0.18"
 # The Linux tray is a StatusNotifierItem published over DBus (pure Rust, no
 # libdbus): Tauri's libappindicator tray reports no clicks.
-ksni = { version = "0.3.7", default-features = false, features = ["tokio"] }
+# Use ksni's async-io backend, not "tokio": ksni's tokio feature switches the
+# shared zbus crate to tokio, whose blocking API then runs on a current-thread
+# runtime that only works inside block_on. tauri-plugin-single-instance serves
+# its DBus object with that blocking API, so the running instance never
+# answered a second launch and the second launch hung.
+ksni = { version = "0.3.7", default-features = false, features = ["async-io"] }
 zbus = "5"
 
 # Linux publishes its tray with ksni instead. tauri-cli reads features from
