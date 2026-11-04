@@ -1,0 +1,100 @@
+# Checks Rusty G6 on every push and pull request to dev and main (App
+# Standard section 7), on both platforms it ships: Linux and Windows.
+# Installers are built only by release.yml.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  frontend:
+    name: Frontend (typecheck, lint, structure, build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run check:structure
+      - run: npm run build
+
+      - name: Check installer script syntax
+        run: |
+          for script in docs/install.sh docs/uninstall.sh; do
+            bash -n "$script"
+          done
+
+  rust:
+    name: Rust (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-24.04
+          - name: Windows
+            runner: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # Installs the version (and components) pinned in rust-toolchain.toml.
+      - name: Install Rust toolchain
+        shell: bash
+        run: rustup toolchain install
+
+      # The build set from src-tauri/packaging/linux/Containerfile:
+      # libudev-dev and libusb-1.0-0-dev for hidapi/rusb,
+      # libayatana-appindicator3-dev for tauri's tray feature, and WebKitGTK.
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libayatana-appindicator3-dev libgtk-3-dev librsvg2-dev libssl-dev \
+            libudev-dev libusb-1.0-0-dev libwebkit2gtk-4.1-dev pkg-config
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # tauri::generate_context! embeds the built frontend (frontendDist).
+      - name: Build frontend
+        shell: bash
+        run: |
+          npm ci
+          npm run build
+
+      - name: cargo fmt
+        if: runner.os == 'Linux'
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test
