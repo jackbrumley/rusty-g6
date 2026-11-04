@@ -17,57 +17,20 @@ const PAYLOAD_SIZE: usize = 64;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CommandFamily {
-    Unknown02 = 0x02, // Unknown - appears before audio changes (preparation/unlock?)
-    Identification = 0x05, // Device info queries
     FirmwareQuery = 0x07, // Firmware version (discovered ASCII mode)
-    HardwareStatus = 0x10, // Hardware state
-    AudioControl = 0x11, // Primary protocol - Read/Write SBX & EQ
-    DataControl = 0x12, // Audio effect data commands
-    BatchControl = 0x15, // Multiple params simultaneously
-    Processing = 0x20, // Audio processing engine
-    Gaming = 0x26,    // Scout/SBX Mode switches
-    Routing = 0x2c,   // Output switching
-    DeviceConfig = 0x30, // General device settings
-    SystemConfig = 0x3a, // LEDs, system parameters
-    AudioConfig = 0x3c, // Audio configuration (purpose unclear, may be Windows notification)
-    DigitalFilter = 0x6c, // DAC digital filter settings
+    AudioControl = 0x11,  // Primary protocol - Read/Write SBX & EQ
+    DataControl = 0x12,   // Audio effect data commands
+    Gaming = 0x26,        // Scout/SBX Mode switches
+    Routing = 0x2c,       // Output switching
+    AudioConfig = 0x3c,   // Audio configuration (microphone boost)
 }
+
+// The other families seen in captures (0x02, 0x05, 0x10, 0x15, 0x20, 0x30,
+// 0x3a, 0x6c) are only named in `describe_packet`: nothing sends them.
 
 impl CommandFamily {
     pub fn as_u8(&self) -> u8 {
         *self as u8
-    }
-}
-
-// ============================================================================
-// OPERATION TYPES
-// ============================================================================
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OperationType {
-    Identification, // 0x01 - Device identification
-    AsciiQuery,     // 0x01 0x02 - ASCII response mode
-    Read,           // 0x03 - Read current state
-    Write,          // 0x07 - Write data
-    Report,         // 0x08 - Device report
-    Query,          // 0x0a - Query configuration
-    BinaryQuery,    // 0x10 - Binary response mode
-}
-
-// ============================================================================
-// INTERMEDIATE TYPES
-// ============================================================================
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u16)]
-pub enum IntermediateType {
-    Equalizer = 0x0195, // EQ bands
-    Audio = 0x0196,     // SBX audio effects
-}
-
-impl IntermediateType {
-    pub fn as_u16(&self) -> u16 {
-        *self as u16
     }
 }
 
@@ -77,9 +40,6 @@ impl IntermediateType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParsedResponse {
-    Ascii(String),
-    Float(f32),
-    Boolean(bool),
     Binary(Vec<u8>),
     OutputDevice(OutputDevice),
     FirmwareInfo(FirmwareInfo),
@@ -167,8 +127,8 @@ impl G6EventParser {
         // Exact format: 5a 2c 05 01 [VALUE] 00...
         // Value at index 4 (0x02=Speakers, 0x04=Headphones)
         match packet[4] {
-            0x04 => return Some(DeviceEvent::OutputChanged(OutputDevice::Headphones)),
-            0x02 => return Some(DeviceEvent::OutputChanged(OutputDevice::Speakers)),
+            0x04 => Some(DeviceEvent::OutputChanged(OutputDevice::Headphones)),
+            0x02 => Some(DeviceEvent::OutputChanged(OutputDevice::Speakers)),
             _ => None,
         }
     }
@@ -355,7 +315,6 @@ pub struct ProtocolDebugInfo {
     pub parsed_result: String,
     pub parsing_attempts: Vec<String>,
     pub success: bool,
-    pub timestamp: u64,
 }
 
 impl ProtocolDebugInfo {
@@ -368,10 +327,6 @@ impl ProtocolDebugInfo {
             parsed_result: String::new(),
             parsing_attempts: Vec::new(),
             success: false,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
         }
     }
 
@@ -394,20 +349,6 @@ impl ProtocolDebugInfo {
         output.push('\n');
         output
     }
-
-    pub fn to_json(&self) -> String {
-        // Simple JSON serialization
-        format!(
-            r#"{{"command_hex":"{}","response_hex":"{}","command_desc":"{}","response_desc":"{}","result":"{}","success":{},"timestamp":{}}}"#,
-            self.command_hex,
-            self.response_hex,
-            self.command_description,
-            self.response_description,
-            self.parsed_result.replace('"', "\\\""),
-            self.success,
-            self.timestamp
-        )
-    }
 }
 
 // ============================================================================
@@ -418,7 +359,6 @@ impl ProtocolDebugInfo {
 pub struct G6CommandBuilder {
     family: CommandFamily,
     operation_bytes: Vec<u8>,
-    intermediate: Option<u16>,
     feature: Option<u8>,
     value: Option<Vec<u8>>,
 }
@@ -429,7 +369,6 @@ impl G6CommandBuilder {
         Self {
             family,
             operation_bytes: Vec::new(),
-            intermediate: None,
             feature: None,
             value: None,
         }
@@ -441,21 +380,9 @@ impl G6CommandBuilder {
         self
     }
 
-    /// Set intermediate type (for audio/EQ operations)
-    pub fn intermediate(mut self, intermediate: IntermediateType) -> Self {
-        self.intermediate = Some(intermediate.as_u16());
-        self
-    }
-
     /// Set feature ID
     pub fn feature(mut self, feature: u8) -> Self {
         self.feature = Some(feature);
-        self
-    }
-
-    /// Set value bytes (little-endian)
-    pub fn value(mut self, value: &[u8]) -> Self {
-        self.value = Some(value.to_vec());
         self
     }
 
@@ -478,11 +405,6 @@ impl G6CommandBuilder {
         // Operation bytes
         command.extend_from_slice(&self.operation_bytes);
 
-        // Intermediate (big-endian)
-        if let Some(intermediate) = self.intermediate {
-            command.extend_from_slice(&intermediate.to_be_bytes());
-        }
-
         // Feature
         if let Some(feature) = self.feature {
             command.push(feature);
@@ -497,17 +419,6 @@ impl G6CommandBuilder {
         command.resize(PAYLOAD_SIZE, 0x00);
 
         command
-    }
-
-    /// Build with automatic debug description
-    pub fn build_with_debug(self) -> (Vec<u8>, String) {
-        let desc = format!(
-            "{:?} command (family 0x{:02x})",
-            self.family,
-            self.family.as_u8()
-        );
-        let cmd = self.build();
-        (cmd, desc)
     }
 }
 
@@ -573,14 +484,11 @@ impl G6ResponseParser {
             return Err("Response too short for firmware".to_string());
         }
 
-        // Find null terminator
-        let mut version_end = 3;
-        for i in 3..response.len() {
-            if response[i] == 0 {
-                version_end = i;
-                break;
-            }
-        }
+        // Find null terminator (none: no version)
+        let version_end = response[3..]
+            .iter()
+            .position(|&byte| byte == 0)
+            .map_or(3, |offset| 3 + offset);
 
         if version_end > 3 {
             let version_bytes = &response[3..version_end];
@@ -754,13 +662,6 @@ pub fn build_firmware_query_ascii() -> Vec<u8> {
         .build()
 }
 
-/// Build firmware query command (binary mode)
-pub fn build_firmware_query_binary() -> Vec<u8> {
-    G6CommandBuilder::new(CommandFamily::FirmwareQuery)
-        .operation(&[0x10]) // Binary mode
-        .build()
-}
-
 /// Build audio effect read command
 pub fn build_audio_effect_read(feature: u8) -> Vec<u8> {
     // Corrected based on packet capture: 5a 11 03 01 96 [FEATURE]
@@ -786,80 +687,6 @@ pub fn build_gaming_mode_read() -> Vec<u8> {
 pub fn build_output_config_read() -> Vec<u8> {
     G6CommandBuilder::new(CommandFamily::Routing)
         .operation(&[0x01, 0x01])
-        .build()
-}
-
-// ============================================================================
-// ALL READ COMMANDS (Phase 2)
-// ============================================================================
-
-/// Build read command for surround effect
-pub fn build_read_surround() -> Vec<u8> {
-    build_audio_effect_read(0x00)
-}
-
-/// Build read command for surround value
-pub fn build_read_surround_value() -> Vec<u8> {
-    build_audio_effect_read(0x01)
-}
-
-/// Build read command for dialog plus
-pub fn build_read_dialog_plus() -> Vec<u8> {
-    build_audio_effect_read(0x02)
-}
-
-/// Build read command for dialog plus value
-pub fn build_read_dialog_plus_value() -> Vec<u8> {
-    build_audio_effect_read(0x03)
-}
-
-/// Build read command for smart volume
-pub fn build_read_smart_volume() -> Vec<u8> {
-    build_audio_effect_read(0x04)
-}
-
-/// Build read command for smart volume value
-pub fn build_read_smart_volume_value() -> Vec<u8> {
-    build_audio_effect_read(0x05)
-}
-
-/// Build read command for smart volume preset
-pub fn build_read_smart_volume_preset() -> Vec<u8> {
-    build_audio_effect_read(0x06)
-}
-
-/// Build read command for crystalizer
-pub fn build_read_crystalizer() -> Vec<u8> {
-    build_audio_effect_read(0x07)
-}
-
-/// Build read command for crystalizer value
-pub fn build_read_crystalizer_value() -> Vec<u8> {
-    build_audio_effect_read(0x08)
-}
-
-/// Build read command for bass
-pub fn build_read_bass() -> Vec<u8> {
-    build_audio_effect_read(0x18)
-}
-
-/// Build read command for bass value
-pub fn build_read_bass_value() -> Vec<u8> {
-    build_audio_effect_read(0x19)
-}
-
-/// Build read command for extended audio parameter
-pub fn build_read_extended_param(param_id: u8) -> Vec<u8> {
-    build_audio_effect_read(param_id)
-}
-
-/// Build read command for equalizer band
-pub fn build_read_equalizer_band(band: u8) -> Vec<u8> {
-    // Corrected based on packet capture: 5a 11 03 01 95 [BAND]
-    // 0x95 is the EQ Type byte.
-    G6CommandBuilder::new(CommandFamily::AudioControl)
-        .operation(&[0x03, 0x01, 0x95])
-        .feature(band)
         .build()
 }
 
@@ -897,31 +724,6 @@ pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
 
     for feature in features.iter() {
         commands.push(build_audio_effect_read(*feature));
-    }
-
-    commands
-}
-
-/// Build the FULL read command set (60 commands - mostly fail, takes 30+ seconds)
-/// This is kept for reference but should NOT be used in production
-#[allow(dead_code)]
-pub fn build_read_all_state_commands_slow() -> Vec<Vec<u8>> {
-    let mut commands = Vec::new();
-
-    // Firmware queries
-    commands.push(build_firmware_query_ascii());
-
-    // Output configuration
-    commands.push(build_output_config_read());
-
-    // All audio effects (0x00 to 0x1D) - These don't work!
-    for feature in 0x00..=0x1D {
-        commands.push(build_audio_effect_read(feature));
-    }
-
-    // All equalizer bands (0x00 to 0x1B) - These don't work either!
-    for band in 0x00..=0x1B {
-        commands.push(build_read_equalizer_band(band));
     }
 
     commands
@@ -978,7 +780,6 @@ const FEATURE_SMART_VOLUME_VALUE: u8 = 0x05;
 const FEATURE_CRYSTALIZER_TOGGLE: u8 = 0x07;
 const FEATURE_CRYSTALIZER_VALUE: u8 = 0x08;
 const FEATURE_BASS_TOGGLE: u8 = 0x18;
-const FEATURE_BASS_VALUE: u8 = 0x19;
 
 // Gaming Mode Feature IDs (0x26 family)
 const FEATURE_SBX_MODE: u8 = 0x01;
@@ -999,22 +800,6 @@ pub fn build_set_bass_toggle(enabled: bool) -> Vec<Vec<u8>> {
             .build(),
         // READ command - 5a 11 03 01 96 18 ... (to verify/confirm change)
         build_audio_effect_read(FEATURE_BASS_TOGGLE),
-    ]
-}
-
-/// Build command to set bass value (0-100)
-/// Command format: Single command using 0x11 0x08 (matches official software)
-pub fn build_set_bass_value(value: u8) -> Vec<Vec<u8>> {
-    // Convert 0-100 to 0.0-1.0 float
-    let float_value = (value as f32) / 100.0;
-
-    vec![
-        // Single command using AudioControl family with 0x08 operation (Report/Write)
-        // Format matches official: 5a 11 08 01 00 96 19 00 [FLOAT] ...
-        G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x08, 0x01, 0x00, 0x96, FEATURE_BASS_VALUE])
-            .float_value(float_value)
-            .build(),
     ]
 }
 
@@ -1169,31 +954,6 @@ pub fn build_set_scout_mode(enabled: bool) -> Vec<Vec<u8>> {
 }
 
 // ============================================================================
-// WRITE COMMANDS - DIGITAL FILTER (Phase 8 - New Discovery!)
-// ============================================================================
-
-/// Build command to set digital filter type
-/// Command format: Unknown - need to discover write format
-/// For now, this is read-only based on captured reports
-/// Reports show: 5a 6c 03 01 [FILTER_VALUE] 00 00...
-pub fn build_set_digital_filter(filter: crate::g6_spec::DigitalFilter) -> Vec<u8> {
-    use crate::g6_spec::DigitalFilter;
-
-    let filter_value = match filter {
-        DigitalFilter::FastRollOffMinimumPhase => 0x01,
-        DigitalFilter::SlowRollOffMinimumPhase => 0x02,
-        DigitalFilter::FastRollOffLinearPhase => 0x04,
-        DigitalFilter::SlowRollOffLinearPhase => 0x05,
-    };
-
-    // Placeholder command - format needs verification via packet capture
-    // Based on pattern: reports use 0x03, so writes might use 0x05 or 0x07
-    G6CommandBuilder::new(CommandFamily::DigitalFilter)
-        .operation(&[0x05, 0x01, filter_value]) // Guessed write operation
-        .build()
-}
-
-// ============================================================================
 // WRITE COMMANDS - MICROPHONE BOOST (Phase 9 - Packet Capture Verified!)
 // ============================================================================
 
@@ -1260,8 +1020,7 @@ mod tests {
     #[test]
     fn test_command_builder() {
         let cmd = G6CommandBuilder::new(CommandFamily::AudioControl)
-            .operation(&[0x03, 0x01])
-            .intermediate(IntermediateType::Audio)
+            .operation(&[0x03, 0x01, 0x96])
             .feature(0x00)
             .build();
 

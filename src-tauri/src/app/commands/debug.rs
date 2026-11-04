@@ -63,7 +63,7 @@ pub fn test_protocol_v2(app: AppHandle, state: State<AppState>) -> Result<String
         .join(" ");
     let resp_ascii: String = response
         .iter()
-        .filter(|&&b| b >= 0x20 && b <= 0x7E)
+        .filter(|&&b| (0x20..=0x7E).contains(&b))
         .map(|&b| b as char)
         .collect();
 

@@ -37,6 +37,9 @@ pub enum ScoutModeState {
 
 /// Digital Filter Types (DAC filter characteristics)
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+// The variants are the DAC's filter names (fast/slow roll-off, minimum/linear
+// phase), and they are serialized into the settings the UI receives.
+#[allow(clippy::enum_variant_names)]
 pub enum DigitalFilter {
     FastRollOffMinimumPhase, // 0x01
     SlowRollOffMinimumPhase, // 0x02
@@ -211,28 +214,6 @@ impl Default for EqualizerConfig {
                     gain: 0.0,
                 },
             ],
-        }
-    }
-}
-
-impl Default for ExtendedAudioParams {
-    fn default() -> Self {
-        Self {
-            param_0x0a: None,
-            param_0x0b: None,
-            param_0x0c: None,
-            param_0x0d: None,
-            param_0x0e: None,
-            param_0x0f: None,
-            param_0x10: None,
-            param_0x11: None,
-            param_0x12: None,
-            param_0x13: None,
-            param_0x14: None,
-            param_0x1a: None,
-            param_0x1b: None,
-            param_0x1c: None,
-            param_0x1d: None,
         }
     }
 }

@@ -242,7 +242,7 @@ impl G6DeviceManager {
             let device = device_guard.as_ref().context("Device not connected")?;
             let mut acknowledged = false;
 
-            for (_i, command) in commands.iter().enumerate() {
+            for command in commands.iter() {
                 // Helper logging
                 let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
                 let desc = g6_protocol_v2::describe_packet(command);
@@ -251,7 +251,7 @@ impl G6DeviceManager {
                 info!("\x1b[32m[TX] {}\x1b[0m | \x1b[35m{}\x1b[0m", hex_str, desc);
 
                 let mut data_with_report_id = vec![0x00];
-                data_with_report_id.extend_from_slice(&command);
+                data_with_report_id.extend_from_slice(command);
 
                 device
                     .write(&data_with_report_id)
@@ -373,7 +373,7 @@ impl G6DeviceManager {
                 );
 
                 let mut data_with_report_id = vec![0x00];
-                data_with_report_id.extend_from_slice(&command);
+                data_with_report_id.extend_from_slice(command);
 
                 if let Err(e) = device.write(&data_with_report_id) {
                     error!("  ✗ Write failed for command {}: {}", i + 1, e);
