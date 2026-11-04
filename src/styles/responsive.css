@@ -1,0 +1,27 @@
+/* Narrow-window overrides. Imported last so they win the cascade. */
+
+@media (max-width: 600px) {
+  .container {
+    padding: 10px;
+  }
+
+  .toast-host {
+    top: 10px;
+    padding: 0 10px;
+  }
+
+  .tab-nav-shell {
+    padding: 8px 10px 0;
+  }
+
+  .debug-toggle-grid,
+  .output-controls-grid,
+  .status-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .debug-action-grid .btn-compact,
+  .status-action-grid .btn-compact {
+    max-width: none;
+  }
+}

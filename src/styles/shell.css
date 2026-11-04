@@ -1,0 +1,452 @@
+/* Theme tokens, window chrome (resize handles, title bar), layout, tabs,
+   update modal, tooltip and UI Lab. */
+
+:root {
+  --primary-color: #ff4444;
+  --primary-hover: #ff6666;
+  --secondary-color: #666;
+  --text-bright: #f8fbff;
+  --text-soft: #d6deec;
+  --button-secondary-bg: #141414;
+  --button-secondary-hover: #1d1d1d;
+  --button-secondary-border: rgba(255, 68, 68, 0.35);
+  --button-secondary-border-hover: rgba(255, 68, 68, 0.55);
+  --toggle-off-bg: #6b2f35;
+  --bg-color: #1a1a1a;
+  --card-bg: #2a2a2a;
+  --titlebar-bg: #141414;
+  --tabs-bg: #222222;
+  --text-color: var(--text-bright);
+  --border-color: #444;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --border-radius: 6px;
+  --transition: all 0.3s ease;
+  --card-shadow-soft: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-bright);
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+.app,
+.app-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg-color);
+}
+
+/* Corner resize handles (the window has no decorations). Only the outer
+   half of each corner grabs, so controls near the corners stay clickable. */
+.resize-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+}
+
+.resize-corner {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  z-index: 1;
+  user-select: none;
+  pointer-events: auto;
+  touch-action: none;
+  background: transparent;
+}
+
+.resize-corner-nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.resize-corner-ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.resize-corner-sw {
+  left: 0;
+  bottom: 0;
+  cursor: nesw-resize;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
+.resize-corner-se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+}
+
+/* Custom Title Bar */
+.title-bar {
+  background: linear-gradient(180deg, #151515 0%, var(--titlebar-bg) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.title-bar-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.title-bar-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.title-bar-button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-bright);
+  cursor: pointer;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: var(--transition);
+  padding: 0;
+}
+
+.title-bar-button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.title-bar-button.close:hover {
+  background: #e81123;
+  color: white;
+}
+
+.container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 15px 15px;
+  position: relative;
+}
+
+.app-body-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 140% at 10% -20%, rgba(255, 68, 68, 0.14) 0%, rgba(255, 68, 68, 0) 48%),
+    radial-gradient(90% 120% at 100% 0%, rgba(214, 222, 236, 0.08) 0%, rgba(214, 222, 236, 0) 52%),
+    linear-gradient(180deg, rgba(24, 24, 24, 0.98) 0%, rgba(20, 20, 20, 1) 100%);
+  overflow: hidden;
+}
+
+.workspace-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.toast-host {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+  z-index: 1400;
+  pointer-events: none;
+}
+
+.tab-nav-shell {
+  width: 100%;
+  padding: 8px 12px 0;
+  background: rgba(18, 18, 18, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(6px) saturate(120%);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tab-nav-shell {
+    background: rgba(18, 18, 18, 0.3);
+  }
+}
+
+.tab-nav {
+  display: flex;
+  gap: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0 4px;
+  box-shadow: none;
+  align-items: flex-end;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 11px 20px 9px;
+  background: transparent;
+  color: var(--text-soft);
+  border: none;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-button.active {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-bright);
+  border: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 16px rgba(0, 0, 0, 0.16);
+}
+
+.tab-button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-bright);
+}
+
+.status-header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-page-header {
+  margin-bottom: 12px;
+  padding: 6px 2px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.tab-page-title {
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.tab-page-subtitle {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.status-header h1 {
+  font-size: 1.7rem;
+  color: var(--primary-color);
+}
+
+.subtitle {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.version-text {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+.update-pill {
+  background: var(--primary-color);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-pill:hover {
+  background: var(--primary-hover);
+}
+
+.update-pill-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.update-modal {
+  width: min(560px, 100%);
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--card-shadow-soft);
+}
+
+.update-last-checked {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.update-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.title-bar-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  pointer-events: none;
+}
+
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tooltip-target {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-tooltip {
+  position: fixed;
+  transform: translateY(4px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 1700;
+  width: max-content;
+  min-width: 160px;
+  max-width: min(320px, calc(100vw - 20px));
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 68, 68, 0.55);
+  background: var(--titlebar-bg);
+  color: var(--text-bright);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 0.74rem;
+  line-height: 1.3;
+  white-space: normal;
+  text-align: left;
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+}
+
+.app-tooltip.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.ui-lab-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ui-lab-section {
+  margin-top: 12px;
+}
+
+.ui-lab-shell-preview {
+  margin-top: 8px;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--card-shadow-soft);
+}
+
+.ui-lab-controls-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ui-lab-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  justify-items: center;
+}
+
+.ui-lab-preview-cell {
+  width: 100%;
+}
+
+.ui-lab-preview-cell .control-row {
+  margin: 0;
+  width: 100%;
+}
+
+.ui-lab-checklist ol {
+  margin: 8px 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ui-lab-checklist li {
+  color: var(--text-color);
+  font-size: 0.85rem;
+}

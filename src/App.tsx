@@ -1,4 +1,8 @@
-import "./App.css";
+import "./styles/shell.css";
+import "./styles/sections.css";
+import "./styles/controls.css";
+import "./styles/diagnostics.css";
+import "./styles/responsive.css";
 import { AppShell } from "./components/shell/AppShell";
 import { ToastHost } from "./components/toast/ToastHost";
 import { useDeviceRuntime } from "./hooks/useDeviceRuntime";
