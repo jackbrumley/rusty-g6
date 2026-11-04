@@ -1,6 +1,6 @@
 # TODO
 
-## Bugs
+## Now
 
 ### Device "connected" after reboot but controls are dead until replug
 
@@ -76,13 +76,31 @@ the G6 fixes it.
 - Windows has no USB reset step (the HID driver owns the device). Check
   whether the bug happens there at all.
 
-## Distribution
+## Next
 
-- [ ] One-line install: `install.sh` (apt/dnf/AppImage; the AppImage path must
+- Split the files over the 600-line soft budget (`npm run check:structure`
+  lists them): `src-tauri/src/g6_device/mod.rs` (connection, writes and
+  setters) and `src-tauri/src/g6_protocol_v2/mod.rs` (command builders and
+  response parser).
+- App Standard section 1: move the capability inlined in `tauri.conf.json`
+  (`app.security.capabilities`) to `src-tauri/capabilities/main.json`.
+- App Standard section 6: check the Settings layout (General, Updates,
+  app-specific, Debug), modals (`role="dialog"`, Escape, focus) and toast
+  timings against the standard.
+
+## Ideas
+
+- None yet.
+
+## Done
+
+### Distribution
+
+- [x] One-line install: `install.sh` (apt/dnf/AppImage; the AppImage path must
       also install the udev rule) and `install.ps1` (per-user setup.exe), served
       from `docs/` at `https://brumley.info/rusty-g6/`.
-- [ ] One-click in-app update: port Voquill's `install_update` (re-run the
+- [x] One-click in-app update: port Voquill's `install_update` (re-run the
       installer, exit, relaunch; relaunch old version with `--update-failed`).
-- [ ] Install page at `docs/index.html` and enable GitHub Pages from `main:/docs`.
-- [ ] Release workflow in GitHub Actions that builds and verifies all five
+- [x] Install page at `docs/index.html` and enable GitHub Pages from `main:/docs`.
+- [x] Release workflow in GitHub Actions that builds and verifies all five
       assets, so the installer's expected file names can't drift.
