@@ -90,7 +90,7 @@ not silenced; a necessary `#[allow]` carries a comment saying why.
 
 - Use Conventional Commit messages (`feat:`, `fix:`, `docs:`, `chore:` ...).
 - Commit or push only when asked. Work on `dev`; `main` only moves by
-  release promotion.
+  release promotion, or by a site-only update (Release Standard §3).
 - Plans and known bugs live in `docs/TODO.md` (Now / Next / Ideas).
 - Changes you didn't make (the maintainer or another agent) are intentional
   unless you're told otherwise; never roll them back.
