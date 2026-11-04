@@ -49,8 +49,6 @@ function App() {
     toggleExperimental,
     setLogSeparatorMessage,
     clearTerminal,
-    copySessionLog,
-    openSessionLog,
     checkForUpdates,
     setShowUpdateModal,
     openLatestReleasePage,
@@ -146,8 +144,7 @@ function App() {
             onOpenUpdateModal={() => setShowUpdateModal(true)}
             onSetLogSeparatorMessage={setLogSeparatorMessage}
             onClearTerminal={clearTerminal}
-            onCopySessionLog={copySessionLog}
-            onOpenSessionLog={openSessionLog}
+            showToast={showToast}
           />
         )}
 

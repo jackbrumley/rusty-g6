@@ -82,11 +82,30 @@ pub fn initialize_session_logging() -> Result<(), String> {
     Ok(())
 }
 
-/// Installs the `log` backend.
+/// The log levels offered in Settings -> Debug, most to least severe.
+pub const LOG_LEVELS: [&str; 5] = ["error", "warn", "info", "debug", "trace"];
+
+/// Installs the `log` backend at `info`; `apply_log_level` switches to the
+/// saved level once the settings are loaded.
 pub fn initialize_app_logger() -> Result<(), String> {
     log::set_logger(&LOGGER).map_err(|error| error.to_string())?;
     log::set_max_level(LevelFilter::Info);
     Ok(())
+}
+
+/// Applies a saved level; an unknown one leaves the current level.
+pub fn apply_log_level(level: &str) {
+    match parse_log_level(level) {
+        Some(filter) => log::set_max_level(filter),
+        None => log::warn!("Unknown log level '{}' in settings; keeping info", level),
+    }
+}
+
+pub fn parse_log_level(level: &str) -> Option<LevelFilter> {
+    LOG_LEVELS
+        .contains(&level)
+        .then(|| level.parse::<LevelFilter>().ok())
+        .flatten()
 }
 
 /// Records every panic in the session log (then runs the default hook), so an
@@ -139,7 +158,15 @@ fn append_session_log_line(line: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::log_timestamp;
+    use super::{log_timestamp, parse_log_level};
+    use log::LevelFilter;
+
+    #[test]
+    fn only_offered_log_levels_parse() {
+        assert_eq!(parse_log_level("debug"), Some(LevelFilter::Debug));
+        assert_eq!(parse_log_level("off"), None);
+        assert_eq!(parse_log_level("loud"), None);
+    }
 
     #[test]
     fn timestamps_are_rfc3339_with_millis_and_offset() {

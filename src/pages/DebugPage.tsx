@@ -2,7 +2,8 @@ import { CollapsibleCardSection } from "../components/ui/CollapsibleCardSection"
 import { ToggleControl } from "../components/controls/ToggleControl";
 import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
-import type { G6Settings } from "../types/g6";
+import { LogsBlock } from "../components/debug/LogsBlock";
+import type { G6Settings, ToastType } from "../types/g6";
 import { useState } from "preact/hooks";
 
 interface DebugPageProps {
@@ -26,8 +27,7 @@ interface DebugPageProps {
   onOpenUpdateModal: () => void;
   onSetLogSeparatorMessage: (value: string) => void;
   onClearTerminal: () => void;
-  onCopySessionLog: () => void;
-  onOpenSessionLog: () => void;
+  showToast: (message: string, type: ToastType) => void;
 }
 
 export function DebugPage({
@@ -51,8 +51,7 @@ export function DebugPage({
   onOpenUpdateModal,
   onSetLogSeparatorMessage,
   onClearTerminal,
-  onCopySessionLog,
-  onOpenSessionLog,
+  showToast,
 }: DebugPageProps) {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const toggleSection = (section: string) => {
@@ -127,11 +126,12 @@ export function DebugPage({
       </CollapsibleCardSection>
 
       <CollapsibleCardSection
-        title="Logging"
+        title="Logs"
         isOpen={activeSection === "logging"}
         onToggle={() => toggleSection("logging")}
       >
         <div class="debug-log-tools">
+          <LogsBlock showToast={showToast} />
           <div class="debug-log-card">
             <div class="debug-log-row">
               <input
@@ -151,14 +151,6 @@ export function DebugPage({
                   Add Log Separator
                 </button>
               </Tooltip>
-            </div>
-            <div class="debug-log-actions">
-              <button onClick={onCopySessionLog} class="btn-compact btn-secondary">
-                Copy Session Log
-              </button>
-              <button onClick={onOpenSessionLog} class="btn-compact btn-secondary">
-                Open Log File
-              </button>
             </div>
           </div>
         </div>

@@ -31,7 +31,9 @@ pub fn run_setup(
     if let Err(error) = crate::app::session_log::initialize_app_logger() {
         eprintln!("Failed to initialize app logger: {}", error);
     }
-    app.manage(crate::app::state::create_app_state());
+    let state = crate::app::state::create_app_state();
+    crate::app::session_log::apply_log_level(&state.settings.lock().unwrap().log_level);
+    app.manage(state);
 
     configure_shell(app, &launch)?;
     refresh_autostart_entry(app);

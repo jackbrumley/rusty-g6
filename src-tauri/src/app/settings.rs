@@ -9,12 +9,15 @@ use std::path::PathBuf;
 pub struct AppSettings {
     /// Closing the window parks it in the tray instead of quitting.
     pub close_to_tray: bool,
+    /// One of `session_log::LOG_LEVELS`, chosen in Settings -> Debug.
+    pub log_level: String,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             close_to_tray: true,
+            log_level: "info".to_string(),
         }
     }
 }
@@ -80,6 +83,7 @@ mod tests {
     fn settings_round_trip() {
         let settings = AppSettings {
             close_to_tray: false,
+            log_level: "debug".to_string(),
         };
         let text = serde_json::to_string(&settings).unwrap();
         assert_eq!(parse(&text).unwrap(), settings);

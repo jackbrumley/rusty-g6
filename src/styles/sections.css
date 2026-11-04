@@ -272,6 +272,24 @@
   min-width: 150px;
 }
 
+.debug-log-row .log-level-select {
+  flex: 0 1 160px;
+  min-width: 120px;
+}
+
+.system-info-text {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+
 .status-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));

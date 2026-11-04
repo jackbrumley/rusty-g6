@@ -74,4 +74,18 @@ export interface UpdateCheckResult {
 /// Backend settings (`app::settings::AppSettings`).
 export interface AppSettings {
   close_to_tray: boolean;
+  log_level: string;
+}
+
+/// `app::system_info::SystemInfo`: the session log header and the Logs block.
+export interface SystemInfo {
+  appName: string;
+  appVersion: string;
+  buildProfile: string;
+  executable: string;
+  os: string;
+  distribution: string;
+  architecture: string;
+  desktop: string;
+  sessionType: string;
 }

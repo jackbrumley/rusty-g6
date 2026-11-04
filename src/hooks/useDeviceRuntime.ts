@@ -406,26 +406,6 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
   };
 
-  const copySessionLog = async () => {
-    try {
-      const text = await invoke<string>("get_session_log_text");
-      await invoke("plugin:clipboard-manager|write_text", { text });
-      await logUiEvent(`Session log copied to clipboard (${text.length} chars)`);
-      showToast("Session log copied to clipboard.", "success");
-    } catch (error) {
-      showToast(`Failed to copy session log: ${error}`, "error");
-    }
-  };
-
-  const openSessionLog = async () => {
-    try {
-      await invoke("open_session_log");
-      await logUiEvent("Session log file open requested");
-    } catch (error) {
-      showToast(`Failed to open session log: ${error}`, "error");
-    }
-  };
-
   const openLatestReleasePage = async () => {
     const releaseUrl = updateResult?.releaseUrl || "https://github.com/jackbrumley/rusty-g6/releases/latest";
     try {
@@ -609,8 +589,6 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     toggleExperimental,
     setLogSeparatorMessage,
     clearTerminal,
-    copySessionLog,
-    openSessionLog,
     checkForUpdates,
     setShowUpdateModal,
     openLatestReleasePage,
