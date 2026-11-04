@@ -2,11 +2,13 @@ mod app;
 mod g6_device;
 mod g6_protocol_v2;
 mod g6_spec;
+mod paths;
 
 pub use app::bootstrap::LaunchOptions;
 use app::commands::*;
 #[cfg(target_os = "linux")]
 pub use app::linux_env::configure_linux_session_environment;
+pub use app::session_log::install_panic_hook;
 use tauri::Manager;
 
 /// `second_launch_shows_window` decides, from a second launch's arguments,

@@ -1,10 +1,21 @@
-use chrono::Local;
-use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
-use std::env::consts::{ARCH, OS};
+//! Logging (App Standard section 3).
+//!
+//! `debug/session.log` is this run's log. At start-up the previous run's log
+//! becomes `last-session.log`, so the run before a crash or restart is kept.
+//! Every session starts with a header describing the build and the machine
+//! (`SystemInfo`), and every line carries an RFC 3339 local timestamp with
+//! milliseconds and offset.
+
+use crate::app::system_info::SystemInfo;
+use chrono::{Local, SecondsFormat};
+use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
+
+const SESSION_LOG_FILE_NAME: &str = "session.log";
+const LAST_SESSION_LOG_FILE_NAME: &str = "last-session.log";
 
 static SESSION_LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 
@@ -22,8 +33,12 @@ impl Log for SessionLogger {
             return;
         }
 
-        let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
-        let line = format!("[{}] {}: {}", timestamp, record.level(), record.args());
+        let line = format!(
+            "[{}] {}: {}",
+            log_timestamp(),
+            record.level(),
+            record.args()
+        );
 
         match record.level() {
             Level::Error | Level::Warn => eprintln!("{}", line),
@@ -36,42 +51,77 @@ impl Log for SessionLogger {
     fn flush(&self) {}
 }
 
+/// RFC 3339 local time with milliseconds and offset,
+/// e.g. `2026-11-03T19:55:39.123+11:00`.
+fn log_timestamp() -> String {
+    Local::now().to_rfc3339_opts(SecondsFormat::Millis, false)
+}
+
+/// Starts this run's session log: rotates the previous one to
+/// `last-session.log` and writes the header. Runs after the single-instance
+/// guard, so a second launch never rotates the running instance's log.
 pub fn initialize_session_logging() -> Result<(), String> {
-    let log_path = get_session_log_path()?;
+    let debug_dir = crate::paths::debug_dir()?;
+    let session_log_path = debug_dir.join(SESSION_LOG_FILE_NAME);
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&log_path)
-        .map_err(|error| error.to_string())?;
+    if session_log_path.exists() {
+        let last_session_path = debug_dir.join(LAST_SESSION_LOG_FILE_NAME);
+        if let Err(error) = fs::rename(&session_log_path, &last_session_path) {
+            eprintln!("Failed to keep the previous session log: {error}");
+        }
+    }
 
-    writeln!(
-        file,
-        "[{}] SESSION START | app=rusty-g6 version={} platform={}/{}",
-        Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-        env!("CARGO_PKG_VERSION"),
-        OS,
-        ARCH
-    )
-    .map_err(|error| error.to_string())?;
+    let _ = SESSION_LOG_PATH.set(session_log_path);
 
-    let _ = SESSION_LOG_PATH.set(log_path);
+    let timestamp = log_timestamp();
+    append_session_log_line(&format!("[{timestamp}] INFO: SESSION START"));
+    for header_line in SystemInfo::collect().summary().lines() {
+        append_session_log_line(&format!("[{timestamp}] INFO: {header_line}"));
+    }
+
     Ok(())
 }
 
+/// Installs the `log` backend.
 pub fn initialize_app_logger() -> Result<(), String> {
-    set_logger(&LOGGER).map_err(|error| error.to_string())?;
+    log::set_logger(&LOGGER).map_err(|error| error.to_string())?;
     log::set_max_level(LevelFilter::Info);
     Ok(())
 }
 
+/// Records every panic in the session log (then runs the default hook), so an
+/// unexpected exit always leaves its reason and location behind. Installed
+/// first thing in `main`.
+pub fn install_panic_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let payload = info.payload();
+        let message = payload
+            .downcast_ref::<&str>()
+            .map(|message| message.to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "non-text panic payload".to_string());
+        let location = info
+            .location()
+            .map(|location| format!("{}:{}", location.file(), location.line()))
+            .unwrap_or_else(|| "unknown location".to_string());
+        let thread = std::thread::current();
+        append_session_log_line(&format!(
+            "[{}] PANIC: thread '{}' panicked at {}: {}",
+            log_timestamp(),
+            thread.name().unwrap_or("unnamed"),
+            location,
+            message
+        ));
+        default_hook(info);
+    }));
+}
+
 pub fn resolve_session_log_path() -> Result<PathBuf, String> {
-    SESSION_LOG_PATH
-        .get()
-        .cloned()
-        .or_else(|| get_session_log_path().ok())
-        .ok_or_else(|| "Session log path unavailable".to_string())
+    match SESSION_LOG_PATH.get() {
+        Some(path) => Ok(path.clone()),
+        None => Ok(crate::paths::debug_dir()?.join(SESSION_LOG_FILE_NAME)),
+    }
 }
 
 pub fn get_session_log_text() -> Result<String, String> {
@@ -87,15 +137,16 @@ fn append_session_log_line(line: &str) {
     }
 }
 
-fn get_session_log_path() -> Result<PathBuf, String> {
-    let debug_dir = dirs::config_dir()
-        .ok_or_else(|| "Could not find config directory".to_string())?
-        .join("rusty-g6")
-        .join("debug");
-    fs::create_dir_all(&debug_dir).map_err(|error| error.to_string())?;
-    Ok(debug_dir.join("session.log"))
-}
+#[cfg(test)]
+mod tests {
+    use super::log_timestamp;
 
-fn set_logger(logger: &'static dyn Log) -> Result<(), SetLoggerError> {
-    log::set_logger(logger)
+    #[test]
+    fn timestamps_are_rfc3339_with_millis_and_offset() {
+        let timestamp = log_timestamp();
+        assert!(chrono::DateTime::parse_from_rfc3339(&timestamp).is_ok());
+        // Milliseconds and a numeric offset, e.g. 2026-11-03T19:55:39.123+11:00.
+        assert_eq!(timestamp.len(), "2026-11-03T19:55:39.123+11:00".len());
+        assert_eq!(&timestamp[19..20], ".");
+    }
 }

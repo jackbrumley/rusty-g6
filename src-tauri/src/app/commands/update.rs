@@ -124,11 +124,9 @@ fn unix_update_command() -> String {
 
 /// The installer's output, and what the update-failed dialog opens.
 fn update_log_path() -> std::path::PathBuf {
-    let debug_dir = dirs::config_dir()
-        .map(|dir| dir.join("rusty-g6").join("debug"))
-        .unwrap_or_else(std::env::temp_dir);
-    let _ = std::fs::create_dir_all(&debug_dir);
-    debug_dir.join("update.log")
+    crate::paths::debug_dir()
+        .unwrap_or_else(|_| std::env::temp_dir())
+        .join("update.log")
 }
 
 /// A fresh update log, as the updater's stdout and stderr. Emptied first, then

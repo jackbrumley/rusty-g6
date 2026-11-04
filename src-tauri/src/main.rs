@@ -21,6 +21,9 @@ struct Cli {
 }
 
 fn main() {
+    // First, so even a start-up panic is written to the session log.
+    rusty_g6_lib::install_panic_hook();
+
     // Before Tauri, GTK or any portal call: app identity and the WebKitGTK /
     // GDK environment (App Standard section 2).
     #[cfg(target_os = "linux")]

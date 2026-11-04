@@ -20,7 +20,7 @@ impl Default for AppSettings {
 }
 
 fn settings_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|dir| dir.join("rusty-g6").join("settings.json"))
+    crate::paths::settings_file().ok()
 }
 
 /// Loads the settings, falling back to defaults when the file is missing or
