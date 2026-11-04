@@ -3,17 +3,18 @@
 //! `app_id` / GTK prgname and the launcher name (`<APP_ID>.desktop`).
 
 /// Must equal the Tauri `identifier`. Never ends in `.desktop` or `.app`.
+/// Only Linux uses it at run time (Windows takes the identifier from
+/// tauri.conf.json); the tests check it everywhere.
+#[cfg(any(target_os = "linux", test))]
 pub const APP_ID: &str = "info.brumley.rustyg6";
 
 /// Sets the GTK prgname (which GTK uses as the Wayland `app_id`) so desktop
 /// environments match the window to `info.brumley.rustyg6.desktop`. Must run
-/// before any GTK use, i.e. at the very start of `run`.
+/// before any GTK use: `linux_env` calls it first thing in `main`.
+#[cfg(target_os = "linux")]
 pub fn configure_app_identity() {
-    #[cfg(target_os = "linux")]
-    {
-        gtk::glib::set_prgname(Some(APP_ID));
-        gtk::glib::set_application_name("Rusty G6");
-    }
+    gtk::glib::set_prgname(Some(APP_ID));
+    gtk::glib::set_application_name("Rusty G6");
 }
 
 #[cfg(test)]

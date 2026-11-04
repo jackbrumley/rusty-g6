@@ -21,6 +21,11 @@ struct Cli {
 }
 
 fn main() {
+    // Before Tauri, GTK or any portal call: app identity and the WebKitGTK /
+    // GDK environment (App Standard section 2).
+    #[cfg(target_os = "linux")]
+    rusty_g6_lib::configure_linux_session_environment();
+
     let cli = Cli::parse();
     rusty_g6_lib::run(
         rusty_g6_lib::LaunchOptions {

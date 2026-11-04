@@ -1,6 +1,8 @@
 pub mod bootstrap;
 pub mod commands;
 pub mod identity;
+#[cfg(target_os = "linux")]
+pub mod linux_env;
 pub mod protocol_console;
 pub mod session_log;
 pub mod settings;

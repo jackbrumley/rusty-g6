@@ -5,17 +5,17 @@ mod g6_spec;
 
 pub use app::bootstrap::LaunchOptions;
 use app::commands::*;
+#[cfg(target_os = "linux")]
+pub use app::linux_env::configure_linux_session_environment;
 use tauri::Manager;
 
 /// `second_launch_shows_window` decides, from a second launch's arguments,
 /// whether the running instance should show its window (`main.rs` owns the
 /// command line).
 pub fn run(launch: LaunchOptions, second_launch_shows_window: fn(&[String]) -> bool) {
-    app::identity::configure_app_identity();
-
-    // Only process-local setup happens above. Everything that touches the
-    // user's files, session log or the device runs in setup, after the
-    // single-instance guard.
+    // Process-local setup (the Linux environment) happens in `main`.
+    // Everything that touches the user's files, session log or the device
+    // runs in setup, after the single-instance guard.
     tauri::Builder::default()
         // Must be the first plugin: a second launch hands its arguments to the
         // running instance and exits here, before it can rotate that
