@@ -3,7 +3,7 @@ name = "rusty-g6"
 version = "1.0.10"
 description = "Cross-platform GUI for SoundBlaster X G6 control"
 authors = ["Rusty G6 Team"]
-license = "MIT"
+license = "AGPL-3.0-only"
 repository = "https://github.com/jackbrumley/rusty-g6"
 edition = "2021"
 

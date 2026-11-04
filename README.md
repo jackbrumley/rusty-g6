@@ -7,7 +7,7 @@
 <p align="center">Simple desktop interface for Sound BlasterX G6 controls, no command line needed.</p>
 
 <p align="center">
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License" /></a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0.html"><img src="https://img.shields.io/badge/License-AGPLv3-blue.svg" alt="AGPL v3 License" /></a>
   <a href="https://github.com/jackbrumley/rusty-g6"><img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-4f46e5" alt="Platform" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Built%20With-Tauri-14b8a6" alt="Built with Tauri" /></a>
 </p>
@@ -105,4 +105,4 @@ Special thanks to **[Nils Skowasch](https://github.com/nils-skowasch)** and the 
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See the [LICENSE](LICENSE) file for details.
