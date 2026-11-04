@@ -1,9 +1,12 @@
 //! App settings that the backend needs (the UI-only preferences live in the
 //! webview's localStorage). Stored as `~/.config/rusty-g6/settings.json`.
 
+use crate::app::json_store;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Every field falls back to its `Default` value when missing, so new
+/// fields need no migration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
@@ -22,61 +25,38 @@ impl Default for AppSettings {
     }
 }
 
-fn settings_path() -> Option<PathBuf> {
-    crate::paths::settings_file().ok()
+pub fn settings_path() -> Result<PathBuf, String> {
+    crate::paths::settings_file()
 }
 
-/// Loads the settings, falling back to defaults when the file is missing or
-/// unreadable. A bad file is left untouched until the next save.
-pub fn load() -> AppSettings {
-    let Some(path) = settings_path() else {
-        return AppSettings::default();
-    };
-    match std::fs::read_to_string(&path) {
-        Ok(text) => parse(&text).unwrap_or_else(|error| {
-            log::warn!(
-                "Could not parse {}: {}; using default settings",
-                path.display(),
-                error
-            );
-            AppSettings::default()
-        }),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => AppSettings::default(),
-        Err(error) => {
-            log::warn!(
-                "Could not read {}: {}; using default settings",
-                path.display(),
-                error
-            );
-            AppSettings::default()
-        }
-    }
+/// Loads the settings: defaults when the file is missing, or when it could
+/// not be parsed (`json_store` moves it aside and tells the user). A file
+/// that exists but cannot be read is an error; start-up checks for that
+/// first with `json_store::ensure_readable` and exits.
+pub fn load() -> Result<AppSettings, String> {
+    Ok(json_store::read_json::<AppSettings>(&settings_path()?)?.unwrap_or_default())
 }
 
-fn parse(text: &str) -> Result<AppSettings, serde_json::Error> {
-    serde_json::from_str(text)
-}
-
-/// Writes the settings atomically (temporary file, then rename).
+/// Writes the settings atomically (temp file, fsync, rename).
 pub fn save(settings: &AppSettings) -> Result<(), String> {
-    let path = settings_path().ok_or("Could not find the config directory")?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
-    }
-    let text = serde_json::to_string_pretty(settings).map_err(|error| error.to_string())?;
-    let temp_path = path.with_extension("json.tmp");
-    std::fs::write(&temp_path, text).map_err(|error| error.to_string())?;
-    std::fs::rename(&temp_path, &path).map_err(|error| error.to_string())
+    json_store::write_json(&settings_path()?, settings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn parse(text: &str) -> Result<AppSettings, serde_json::Error> {
+        serde_json::from_str(text)
+    }
+
     #[test]
-    fn close_to_tray_defaults_on() {
+    fn missing_fields_take_their_defaults() {
         assert!(AppSettings::default().close_to_tray);
-        assert!(parse("{}").unwrap().close_to_tray);
+        let existing = parse(r#"{"close_to_tray": false}"#).unwrap();
+        assert!(!existing.close_to_tray);
+        assert_eq!(existing.log_level, "info");
+        assert_eq!(parse("{}").unwrap(), AppSettings::default());
     }
 
     #[test]

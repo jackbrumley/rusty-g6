@@ -1,6 +1,7 @@
 pub mod bootstrap;
 pub mod commands;
 pub mod identity;
+pub mod json_store;
 #[cfg(target_os = "linux")]
 pub mod linux_env;
 pub mod protocol_console;

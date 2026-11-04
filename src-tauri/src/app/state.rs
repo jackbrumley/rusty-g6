@@ -7,10 +7,10 @@ pub struct AppState {
     pub settings: Mutex<AppSettings>,
 }
 
-pub fn create_app_state() -> AppState {
+pub fn create_app_state(settings: AppSettings) -> AppState {
     let device_manager = G6DeviceManager::new().expect("Failed to initialize G6 Device Manager");
     AppState {
         device_manager: Mutex::new(device_manager),
-        settings: Mutex::new(crate::app::settings::load()),
+        settings: Mutex::new(settings),
     }
 }

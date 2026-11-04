@@ -1,3 +1,4 @@
+use crate::app::settings::{self, AppSettings};
 use crate::app::state::AppState;
 use crate::app::tray;
 use serde::Serialize;
@@ -31,9 +32,18 @@ pub fn run_setup(
     if let Err(error) = crate::app::session_log::initialize_app_logger() {
         eprintln!("Failed to initialize app logger: {}", error);
     }
-    let state = crate::app::state::create_app_state();
-    crate::app::session_log::apply_log_level(&state.settings.lock().unwrap().log_level);
-    app.manage(state);
+
+    crate::app::json_store::enable_recovery_notices(app.handle());
+    let settings = match load_settings() {
+        Ok(settings) => settings,
+        Err(error) => {
+            log::error!("SETTINGS_UNREADABLE {error}");
+            exit_with_settings_error(app.handle(), &error);
+            return Ok(());
+        }
+    };
+    crate::app::session_log::apply_log_level(&settings.log_level);
+    app.manage(crate::app::state::create_app_state(settings));
 
     configure_shell(app, &launch)?;
     refresh_autostart_entry(app);
@@ -43,6 +53,27 @@ pub fn run_setup(
         crate::app::commands::update::show_update_failed_dialog(app.handle());
     }
     Ok(())
+}
+
+/// A settings file that exists but cannot be read (permissions, I/O) must
+/// stop start-up: carrying on would replace it with defaults on the next save.
+fn load_settings() -> Result<AppSettings, String> {
+    crate::app::json_store::ensure_readable(&settings::settings_path()?)?;
+    settings::load()
+}
+
+fn exit_with_settings_error(app_handle: &tauri::AppHandle, error: &str) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+    let exit_handle = app_handle.clone();
+    app_handle
+        .dialog()
+        .message(format!(
+            "{error}\n\nRusty G6 has not changed this file. Fix its permissions (it must be readable by you) and start Rusty G6 again."
+        ))
+        .title("Rusty G6 cannot read its settings")
+        .kind(MessageDialogKind::Error)
+        .show(move |_| exit_handle.exit(1));
 }
 
 /// Tray icon, close-to-tray and the start-hidden decision. The main window
