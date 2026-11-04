@@ -82,8 +82,6 @@ the G6 fixes it.
   lists them): `src-tauri/src/g6_device/mod.rs` (connection, writes and
   setters) and `src-tauri/src/g6_protocol_v2/mod.rs` (command builders and
   response parser).
-- App Standard section 1: move the capability inlined in `tauri.conf.json`
-  (`app.security.capabilities`) to `src-tauri/capabilities/main.json`.
 - App Standard section 6: check the Settings layout (General, Updates,
   app-specific, Debug), modals (`role="dialog"`, Escape, focus) and toast
   timings against the standard.
