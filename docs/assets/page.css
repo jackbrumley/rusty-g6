@@ -21,6 +21,8 @@
   --icon-glow: none;
   --shot-shadow: 0 8px 28px rgba(26, 20, 20, 0.12);
   color-scheme: light dark;
+  --app-tile-base: #ffffff;
+  --app-tile-mix: 14%;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,7 +45,10 @@
     --tile-glow: 0 8px 30px rgba(255, 90, 79, 0.35);
     --icon-glow: drop-shadow(0 0 8px rgba(255, 90, 79, 0.55));
     --shot-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+    --app-tile-base: #262833;
+    --app-tile-mix: 30%;
   }
+  .manual-btn { box-shadow: none; }
 }
 
 * { box-sizing: border-box; }
@@ -70,6 +75,12 @@ a { color: var(--accent); }
 
 .hero-inner { max-width: 960px; margin: 0 auto; }
 
+.crumb {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .crumb a {
   color: var(--muted);
   text-decoration: none;
@@ -77,15 +88,17 @@ a { color: var(--accent); }
 }
 .crumb a:hover { color: var(--text); }
 
+/* Top-aligned with a fixed offset, so the tile and heading sit in the same
+   place on every app page however long the description is. */
 .hero-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 32px;
   margin-top: 40px;
 }
 
-.hero-copy { max-width: 540px; }
+.hero-copy { max-width: 540px; padding-top: 9px; }
 
 .hero-tile {
   display: inline-grid;
@@ -270,14 +283,6 @@ a { color: var(--accent); }
   color: var(--muted);
 }
 
-.manual {
-  margin: 20px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-  font-size: 0.88rem;
-  color: var(--muted);
-  text-align: center;
-}
 
 /* Content */
 
@@ -333,20 +338,131 @@ h2 {
   box-shadow: var(--shot-shadow);
 }
 
-.footer {
+/* Manual download button, as on voquill.org */
+
+.install-manual {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.manual-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(21, 19, 28, 0.05), 0 4px 16px rgba(21, 19, 28, 0.04);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.manual-btn:hover,
+.manual-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.manual-icon { width: 1.5em; height: 1.5em; flex-shrink: 0; }
+
+/* Footer: "Other apps" and the footer line, shared by every app page. */
+
+.site-footer { margin-top: 72px; }
+
+.other-apps-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.all-apps { color: var(--accent); font-size: 0.9rem; font-weight: 400; text-decoration: none; }
+
+.all-apps:hover { text-decoration: underline; }
+
+.app-tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-tile:hover {
+  color: var(--text);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--app) 45%, var(--border));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--app) 18%, transparent);
+}
+
+.app-tile.is-current { border-color: color-mix(in srgb, var(--app) 55%, var(--border)); }
+
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  background: linear-gradient(145deg,
+    color-mix(in srgb, var(--app) var(--app-tile-mix), var(--app-tile-base)),
+    color-mix(in srgb, var(--app-2) calc(var(--app-tile-mix) * 0.6), var(--app-tile-base)));
+  box-shadow: inset 0 0 0 1px var(--tile-rim), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.tile img { width: 34px; height: 34px; }
+
+.footer-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 64px;
+  margin: 32px 0 0;
   font-size: 0.85rem;
   color: var(--muted);
 }
-.footer a { color: var(--muted); }
+
+.footer-meta a { color: var(--muted); }
+
+.footer-meta a:hover { color: var(--accent); }
 
 @media (max-width: 760px) {
   .hero { padding-bottom: 140px; }
   .hero-row { position: relative; margin-top: 28px; }
-  .hero-copy { position: relative; z-index: 1; }
+  .hero-copy { position: relative; z-index: 1; padding-top: 0; }
   .hero-art {
     position: absolute;
     right: -110px;
@@ -355,6 +471,7 @@ h2 {
     opacity: 0.4;
   }
   .install { padding: 22px 14px 18px; }
+  .app-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

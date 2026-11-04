@@ -14,7 +14,7 @@
 <body>
   <header class="hero">
     <div class="hero-inner">
-      <nav class="crumb"><a href="/">← All apps</a></nav>
+      <nav class="crumb"><a href="/">← All apps</a><a href="/">by Jack Brumley</a></nav>
       <div class="hero-row">
         <div class="hero-copy">
           <span class="hero-tile"><img src="assets/icon.png" alt="" width="64" height="64" /></span>
@@ -62,11 +62,12 @@
       <div class="install-variants" id="install-variants"></div>
       <p class="install-note" id="install-note"></p>
 
-      <p class="manual">
-        Prefer to download it yourself?
-        <a href="https://github.com/jackbrumley/rusty-g6/releases/latest">Get the installers from GitHub</a>
-        (.deb, .rpm, AppImage, setup.exe, MSI).
-      </p>
+      <div class="install-manual">
+        <a class="manual-btn" href="https://github.com/jackbrumley/rusty-g6/releases/latest">
+          <svg class="manual-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>
+          <span>Manual Download</span>
+        </a>
+      </div>
     </section>
 
     <section class="features">
@@ -87,12 +88,48 @@
       </div>
     </section>
 
-    <footer class="footer">
-      <a href="https://github.com/jackbrumley/rusty-g6">Source on GitHub</a>
-      <span aria-hidden="true">·</span>
-      <span>AGPLv3 licence</span>
-      <span aria-hidden="true">·</span>
-      <span>Not affiliated with Creative Technology.</span>
+    <footer class="site-footer">
+      <nav class="other-apps" aria-label="Other apps by Jack Brumley">
+        <div class="other-apps-head">
+          <p class="section-title">Other apps</p>
+          <a class="all-apps" href="https://brumley.info/">All apps &rarr;</a>
+        </div>
+        <ul class="app-tiles">
+          <li>
+            <a class="app-tile" href="https://voquill.org/" style="--app: #5865f2; --app-2: #c43991;">
+              <span class="tile"><img src="assets/icons/voquill.png" alt="" width="34" height="34" /></span>
+              <span class="app-name">Voquill</span>
+            </a>
+          </li>
+          <li>
+            <a class="app-tile is-current" href="https://brumley.info/rusty-g6/" aria-current="page" style="--app: #e5483f; --app-2: #ff8a3d;">
+              <span class="tile"><img src="assets/icons/rusty-g6.png" alt="" width="34" height="34" /></span>
+              <span class="app-name">Rusty G6</span>
+            </a>
+          </li>
+          <li>
+            <a class="app-tile" href="https://brumley.info/somedrive/" style="--app: #1677d2; --app-2: #22c1c3;">
+              <span class="tile"><img src="assets/icons/somedrive.svg" alt="" width="34" height="34" /></span>
+              <span class="app-name">SomeDrive</span>
+            </a>
+          </li>
+          <li>
+            <a class="app-tile" href="https://yambuck.com/" style="--app: #1f8f9c; --app-2: #5ce0d2;">
+              <span class="tile"><img src="assets/icons/yambuck.svg" alt="" width="34" height="34" /></span>
+              <span class="app-name">Yambuck</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      <p class="footer-meta">
+        <span>&copy; Jack Brumley</span>
+        <span aria-hidden="true">&middot;</span>
+        <a href="https://github.com/jackbrumley/rusty-g6">Source on GitHub</a>
+        <span aria-hidden="true">&middot;</span>
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html">GNU AGPLv3</a>
+        <span aria-hidden="true">&middot;</span>
+        <span>Not affiliated with Creative Technology.</span>
+      </p>
     </footer>
   </main>
 
