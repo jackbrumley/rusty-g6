@@ -1,6 +1,6 @@
 [package]
 name = "rusty-g6"
-version = "1.0.11"
+version = "1.0.12"
 description = "Cross-platform GUI for SoundBlaster X G6 control"
 authors = ["Rusty G6 Team"]
 license = "AGPL-3.0-only"
