@@ -44,6 +44,47 @@ for appdir in "${bundle_dir}"/appimage/*.AppDir; do
     done
 done
 
+# linuxdeploy bundles this container's libwayland (1.20, Ubuntu 22.04), but the
+# GPU stack (Mesa's libEGL and drivers) always comes from the host. A newer
+# host Mesa calls libwayland symbols 1.20 lacks (wl_display_create_queue_with_name,
+# 1.23+), so EGL fails with EGL_BAD_PARAMETER and the window stays white
+# (GitHub issue #1, CachyOS). libwayland keeps a stable ABI and every GTK
+# desktop installs it, so the AppImage must use the host's copy: remove the
+# bundled one and repack the AppImage with its original runtime.
+strip_bundled_wayland() {
+    local appimage="$1"
+    local work
+    work="$(mktemp -d)"
+    # The squashfs payload starts right after the runtime's ELF section
+    # header table: e_shoff (offset 0x28) + e_shentsize * e_shnum (0x3A, 0x3C).
+    local section_headers_offset section_header_size section_header_count payload_offset
+    section_headers_offset=$(od -An -t u8 -j 40 -N 8 "$appimage" | tr -d ' ')
+    section_header_size=$(od -An -t u2 -j 58 -N 2 "$appimage" | tr -d ' ')
+    section_header_count=$(od -An -t u2 -j 60 -N 2 "$appimage" | tr -d ' ')
+    payload_offset=$((section_headers_offset + section_header_size * section_header_count))
+
+    unsquashfs -quiet -no-progress -offset "$payload_offset" -dest "${work}/root" "$appimage"
+    rm -f "${work}"/root/usr/lib/libwayland-{client,cursor,egl,server}.so*
+
+    head -c "$payload_offset" "$appimage" > "${work}/repacked.AppImage"
+    mksquashfs "${work}/root" "${work}/payload.squashfs" \
+        -quiet -no-progress -root-owned -noappend -comp zstd -b 131072 -mkfs-time 0
+    cat "${work}/payload.squashfs" >> "${work}/repacked.AppImage"
+    chmod 0755 "${work}/repacked.AppImage"
+    mv "${work}/repacked.AppImage" "$appimage"
+    rm -rf "$work"
+
+    if unsquashfs -lls -offset "$payload_offset" "$appimage" | grep -q 'usr/lib/libwayland-'; then
+        echo "AppImage libwayland check failed: $(basename "$appimage") still bundles libwayland." >&2
+        exit 1
+    fi
+    echo "AppImage libwayland check passed: $(basename "$appimage") uses the host's libwayland."
+}
+
+for appimage in "${bundle_dir}"/appimage/*.AppImage; do
+    strip_bundled_wayland "$appimage"
+done
+
 for bundle in deb rpm appimage; do
     rm -rf "/out/${bundle}"
     mkdir -p "/out/${bundle}"
