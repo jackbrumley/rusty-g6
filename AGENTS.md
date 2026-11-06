@@ -129,6 +129,11 @@ Rusty G6's variations from the standard:
   `src-tauri/src/app/identity.rs`). Before v1.0.8 it was `com.rusty-g6` with a
   `rusty-g6.desktop` launcher, which the installers clean up. Config stays in
   `~/.config/rusty-g6`.
+- **Legacy Windows config folder:** releases up to 1.0.12 kept config in
+  `%APPDATA%\rusty-g6`. The app moves it to `~/.config/rusty-g6` on its first
+  start (only when the new folder doesn't exist yet), so `install.ps1` writes
+  `update.log` into the old folder while only the old one exists, and
+  `uninstall.ps1 -PurgeData` removes both.
 - **Post-install:** the AppImage install adds the udev rule
   `/etc/udev/rules.d/50-soundblaster-x-g6.rules` itself (needs root once); the
   `.deb`/`.rpm` install it in their post-install scripts
@@ -159,7 +164,9 @@ Rusty G6's variations from the standard:
   command list and the `RunEvent::Exit` shutdown owner. Commands live in
   `app/commands/`.
 - `src-tauri/src/paths.rs`: every on-disk location, all under
-  `~/.config/rusty-g6` (`%APPDATA%\rusty-g6` on Windows).
+  `~/.config/rusty-g6` on Linux and Windows. It also owns the one-time move
+  of the Windows folder from `%APPDATA%\rusty-g6` (releases up to 1.0.12),
+  which `app/bootstrap.rs` runs before the session log opens.
 - `app/session_log.rs`: the `log` backend. `debug/session.log`, rotated to
   `last-session.log` at start-up; `app/system_info.rs` builds its header and
   the System info block in Settings -> Debug. The device code logs

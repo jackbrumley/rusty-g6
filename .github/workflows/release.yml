@@ -36,11 +36,11 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
 
@@ -84,9 +84,9 @@ jobs:
           - name: Windows
             runner: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
 
@@ -118,7 +118,7 @@ jobs:
         shell: bash
         run: node scripts/package-release.mjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.name }}
           path: release-artifacts/*
@@ -135,8 +135,8 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
       - run: node scripts/verify-release.mjs
@@ -161,7 +161,7 @@ jobs:
       # Shared runner IPs exhaust GitHub's anonymous API rate limit.
       RUSTY_G6_GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install .deb (system package)
         if: runner.os == 'Linux'

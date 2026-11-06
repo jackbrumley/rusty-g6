@@ -26,11 +26,17 @@ pub fn run_setup(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Runs after the single-instance guard, so a second launch never rotates
     // the running instance's session log or opens the device.
+    // The legacy config move comes first: opening the session log creates
+    // the new config folder. Its report is logged once the logger is up.
+    let config_migration = crate::paths::migrate_legacy_location();
     if let Err(error) = crate::app::session_log::initialize_session_logging() {
         eprintln!("Failed to initialize session logging: {}", error);
     }
     if let Err(error) = crate::app::session_log::initialize_app_logger() {
         eprintln!("Failed to initialize app logger: {}", error);
+    }
+    if let Some(report) = config_migration {
+        log::log!(report.level, "CONFIG_MIGRATION {}", report.message);
     }
 
     crate::app::json_store::enable_recovery_notices(app.handle());

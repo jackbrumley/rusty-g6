@@ -28,9 +28,20 @@ if ($env:RUSTY_G6_GITHUB_TOKEN) {
   $GitHubApiHeaders["Authorization"] = "Bearer $env:RUSTY_G6_GITHUB_TOKEN"
 }
 
+# The app keeps its files in ~/.config/rusty-g6. Releases up to 1.0.12 used
+# %APPDATA%\rusty-g6 on Windows, which the app moves to the new folder on its
+# first start, but only when the new folder does not exist yet. So while only
+# the old folder exists, log there: creating the new folder here would stop
+# that move.
+$ConfigDir = Join-Path $env:USERPROFILE ".config\rusty-g6"
+$LegacyConfigDir = Join-Path $env:APPDATA "rusty-g6"
+if (-not (Test-Path $ConfigDir) -and (Test-Path $LegacyConfigDir)) {
+  $ConfigDir = $LegacyConfigDir
+}
+
 $LogFile = $null
 try {
-  $DebugDir = Join-Path $env:APPDATA "rusty-g6\debug"
+  $DebugDir = Join-Path $ConfigDir "debug"
   New-Item -ItemType Directory -Force -Path $DebugDir | Out-Null
   $LogFile = Join-Path $DebugDir "update.log"
 } catch {}

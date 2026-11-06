@@ -62,14 +62,20 @@ if (-not $found) { Log "No installed copy of Rusty G6 was found." }
 # Start-with-Windows entry written by the app's autostart setting.
 Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $AppName -ErrorAction SilentlyContinue
 
-$UserDataDir = Join-Path $env:APPDATA "rusty-g6"
-if ($PurgeData) {
-  if (Test-Path $UserDataDir) {
+# ~/.config/rusty-g6, plus %APPDATA%\rusty-g6 from releases up to 1.0.12 in
+# case the app never started again to move it.
+$UserDataDirs = @(
+  (Join-Path $env:USERPROFILE ".config\rusty-g6"),
+  (Join-Path $env:APPDATA "rusty-g6")
+)
+foreach ($UserDataDir in $UserDataDirs) {
+  if (-not (Test-Path $UserDataDir)) { continue }
+  if ($PurgeData) {
     Log "Removing user data: $UserDataDir"
     Remove-Item -Path $UserDataDir -Recurse -Force -ErrorAction SilentlyContinue
+  } else {
+    Log "User data left at $UserDataDir"
   }
-} elseif (Test-Path $UserDataDir) {
-  Log "User data left at $UserDataDir"
 }
 
 Log "Uninstall complete"

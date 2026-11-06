@@ -350,7 +350,17 @@ if [[ "$install_system" == true ]]; then
   if [[ "$pm" == "dnf" ]]; then
     run_as_root dnf install -y "$package_path"
   else
-    run_as_root apt-get install -y "$package_path"
+    # A stale package list names dependency versions the mirror has since
+    # removed (404), so refresh it first. An unrelated broken repository can
+    # make the refresh fail; the install is still worth trying then.
+    # One root call, so a graphical pkexec prompt (the in-app updater) asks
+    # for the password once.
+    # shellcheck disable=SC2016 # $1 expands in the root shell.
+    run_as_root bash -c '
+      apt-get update \
+        || echo "[rusty-g6] WARNING: apt-get update failed; installing with the existing package list" >&2
+      apt-get install -y "$1"
+    ' bash "$package_path"
   fi
   log "System install complete"
 else
