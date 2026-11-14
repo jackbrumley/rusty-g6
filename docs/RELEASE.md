@@ -33,7 +33,9 @@ Development happens on `dev`; releases are tagged on `dev`. Promotion
 fast-forwards `main` to the release tag, so `main` always equals the latest
 release. GitHub Pages serves `brumley.info/rusty-g6/` (install page and
 installer scripts) from `main:/docs`, so promotion also deploys installer
-changes. Never commit to `main` directly.
+changes. Never commit to `main` directly. A site-only edit on `main` (GitHub's web editor
+included) must be merged into `dev` straight away, or promotion can't
+fast-forward; `release:promote` checks this before publishing anything.
 
 ## 1. Prepare and Tag
 
