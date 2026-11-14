@@ -1,108 +1,79 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" alt="Rusty G6 Logo" width="96" height="96" />
+  <img src="src-tauri/icons/128x128.png" alt="" width="96" height="96" />
 </p>
 
-<h1 align="center">Rusty G6 - Sound BlasterX G6 GUI for Linux and Windows</h1>
+<h1 align="center">Rusty G6</h1>
 
-<p align="center">Simple desktop interface for Sound BlasterX G6 controls, no command line needed.</p>
+<p align="center">A simple control panel for the Sound BlasterX G6 on Linux and Windows.<br />Switch between speakers and headphones and tweak SBX effects, no command line needed.</p>
 
 <p align="center">
-  <a href="https://www.gnu.org/licenses/agpl-3.0.html"><img src="https://img.shields.io/badge/License-AGPLv3-blue.svg" alt="AGPL v3 License" /></a>
-  <a href="https://github.com/jackbrumley/rusty-g6"><img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-4f46e5" alt="Platform" /></a>
-  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Built%20With-Tauri-14b8a6" alt="Built with Tauri" /></a>
+  <a href="https://github.com/jackbrumley/rusty-g6/releases/latest"><img src="https://img.shields.io/github/v/release/jackbrumley/rusty-g6?label=release&color=e5483f" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-e5483f" alt="Linux and Windows" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-e5483f" alt="AGPL-3.0" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/jackbrumley/rusty-g6/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-ef4444?style=for-the-badge" alt="Download Latest Release" /></a>
+  <a href="https://brumley.info/rusty-g6/">Website</a> ·
+  <a href="https://github.com/jackbrumley/rusty-g6/releases/latest">Downloads</a> ·
+  <a href="docs/usb-protocol.md">USB protocol</a> ·
+  <a href="https://github.com/jackbrumley/rusty-g6/issues">Report an issue</a>
 </p>
-
-Rusty G6 is a Sound BlasterX G6 GUI app for Linux and Windows that lets you control G6 features without command-line tools.
-
-It exists because there is no official Linux client for the G6, and advanced controls are hard to access outside Creative's Windows software. Rusty G6 provides a cleaner desktop experience for Linux users and is also available on Windows.
-
-If you searched for "Sound Blaster G6 GUI Linux" or "Sound Blaster G6 interface on Linux," this is the app you want.
 
 ## Install
 
-Download the latest release here:
+**Linux**
 
-- **[Download Latest Release](https://github.com/jackbrumley/rusty-g6/releases/latest)**
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://brumley.info/rusty-g6/install.sh | bash
+```
 
-Release package options:
+**Windows** (PowerShell)
 
-- Windows (Most users): Setup EXE (no admin)
-- Windows (IT/Admin): System MSI
-- Linux (Debian/Ubuntu): `.deb`
-- Linux (Fedora/RHEL): `.rpm`
-- Linux (Portable): `.AppImage`
+```powershell
+irm https://brumley.info/rusty-g6/install.ps1 | iex
+```
 
-Setup EXE installs per-user (no admin). MSI is a system-wide install intended for IT/admin deployment.
+Prefer a package? The [latest release](https://github.com/jackbrumley/rusty-g6/releases/latest) has a per-user Setup `.exe`, a system-wide `.msi`, and `.deb`, `.rpm` and `.AppImage` files. The Linux installer takes `-s -- --appimage` to install the AppImage on any distro.
 
-## What You Can Do
+## What it does
 
-- Tweak your Sound BlasterX G6 audio settings from a simple desktop UI
-- Switch output between speakers and headphones
-- Adjust SBX effects like Surround, Crystalizer, Bass, Smart Volume, and Dialog Plus
-- Use the app on Linux and Windows with the same straightforward controls
+Rusty G6 is a control panel for the Sound BlasterX G6 USB DAC. Creative only makes its control app for Windows, so on Linux there was no way to switch outputs or change the SBX effects. Rusty G6 does both on Linux and Windows, in a small app that sits in the tray.
 
-## Who This Is For
-
-- Linux users who want a graphical interface for Sound BlasterX G6 settings
-- People who do not want to use terminal commands to manage their DAC settings
-- Anyone searching for an easy Sound Blaster G6 control panel on desktop
+- Switch the G6 output between speakers and headphones
+- Adjust SBX effects: Surround, Crystalizer, Bass, Smart Volume and Dialog Plus
+- Works on Linux, where Creative doesn't provide an app, and on Windows
 
 ## Screenshots
 
-![Rusty G6 main dashboard on Linux](docs/screenshots/screenshot-1.png)
-![Sound BlasterX G6 output and profile controls](docs/screenshots/screenshot-2.png)
-![SBX effects controls in Rusty G6 desktop app](docs/screenshots/screenshot-3.png)
+<p align="center">
+  <img src="docs/screenshots/screenshot-1.png" alt="Main dashboard" width="400" />
+  <img src="docs/screenshots/screenshot-2.png" alt="Output and profile controls" width="400" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/screenshot-3.png" alt="SBX effects controls" width="400" />
+</p>
 
-## FAQ
+## Hardware
 
-### Is there a GUI for Sound BlasterX G6 on Linux?
+Rusty G6 talks to the Sound BlasterX G6 (USB `041e:3256`) over USB HID. On Linux the app asks for USB permission on first launch if it is missing. The protocol is reverse-engineered, building on [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) by [Nils Skowasch](https://github.com/nils-skowasch); use it at your own risk. Rusty G6 is not affiliated with Creative Technology.
 
-Yes. Rusty G6 is a desktop GUI for Linux that gives you direct control over Sound BlasterX G6 settings.
-
-### How do I control Sound Blaster G6 settings on Linux?
-
-Install Rusty G6 from the latest release and use the app to switch outputs and adjust SBX settings with a normal graphical interface.
-
-## Why This Project Exists
-
-There is no official Linux client for the G6. On Linux, the device works as a basic audio interface, but advanced controls are not easily available.
-
-Rusty G6 builds on the reverse-engineering work from [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) and provides a user-friendly desktop interface.
-
-## Build From Source
+## Build from source
 
 ```bash
-git clone https://github.com/jackbrumley/rusty-g6
-cd rusty-g6
 npm install
-npm run tauri:build
+npm run tauri:dev    # run in development
+npm run tauri:build  # build packages for this platform
 ```
 
-For more detail, see [docs/build-guide.md](docs/build-guide.md).
-
-## Technical Notes
-
-- USB Vendor ID: `041e` (Creative Technology Ltd)
-- USB Product ID: `3256` (Sound BlasterX G6)
-- Protocol: USB HID with interrupt transfers
-
-Documentation:
-
-- [USB Protocol Implementation](docs/usb-protocol.md)
-- [Reference USB Specification](docs/rusty-g6-usb-spec.md)
-
-## Disclaimer
-
-This software communicates directly with USB hardware using reverse-engineered protocols. Use at your own risk.
-
-## Credits
-
-Special thanks to **[Nils Skowasch](https://github.com/nils-skowasch)** and the [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) project for the protocol reverse engineering foundation.
+Packages land in `src-tauri/target/release/bundle/`. Prerequisites are in the [build guide](docs/build-guide.md).
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See the [LICENSE](LICENSE) file for details.
+[GNU AGPLv3](LICENSE).
+
+---
+
+<p align="center">
+  Rusty G6 is one of the free apps by <a href="https://brumley.info">Jack Brumley</a>:<br />
+  <a href="https://voquill.org">Voquill</a> · <b>Rusty G6</b> · <a href="https://somedrive.org/">SomeDrive</a> · <a href="https://yambuck.com/">Yambuck</a> · <a href="https://brumley.info/rawtap/">RawTap</a> · <a href="https://bmuster.com/">BMuster</a>
+</p>
