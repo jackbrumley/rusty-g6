@@ -136,11 +136,12 @@ body {
   overscroll-behavior: contain;
   padding: 12px 15px 15px;
   position: relative;
-  /* Frosted glass over the hexagon art: it shows as soft glows behind the
-     settings and stays crisp above the tabs. */
+  /* Bright frosted glass over the hexagon art (like the site's icon tile):
+     the art shows as vivid soft glows behind the settings and stays crisp
+     above the tabs. */
   background: var(--frost-tint);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px) saturate(170%) brightness(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(170%) brightness(1.15);
 }
 
 .app-body-shell {
