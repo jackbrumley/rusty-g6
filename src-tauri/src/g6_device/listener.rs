@@ -3,6 +3,7 @@
 
 use super::G6DeviceManager;
 use crate::g6_protocol_v2;
+use crate::g6_protocol_v2::events::DeviceEvent;
 use log::{error, info};
 use std::sync::atomic::Ordering;
 use std::thread;
@@ -82,93 +83,17 @@ impl G6DeviceManager {
                             );
 
                             // Parse events using the protocol V2 parser
-                            let events = crate::g6_protocol_v2::G6EventParser::parse(packet);
+                            let events =
+                                crate::g6_protocol_v2::events::G6EventParser::parse(packet);
 
                             // Process each detected event
                             for event in &events {
                                 if let Ok(mut settings) = settings_arc.lock() {
-                                    use crate::g6_protocol_v2::DeviceEvent;
-
-                                    match event {
-                                        // Output switching
-                                        DeviceEvent::OutputChanged(output) => {
-                                            settings.output = *output;
-                                            confirmed_arc.store(true, Ordering::SeqCst);
-                                            info!("Detected {:?}", event);
-                                        }
-
-                                        // Gaming modes
-                                        DeviceEvent::SbxModeChanged(state) => {
-                                            settings.sbx_enabled = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::ScoutModeChanged(state) => {
-                                            settings.scout_mode = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-
-                                        // Audio effects - toggles
-                                        DeviceEvent::SurroundToggled(state) => {
-                                            settings.surround_enabled = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::CrystalizerToggled(state) => {
-                                            settings.crystalizer_enabled = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::BassToggled(state) => {
-                                            settings.bass_enabled = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::SmartVolumeToggled(state) => {
-                                            settings.smart_volume_enabled = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::DialogPlusToggled(state) => {
-                                            settings.dialog_plus_enabled = *state;
-                                            info!("Detected {:?}", event);
-                                        }
-
-                                        // Audio effects - values
-                                        DeviceEvent::SurroundValueChanged(value) => {
-                                            settings.surround_value = *value;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::CrystalizerValueChanged(value) => {
-                                            settings.crystalizer_value = *value;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::BassValueChanged(value) => {
-                                            settings.bass_value = *value;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::SmartVolumeValueChanged(value) => {
-                                            settings.smart_volume_value = *value;
-                                            info!("Detected {:?}", event);
-                                        }
-                                        DeviceEvent::DialogPlusValueChanged(value) => {
-                                            settings.dialog_plus_value = *value;
-                                            info!("Detected {:?}", event);
-                                        }
-
-                                        // Digital filter
-                                        DeviceEvent::DigitalFilterChanged(filter) => {
-                                            settings.digital_filter = Some(*filter);
-                                            info!("Detected {:?}", event);
-                                        }
-
-                                        // Audio config
-                                        DeviceEvent::AudioConfigChanged(config) => {
-                                            settings.audio_config = Some(*config);
-                                            info!("Detected {:?}", event);
-                                        }
-
-                                        // Microphone boost
-                                        DeviceEvent::MicrophoneBoostChanged(db_value) => {
-                                            settings.microphone_boost = *db_value;
-                                            info!("Detected {:?}", event);
-                                        }
+                                    event.apply_to(&mut settings);
+                                    if matches!(event, DeviceEvent::OutputChanged(_)) {
+                                        confirmed_arc.store(true, Ordering::SeqCst);
                                     }
+                                    info!("Detected {:?}", event);
                                 }
                             }
 

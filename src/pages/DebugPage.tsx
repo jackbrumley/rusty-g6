@@ -3,11 +3,10 @@ import { ToggleControl } from "../components/controls/ToggleControl";
 import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
 import { LogsBlock } from "../components/debug/LogsBlock";
-import type { G6Settings, ToastType } from "../types/g6";
+import type { ToastType } from "../types/g6";
 import { useState } from "preact/hooks";
 
 interface DebugPageProps {
-  settings: G6Settings | null;
   appVersion: string;
   autostartEnabled: boolean;
   closeToTray: boolean;
@@ -31,7 +30,6 @@ interface DebugPageProps {
 }
 
 export function DebugPage({
-  settings,
   appVersion,
   autostartEnabled,
   closeToTray,
@@ -171,17 +169,6 @@ export function DebugPage({
                 Reset Connection
               </button>
             </div>
-            {settings?.extended_params && (
-              <div class="device-details">
-                <div class="read-only-item">
-                  <span class="readonly-label">Extended Params:</span>
-                  <span class="readonly-value">
-                    {Object.values(settings.extended_params).filter((v) => v !== null).length}/15 detected
-                    (Read-only)
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </CollapsibleCardSection>

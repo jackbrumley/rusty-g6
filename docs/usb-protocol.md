@@ -7,11 +7,16 @@ This document reflects the protocol behavior currently implemented in Rusty G6.
 Rusty G6 protocol work is based on:
 
 - reverse engineering from [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli)
+- the hardware-verified protocol reference and USB captures of
+  [linuxblaster_control](https://github.com/RizeCrime/linuxblaster_control)
+  (graphic EQ, multi-feature status reports)
 - additional packet-capture validation from Rusty G6 development
 - current implementation in:
-  - `src-tauri/src/g6_protocol_v2.rs`
-  - `src-tauri/src/g6_device.rs`
-  - `src-tauri/src/app/commands/audio.rs`
+  - `src-tauri/src/g6_protocol_v2/` (framing, `reads.rs`, `writes.rs`,
+    `equalizer.rs`, `parser.rs`, `events.rs`)
+  - `src-tauri/src/g6_device/` (connection, transport, setters, state read,
+    event listener)
+  - `src-tauri/src/app/commands/audio.rs` and `equalizer.rs`
 
 For a broader command catalog/reference, see `rusty-g6-usb-spec.md`.
 
@@ -70,6 +75,27 @@ Core write format used for most effect toggles/values:
 5a 12 07 01 96 [FEATURE] [FLOAT]
 ```
 
+### Graphic EQ (family `0x96`)
+
+Implemented and exposed in the Output page.
+
+- `0x09` EQ toggle (f32 `0.0` / `1.0`)
+- `0x0a` preamp, -6 to +6 dB
+- `0x0b`-`0x14` bands 31, 62, 125, 250, 500 Hz and 1, 2, 4, 8, 16 kHz,
+  -12 to +12 dB
+
+Gains are f32 dB values in steps of 0.5 dB, written with the core write
+format above and read back with the core read format.
+
+### Status Reports (`0x11`)
+
+The G6 reports DSP values as `5a 11 [len] [count] 00` followed by `count`
+blocks of `[family] [feature] [f32 LE]`, with `len = 2 + count * 6`. A single
+value has `count = 1` (`len = 0x08`); on an output switch the G6 pushes the
+new output's whole profile, up to eight blocks per packet. Only family `0x96`
+(playback) is mapped to settings: families `0x95` (recording) and `0x97`
+(decoder) reuse the same feature numbers for other settings.
+
 ### Gaming Modes (`0x26`)
 
 Implemented:
@@ -100,7 +126,8 @@ Builder uses:
 Rusty G6 performs device synchronization via:
 
 1. explicit read command set in `build_read_all_state_commands()`
-2. event listener updates in `g6_device.rs`
+2. event listener updates in `g6_device/listener.rs`; both apply events
+   through `DeviceEvent::apply_to`
 
 Events parsed include output changes, gaming mode state, audio effect toggles/values, digital filter reports, audio config reports, and microphone boost events.
 
@@ -121,6 +148,9 @@ Audio effect features used by implementation:
 - `0x06` Smart Volume Preset (read path)
 - `0x07` Crystalizer Toggle
 - `0x08` Crystalizer Value
+- `0x09` EQ Toggle
+- `0x0a` EQ Preamp
+- `0x0b`-`0x14` EQ Bands
 - `0x18` Bass Toggle
 - `0x19` Bass Value
 
@@ -133,8 +163,8 @@ Gaming feature IDs:
 
 ## Not Fully Productized
 
-- Equalizer control path is not exposed in current UI.
-- Digital filter write builder exists but is explicitly marked guessed/experimental in code and is not exposed by commands.
+- Digital filter: reports are parsed, but there is no write builder or
+  command yet.
 - Extended profile/preset workflows are not implemented as first-class user flows.
 
 ---
@@ -143,6 +173,7 @@ Gaming feature IDs:
 
 - [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli)
 - [Upstream USB protocol notes](https://github.com/nils-skowasch/soundblaster-x-g6-cli/blob/main/doc/usb-protocol.md)
+- [linuxblaster_control USB protocol reference](https://github.com/RizeCrime/linuxblaster_control/blob/main/UsbProtocol.md)
 - [Rusty G6 reference spec](rusty-g6-usb-spec.md)
 
 If this documentation is used elsewhere, please credit both Nils Skowasch's original reverse-engineering work and the Rusty G6 project.

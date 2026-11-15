@@ -41,6 +41,7 @@ Rusty G6 is a control panel for the Sound BlasterX G6 USB DAC. Creative only mak
 
 - Switch the G6 output between speakers and headphones
 - Adjust SBX effects: Surround, Crystalizer, Bass, Smart Volume and Dialog Plus
+- Shape the sound with the G6's 10-band graphic EQ: pick a preset or drag the curve
 - Works on Linux, where Creative doesn't provide an app, and on Windows
 
 ## Screenshots
@@ -55,7 +56,7 @@ Rusty G6 is a control panel for the Sound BlasterX G6 USB DAC. Creative only mak
 
 ## Hardware
 
-Rusty G6 talks to the Sound BlasterX G6 (USB `041e:3256`) over USB HID. On Linux the app asks for USB permission on first launch if it is missing. The protocol is reverse-engineered, building on [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) by [Nils Skowasch](https://github.com/nils-skowasch); use it at your own risk. Rusty G6 is not affiliated with Creative Technology.
+Rusty G6 talks to the Sound BlasterX G6 (USB `041e:3256`) over USB HID. On Linux the app asks for USB permission on first launch if it is missing. The protocol is reverse-engineered, building on [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli) by [Nils Skowasch](https://github.com/nils-skowasch) and the hardware-verified protocol reference of [linuxblaster_control](https://github.com/RizeCrime/linuxblaster_control) by RizeCrime; use it at your own risk. Rusty G6 is not affiliated with Creative Technology.
 
 ## Build from source
 

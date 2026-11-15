@@ -76,12 +76,151 @@ the G6 fixes it.
 - Windows has no USB reset step (the HID driver owns the device). Check
   whether the bug happens there at all.
 
+**Outside evidence (linuxblaster_control, 2026-11):** the same cold-boot bug
+is documented in `packaging/coldboot/README.md` of
+https://github.com/RizeCrime/linuxblaster_control. They found that a
+`USBDEVFS_RESET` does wake the HID endpoint, but **leaves the audio interface
+unusable until the next full re-enumeration**. That contradicts our in-session
+self-heal. Their fix runs once at boot, before PipeWire opens the device:
+- A udev `add` rule starts a oneshot service.
+- The service resets the G6, waits for it to re-enumerate, then loads
+  `snd-usb-audio`, which modprobe holds back from the first enumeration.
+- Result: no `__uac_clock_find_source` errors and a working HID endpoint.
+
+Test on hardware after a cold boot: does playback still work after our
+`SELF-HEAL` USB reset? If it doesn't, drop the in-session reset (keep the
+handle reopen) and offer a boot-time helper like theirs instead, as an
+explicit install step with its side effects listed.
+
+### Microphone very quiet on Linux
+
+Reported 2026-11-15. The G6 mic is barely audible on Linux, and a manual
+`amixer` fix is lost at every reboot.
+
+**Findings (read-only, 2026-11-15):**
+- The G6 records from **Line In**, not the mic: `PCM Capture Source` = Line In.
+  The External Mic capture level is fine (0 dB), so raising volumes barely
+  helps.
+- PipeWire's only G6 input port is Line In. Its ALSA card profile path
+  `analog-input-linein.conf` forces `PCM Capture Source:Line In`, and its mic
+  path does not know the G6's `External Mic` item, so it never offers a mic
+  port.
+- `/var/lib/alsa/asound.state` stores Line In and `alsa-restore` puts it back
+  at boot. So the kernel default, alsa-restore and PipeWire can each undo a
+  manual fix.
+- `configure_microphone` (`app/commands/system.rs`) shells out to `amixer`,
+  runs only from the experimental "Setup Mic" button, is not stored, and its
+  toast names the wrong source ("Digital Input (S/PDIF)"; it is "Analog
+  Stereo"). It logs with `eprintln!`.
+
+**Plan:**
+- A Linux-only mixer module on the `alsa` crate (model: linuxblaster_control
+  `src/mixer.rs`, MIT). Store the recording source in `settings.json`
+  (default External Mic) and apply it on every connect.
+- Watch `PCM Capture Source` with ALSA control events and re-apply it if
+  PipeWire switches it back; log each re-apply.
+- Replace `configure_microphone` and its `amixer` calls.
+- Add `libasound2-dev` to the Containerfile and the Linux CI job.
+- Input page: recording source picker, mic level, and mic boost read back
+  from the device (`5a 3c 02 01 00`).
+- Later, optional: ship an ALSA card profile path so PipeWire offers a real
+  mic port even without the app (needs root; the installers already add a
+  udev rule).
+
+Test first, so we know whether the watch is needed:
+`amixer -c G6 cset name='PCM Capture Source' 'External Mic'`, check the mic,
+then `systemctl --user restart wireplumber pipewire` and
+`amixer -c G6 cget name='PCM Capture Source'`. If it is back on Line In,
+PipeWire resets it.
+
 ## Next
 
-- Split the files over the 600-line soft budget (`npm run check:structure`
-  lists them): `src-tauri/src/g6_device/mod.rs` (connection, writes and
-  setters) and `src-tauri/src/g6_protocol_v2/mod.rs` (command builders and
-  response parser).
+### More G6 controls (from Creative's app and linuxblaster)
+
+Sources:
+- linuxblaster_control's `UsbProtocol.md`: tested on hardware, MIT licence,
+  with 42 USB captures in `sniffer/captures/`.
+- A decompile of Creative's Sound Blaster Command 3.4.98. Its G6 UI uses
+  these features: SBX effects, graphic EQ, voice morph, mic EQ, noise
+  reduction, echo cancellation, mic smart volume, acoustic engine, virtual
+  speaker config and HRTF, headphone gain, Direct and S/PDIF direct, the
+  Dolby decoder, the LED indicator, lighting, and the UAC1/UAC2 mode.
+
+Use their findings, write the code in our own structure, and credit
+linuxblaster_control in the README with the first feature that uses them.
+Every command below is backed by a linuxblaster capture or a hardware test
+they wrote down. Re-check each one on our G6 before it ships.
+
+Order (each item: protocol builder + parser, state read, setter, Tauri
+command, UI):
+1. ~~**Split first.**~~ Done: `g6_device/` (connection, transport,
+   setters) and `g6_protocol_v2/` (parser, reads, writes, equalizer).
+2. **Graphic EQ.** Built (toggle, presets, draggable curve, preamp), not yet
+   tested on hardware. Check: each write takes effect, the curve follows
+   output switches (multi-feature `0x11` reports), presets apply in one go.
+   Original plan: Toggle `96:09`, preamp `96:0a` (±6 dB, step 0.5), bands
+   `96:0b`–`96:14` (31 Hz–16 kHz, ±12 dB, step 0.5). Read
+   `5a 11 03 01 96 [id]`, write `5a 12 07 01 96 [id] [f32 LE]`. Replace the
+   unused `equalizer` and `extended_params` fields in `g6_spec.rs`: nothing
+   fills them, and `0x0a`–`0x14` are the EQ, not "extended params". The EQ
+   also sets bit 0 of the `0x26` status. Captures: `set_eq_on`, `set_eq_off`,
+   `set_eq_62hz_0db`.
+3. **DAC filter.** Add the setter (`5a 6c 03 00 [f] 00`), the read
+   (`5a 6c 01 01`) and the missing NOS value `0x03`. Captures:
+   `set_filter_*`.
+4. **Recording controls.** Noise reduction `95:04` and level `95:05` (device
+   scale 0–0.5). Echo cancellation `95:00`. Mic smart volume `95:2c`. Mic EQ
+   toggle `95:13` and presets on `95:14`–`95:1b`. Captures:
+   `set_noise_reduction_*`, `set_mic_noise_reduction_level-*`,
+   `set_voice_clarity_*`.
+5. **Smaller items:**
+   - `96:17` (10–300, step 0.5): linuxblaster calls it surround distance,
+     but Creative's own parameter table names it the **XBass crossover**.
+     Check on hardware which one it is before labelling it.
+   - Decoder mode `97:02` (2 = Normal, 1 = Full, 3 = Night).
+   - Smart Volume mode `96:06` (0 = Normal, 1 = Loud, 2 = Night). The
+     `SmartVolumePreset` enum exists, but nothing reads or writes it yet.
+6. **Lighting.** On/off `5a 3a 02 06 [0|1]`; colour `5a 3a 06 04 00 03 01 00 01`
+   then `5a 3a 09 0a 00 03 01 01 ff B G R`. Read with `5a 3a 01 07` and
+   `5a 3a 06 0b 01 00 01 01 01`.
+7. **Mixer and recording source.** These are standard USB Audio Class
+   controls (ALSA card `G6`), not HID. Decide whether Rusty G6 should show
+   them at all.
+8. **Features decoded from Creative's app, not yet captured.** Decoded
+   statically on 2026-11-15 from `Platform/CTHIDRpA.dll`, which builds the
+   frames; `SndCrUSB.DLL` only passes parameter indexes to it. Raw dumps are
+   in `temp/sbc-decode/` (untracked). Each one still needs a capture or a
+   reversible hardware test before it ships.
+   - **Voice morph:** enable `95:0a`. Formants F1–F3 `95:0b`–`0d` (200–800,
+     800–1800, 1600–2750 Hz), pitch `0e` (0.25–4), envelope `0f` (0.5–2),
+     pitch variability `10` (-1 to 5), quiver `11` (0–0.2), contour `12`
+     (0–0.4). There is no HID preset command: apply presets by writing the
+     values. Preset values are in Creative's `PresetConfig.json`; write our
+     own presets.
+   - **Mic reverb:** `95:2e`–`35` plus family `9f` ids `01`–`1f`. This is the
+     only "EAX" on the G6: there is no playback reverb.
+   - **Mic EQ band frequency and width:** `95:1c`–`23` and `95:24`–`2b`.
+   - **Flag family `0x39`:** set `5a 39 03 00 [SUB] [0|1]`; read
+     `5a 39 01 01`, where bit SUB of the reply's LE u32 at offset 4 is the
+     state. SUB: `05` stereo direct, `06` headphone high gain, `0a` speaker
+     HRTF, `0b` auto sleep, `0d` S/PDIF out direct, `0e` LED indicator, `1a`
+     UAC2 only (its read shares bit 15 with `0f`, so don't trust it). Restore
+     defaults is `5a 39 03 00 03 01`.
+   - **Speaker config:** set `5a 29 05 00 [u32 LE]` (1 = headphones,
+     2 = stereo, 4 = 5.1; no 7.1); read `5a 29 01 01`.
+   - **Lighting effects:** slot `5a 3a 02 0f S`, pattern `5a 3a 03 08 S P`,
+     timing `5a 3a 06 0a S X 03 t t`, restart `5a 3a 01 0c`. Some field
+     meanings are still guesses.
+   - Several of our "commit" packets (`5a 2c 01 01`, `5a 3c 02 01`,
+     `5a 39 01 01`) are really reads. They are harmless, but name them as reads.
+
+Small corrections from the same doc:
+- The `0x3c` family is only mic boost, so `AudioConfig` in `g6_spec.rs` is not
+  a separate setting.
+- Bit 2 of the `0x26` status means voice clarity (noise reduction) is on.
+
+- After the feature sprint: redesign the layout and visual packaging so the
+  new controls fit. Use Voquill (`~/Coding/voquill`) as the model.
 - App Standard section 6: check the Settings layout (General, Updates,
   app-specific, Debug), modals (`role="dialog"`, Escape, focus) and toast
   timings against the standard.

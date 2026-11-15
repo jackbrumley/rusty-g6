@@ -60,38 +60,45 @@ pub struct FirmwareInfo {
     pub build: Option<String>,
 }
 
-/// Equalizer band configuration (read-only for now)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EqualizerBand {
-    pub frequency: f32,
-    pub gain: f32,
-}
+/// EQ preamp range in dB (device range dump `0x15`: -6 to +6).
+pub const EQ_PREAMP_LIMIT_DB: f32 = 6.0;
 
-/// Complete equalizer configuration (read-only for now)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EqualizerConfig {
+/// EQ band gain range in dB (device range dump `0x15`: -12 to +12).
+pub const EQ_BAND_LIMIT_DB: f32 = 12.0;
+
+/// The device's EQ gain step in dB.
+pub const EQ_GAIN_STEP_DB: f32 = 0.5;
+
+/// Graphic equalizer state of the active output. The G6 keeps one per
+/// output (speakers and headphones).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EqualizerSettings {
     pub enabled: EffectState,
-    pub bands: Vec<EqualizerBand>,
+    pub preamp_db: f32,
+    /// Gains in dB of the ten bands: 31, 62, 125, 250, 500 Hz and
+    /// 1, 2, 4, 8, 16 kHz.
+    pub band_gains_db: [f32; 10],
 }
 
-/// Extended audio effect parameters (read-only)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExtendedAudioParams {
-    pub param_0x0a: Option<f32>,
-    pub param_0x0b: Option<f32>,
-    pub param_0x0c: Option<f32>,
-    pub param_0x0d: Option<f32>,
-    pub param_0x0e: Option<f32>,
-    pub param_0x0f: Option<f32>,
-    pub param_0x10: Option<f32>,
-    pub param_0x11: Option<f32>,
-    pub param_0x12: Option<f32>,
-    pub param_0x13: Option<f32>,
-    pub param_0x14: Option<f32>,
-    pub param_0x1a: Option<f32>,
-    pub param_0x1b: Option<f32>,
-    pub param_0x1c: Option<f32>,
-    pub param_0x1d: Option<f32>,
+impl Default for EqualizerSettings {
+    fn default() -> Self {
+        Self {
+            enabled: EffectState::Disabled,
+            preamp_db: 0.0,
+            band_gains_db: [0.0; 10],
+        }
+    }
+}
+
+/// Checks an EQ gain against its range (`limit_db` either way) and snaps it
+/// to the device's 0.5 dB step.
+pub fn validate_eq_gain(gain_db: f32, limit_db: f32) -> anyhow::Result<f32> {
+    if !gain_db.is_finite() || gain_db.abs() > limit_db {
+        return Err(anyhow::anyhow!(
+            "EQ gain must be between -{limit_db} and +{limit_db} dB, got {gain_db}"
+        ));
+    }
+    Ok((gain_db / EQ_GAIN_STEP_DB).round() * EQ_GAIN_STEP_DB)
 }
 
 /// G6 device settings structure
@@ -131,8 +138,7 @@ pub struct G6Settings {
     // Read-only device information
     pub firmware_info: Option<FirmwareInfo>,
     pub scout_mode: ScoutModeState,
-    pub equalizer: Option<EqualizerConfig>,
-    pub extended_params: Option<ExtendedAudioParams>,
+    pub equalizer: EqualizerSettings,
 
     // Device connection state
     pub is_connected: bool,
@@ -160,60 +166,9 @@ impl Default for G6Settings {
             audio_config: None,
             firmware_info: None,
             scout_mode: ScoutModeState::Disabled,
-            equalizer: None,
-            extended_params: None,
+            equalizer: EqualizerSettings::default(),
             is_connected: false,
             last_read_time: None,
-        }
-    }
-}
-
-impl Default for EqualizerConfig {
-    fn default() -> Self {
-        Self {
-            enabled: EffectState::Disabled,
-            bands: vec![
-                EqualizerBand {
-                    frequency: 31.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 62.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 125.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 250.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 500.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 1000.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 2000.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 4000.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 8000.0,
-                    gain: 0.0,
-                },
-                EqualizerBand {
-                    frequency: 16000.0,
-                    gain: 0.0,
-                },
-            ],
         }
     }
 }
@@ -250,5 +205,22 @@ impl ProtocolConsoleMessage {
             text,
             details,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eq_gain_snaps_to_half_db() {
+        assert_eq!(validate_eq_gain(2.3, EQ_BAND_LIMIT_DB).unwrap(), 2.5);
+        assert_eq!(validate_eq_gain(-12.0, EQ_BAND_LIMIT_DB).unwrap(), -12.0);
+    }
+
+    #[test]
+    fn eq_gain_outside_range_is_rejected() {
+        assert!(validate_eq_gain(6.5, EQ_PREAMP_LIMIT_DB).is_err());
+        assert!(validate_eq_gain(f32::NAN, EQ_BAND_LIMIT_DB).is_err());
     }
 }

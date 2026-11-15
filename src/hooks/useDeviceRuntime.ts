@@ -311,44 +311,6 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     }
   };
 
-  const setSbxMode = async (enabled: "Enabled" | "Disabled") => {
-    try {
-      console.log("Setting SBX Mode:", enabled);
-      await logUiEvent(`SBX mode requested: ${enabled}`);
-      await invoke("set_sbx_mode", { enabled });
-    } catch (error) {
-      console.error("Failed to set SBX Mode:", error);
-      showToast(`Failed to set SBX Mode: ${error}`, "error");
-    }
-  };
-
-  const setScoutMode = async (enabled: "Enabled" | "Disabled") => {
-    try {
-      console.log("Setting Scout Mode:", enabled);
-      await logUiEvent(`Scout mode requested: ${enabled}`);
-      await invoke("set_scout_mode", { enabled });
-    } catch (error) {
-      console.error("Failed to set Scout Mode:", error);
-      showToast(`Failed to set Scout Mode: ${error}`, "error");
-    }
-  };
-
-  const setEffect = async (
-    effectName: string,
-    enabled: "Enabled" | "Disabled",
-    value: number
-  ) => {
-    try {
-      console.log(`Setting ${effectName}:`, { enabled, value });
-      await logUiEvent(`Effect change requested: ${effectName} enabled=${enabled} value=${value}`);
-      const result = await invoke(`set_${effectName}`, { enabled, value });
-      console.log(`${effectName} result:`, result);
-    } catch (error) {
-      console.error(`Failed to set ${effectName}:`, error);
-      showToast(`Failed to set ${effectName}: ${error}`, "error", 3000);
-    }
-  };
-
   const setMicrophoneBoost = async (dbValue: number) => {
     try {
       console.log("Setting Microphone Boost:", dbValue);
@@ -580,10 +542,8 @@ export function useDeviceRuntime({ showToast }: UseDeviceRuntimeProps) {
     resetConnection,
     handleSetupUsbPermissions,
     toggleOutput,
-    setSbxMode,
-    setScoutMode,
-    setEffect,
     readDeviceState,
+    logUiEvent,
     toggleAutostart,
     toggleCloseToTray,
     toggleExperimental,

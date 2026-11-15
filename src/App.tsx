@@ -5,6 +5,7 @@ import "./styles/diagnostics.css";
 import "./styles/responsive.css";
 import { AppShell } from "./components/shell/AppShell";
 import { ToastHost } from "./components/toast/ToastHost";
+import { useAudioEffects } from "./hooks/useAudioEffects";
 import { useDeviceRuntime } from "./hooks/useDeviceRuntime";
 import { useUiInteractionLogger } from "./hooks/useUiInteractionLogger";
 import { useToastManager } from "./hooks/useToastManager";
@@ -40,10 +41,8 @@ function App() {
     resetConnection,
     handleSetupUsbPermissions,
     toggleOutput,
-    setSbxMode,
-    setScoutMode,
-    setEffect,
     readDeviceState,
+    logUiEvent,
     toggleAutostart,
     toggleCloseToTray,
     toggleExperimental,
@@ -56,6 +55,9 @@ function App() {
     handleSetupMicClick,
     setMicrophoneBoost,
   } = useDeviceRuntime({ showToast });
+
+  const { setSbxMode, setScoutMode, setEffect, setEqEnabled, setEqPreamp, setEqBand, setEqBands } =
+    useAudioEffects({ showToast, logUiEvent });
 
   useUiInteractionLogger();
 
@@ -105,6 +107,10 @@ function App() {
             onSetScoutMode={setScoutMode}
             onSetSbxMode={setSbxMode}
             onSetEffect={setEffect}
+            onSetEqEnabled={setEqEnabled}
+            onSetEqPreamp={setEqPreamp}
+            onSetEqBand={setEqBand}
+            onSetEqBands={setEqBands}
             onGoToStatus={() => navigate("status")}
           />
         )}
@@ -124,7 +130,6 @@ function App() {
 
         {activeTab === "debug" && (
           <DebugPage
-            settings={settings}
             appVersion={appVersion}
             autostartEnabled={autostartEnabled}
             closeToTray={closeToTray}

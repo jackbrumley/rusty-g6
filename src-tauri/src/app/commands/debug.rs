@@ -1,8 +1,8 @@
 use crate::app::protocol_console::{clear_messages, get_messages, push_console_message};
 use crate::app::state::AppState;
-use crate::g6_protocol_v2::{
-    build_firmware_query_ascii, build_toggle_output_simple, G6ResponseParser,
-};
+use crate::g6_protocol_v2::parser::G6ResponseParser;
+use crate::g6_protocol_v2::reads::build_firmware_query_ascii;
+use crate::g6_protocol_v2::writes::build_toggle_output_simple;
 use crate::g6_spec::ProtocolConsoleMessage;
 use tauri::{AppHandle, State};
 

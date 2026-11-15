@@ -102,7 +102,7 @@ impl G6DeviceManager {
         info!("Reading complete device state from G6...");
 
         // Build all read commands using V2 protocol
-        let commands = crate::g6_protocol_v2::build_read_all_state_commands();
+        let commands = crate::g6_protocol_v2::reads::build_read_all_state_commands();
 
         // Send commands and get responses
         let responses = self.send_read_commands(commands)?;
@@ -151,38 +151,11 @@ impl G6DeviceManager {
                     info!("Device firmware: {}", firmware.version);
                 }
 
-                if let Some(eq) = &device_settings.equalizer {
-                    info!(
-                        "EQ bands detected: {}, enabled: {:?}",
-                        eq.bands.len(),
-                        eq.enabled
-                    );
-                }
-
-                if let Some(ext) = &device_settings.extended_params {
-                    let non_null_params = [
-                        ext.param_0x0a,
-                        ext.param_0x0b,
-                        ext.param_0x0c,
-                        ext.param_0x0d,
-                        ext.param_0x0e,
-                        ext.param_0x0f,
-                        ext.param_0x10,
-                        ext.param_0x11,
-                        ext.param_0x12,
-                        ext.param_0x13,
-                        ext.param_0x14,
-                        ext.param_0x1a,
-                        ext.param_0x1b,
-                        ext.param_0x1c,
-                        ext.param_0x1d,
-                    ]
-                    .iter()
-                    .filter(|p| p.is_some())
-                    .count();
-
-                    info!("Extended parameters detected: {}/15", non_null_params);
-                }
+                let eq = &device_settings.equalizer;
+                info!(
+                    "EQ: {:?}, preamp {} dB, bands {:?} dB",
+                    eq.enabled, eq.preamp_db, eq.band_gains_db
+                );
 
                 Ok(())
             }
@@ -199,7 +172,8 @@ impl G6DeviceManager {
 /// Applies state-read responses to `settings`. Returns how many responses
 /// carried data that was parsed; empty (unanswered) responses count as none.
 fn apply_read_responses(settings: &mut G6Settings, responses: &[Vec<u8>]) -> usize {
-    use crate::g6_protocol_v2::{DeviceEvent, G6EventParser, G6ResponseParser, ParsedResponse};
+    use crate::g6_protocol_v2::events::G6EventParser;
+    use crate::g6_protocol_v2::parser::{G6ResponseParser, ParsedResponse};
 
     let mut parsed = 0;
     for response in responses {
@@ -229,70 +203,12 @@ fn apply_read_responses(settings: &mut G6Settings, responses: &[Vec<u8>]) -> usi
                 }
             }
             _ => {
-                let mut applied = false;
-                for event in G6EventParser::parse(response) {
-                    match event {
-                        DeviceEvent::SbxModeChanged(state) => {
-                            settings.sbx_enabled = state;
-                            info!("SBX Mode: {:?}", state);
-                        }
-                        DeviceEvent::ScoutModeChanged(state) => {
-                            settings.scout_mode = state;
-                            info!("Scout Mode: {:?}", state);
-                        }
-                        DeviceEvent::SurroundToggled(state) => {
-                            settings.surround_enabled = state;
-                            info!("Surround enabled: {:?}", state);
-                        }
-                        DeviceEvent::SurroundValueChanged(value) => {
-                            settings.surround_value = value;
-                            info!("Surround value: {}", value);
-                        }
-                        DeviceEvent::CrystalizerToggled(state) => {
-                            settings.crystalizer_enabled = state;
-                            info!("Crystalizer enabled: {:?}", state);
-                        }
-                        DeviceEvent::CrystalizerValueChanged(value) => {
-                            settings.crystalizer_value = value;
-                            info!("Crystalizer value: {}", value);
-                        }
-                        DeviceEvent::BassToggled(state) => {
-                            settings.bass_enabled = state;
-                            info!("Bass enabled: {:?}", state);
-                        }
-                        DeviceEvent::BassValueChanged(value) => {
-                            settings.bass_value = value;
-                            info!("Bass value: {}", value);
-                        }
-                        DeviceEvent::SmartVolumeToggled(state) => {
-                            settings.smart_volume_enabled = state;
-                            info!("Smart Volume enabled: {:?}", state);
-                        }
-                        DeviceEvent::SmartVolumeValueChanged(value) => {
-                            settings.smart_volume_value = value;
-                            info!("Smart Volume value: {}", value);
-                        }
-                        DeviceEvent::DialogPlusToggled(state) => {
-                            settings.dialog_plus_enabled = state;
-                            info!("Dialog Plus enabled: {:?}", state);
-                        }
-                        DeviceEvent::DialogPlusValueChanged(value) => {
-                            settings.dialog_plus_value = value;
-                            info!("Dialog Plus value: {}", value);
-                        }
-                        DeviceEvent::DigitalFilterChanged(filter) => {
-                            settings.digital_filter = Some(filter);
-                            info!("Digital filter: {:?}", filter);
-                        }
-                        DeviceEvent::AudioConfigChanged(config) => {
-                            settings.audio_config = Some(config);
-                            info!("Audio config: {:?}", config);
-                        }
-                        _ => continue, // Ignore other events
-                    }
-                    applied = true;
+                let events = G6EventParser::parse(response);
+                for event in &events {
+                    event.apply_to(settings);
+                    info!("Read {:?}", event);
                 }
-                if applied {
+                if !events.is_empty() {
                     parsed += 1;
                 }
             }

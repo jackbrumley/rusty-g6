@@ -3,33 +3,21 @@ export interface FirmwareInfo {
   build: string | null;
 }
 
-export interface EqualizerBand {
-  frequency: number;
-  gain: number;
-}
-
-export interface EqualizerConfig {
+/// `g6_spec::EqualizerSettings`: the graphic EQ of the active output.
+export interface EqualizerSettings {
   enabled: "Enabled" | "Disabled";
-  bands: EqualizerBand[];
+  preamp_db: number;
+  /// Gains in dB of the bands in `EQ_BAND_FREQUENCIES`.
+  band_gains_db: number[];
 }
 
-export interface ExtendedAudioParams {
-  param_0x0a: number | null;
-  param_0x0b: number | null;
-  param_0x0c: number | null;
-  param_0x0d: number | null;
-  param_0x0e: number | null;
-  param_0x0f: number | null;
-  param_0x10: number | null;
-  param_0x11: number | null;
-  param_0x12: number | null;
-  param_0x13: number | null;
-  param_0x14: number | null;
-  param_0x1a: number | null;
-  param_0x1b: number | null;
-  param_0x1c: number | null;
-  param_0x1d: number | null;
-}
+/// Band labels, in the order of `band_gains_db` (G6 bands 0x0b-0x14).
+export const EQ_BAND_FREQUENCIES = ["31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
+
+/// Ranges and step in dB (device range dump; `g6_spec.rs` mirrors them).
+export const EQ_PREAMP_LIMIT_DB = 6;
+export const EQ_BAND_LIMIT_DB = 12;
+export const EQ_GAIN_STEP_DB = 0.5;
 
 export interface G6Settings {
   output: "Speakers" | "Headphones";
@@ -48,8 +36,7 @@ export interface G6Settings {
   sbx_enabled: "Enabled" | "Disabled";
   firmware_info: FirmwareInfo | null;
   scout_mode: "Enabled" | "Disabled";
-  equalizer: EqualizerConfig | null;
-  extended_params: ExtendedAudioParams | null;
+  equalizer: EqualizerSettings;
   is_connected: boolean;
   last_read_time: number | null;
 }

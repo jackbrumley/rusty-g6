@@ -1,4 +1,5 @@
 import { EffectControl } from "../components/controls/EffectControl";
+import { EqualizerControl } from "../components/controls/EqualizerControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
 import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
@@ -15,6 +16,10 @@ interface OutputPageProps {
     enabled: "Enabled" | "Disabled",
     value: number
   ) => void;
+  onSetEqEnabled: (enabled: "Enabled" | "Disabled") => void;
+  onSetEqPreamp: (gainDb: number) => void;
+  onSetEqBand: (band: number, gainDb: number) => void;
+  onSetEqBands: (gainsDb: number[]) => void;
   onGoToStatus: () => void;
 }
 
@@ -25,6 +30,10 @@ export function OutputPage({
   onSetScoutMode,
   onSetSbxMode,
   onSetEffect,
+  onSetEqEnabled,
+  onSetEqPreamp,
+  onSetEqBand,
+  onSetEqBands,
   onGoToStatus,
 }: OutputPageProps) {
   if (!connected || !settings) {
@@ -133,6 +142,14 @@ export function OutputPage({
             />
           </div>
         </div>
+
+        <EqualizerControl
+          equalizer={settings.equalizer}
+          onSetEnabled={onSetEqEnabled}
+          onSetPreamp={onSetEqPreamp}
+          onSetBand={onSetEqBand}
+          onSetBands={onSetEqBands}
+        />
       </section>
     </>
   );

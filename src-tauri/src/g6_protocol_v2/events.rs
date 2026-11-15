@@ -2,8 +2,9 @@
 //! the device or by another app), and their parser. State reads reuse the
 //! parser for the responses that share the event format.
 
+use super::equalizer::{band_index, FEATURE_EQ_PREAMP, FEATURE_EQ_TOGGLE};
 use super::PREFIX;
-use crate::g6_spec::{EffectState, OutputDevice};
+use crate::g6_spec::{EffectState, G6Settings, OutputDevice};
 
 // ============================================================================
 // DEVICE EVENT TYPES (for event listener)
@@ -32,6 +33,11 @@ pub enum DeviceEvent {
     SmartVolumeValueChanged(u8),
     DialogPlusValueChanged(u8),
 
+    // Graphic EQ
+    EqToggled(EffectState),
+    EqPreampChanged(f32),
+    EqBandChanged { band: usize, gain_db: f32 },
+
     // Digital filter
     DigitalFilterChanged(crate::g6_spec::DigitalFilter),
 
@@ -40,6 +46,36 @@ pub enum DeviceEvent {
 
     // Microphone boost
     MicrophoneBoostChanged(u8), // 0, 10, 20, or 30 dB
+}
+
+impl DeviceEvent {
+    /// Apply this event to `settings`. The one place that maps device
+    /// reports to settings, shared by state reads and the event listener.
+    pub fn apply_to(&self, settings: &mut G6Settings) {
+        match *self {
+            DeviceEvent::OutputChanged(output) => settings.output = output,
+            DeviceEvent::SbxModeChanged(state) => settings.sbx_enabled = state,
+            DeviceEvent::ScoutModeChanged(state) => settings.scout_mode = state,
+            DeviceEvent::SurroundToggled(state) => settings.surround_enabled = state,
+            DeviceEvent::CrystalizerToggled(state) => settings.crystalizer_enabled = state,
+            DeviceEvent::BassToggled(state) => settings.bass_enabled = state,
+            DeviceEvent::SmartVolumeToggled(state) => settings.smart_volume_enabled = state,
+            DeviceEvent::DialogPlusToggled(state) => settings.dialog_plus_enabled = state,
+            DeviceEvent::SurroundValueChanged(value) => settings.surround_value = value,
+            DeviceEvent::CrystalizerValueChanged(value) => settings.crystalizer_value = value,
+            DeviceEvent::BassValueChanged(value) => settings.bass_value = value,
+            DeviceEvent::SmartVolumeValueChanged(value) => settings.smart_volume_value = value,
+            DeviceEvent::DialogPlusValueChanged(value) => settings.dialog_plus_value = value,
+            DeviceEvent::EqToggled(state) => settings.equalizer.enabled = state,
+            DeviceEvent::EqPreampChanged(gain_db) => settings.equalizer.preamp_db = gain_db,
+            DeviceEvent::EqBandChanged { band, gain_db } => {
+                settings.equalizer.band_gains_db[band] = gain_db
+            }
+            DeviceEvent::DigitalFilterChanged(filter) => settings.digital_filter = Some(filter),
+            DeviceEvent::AudioConfigChanged(config) => settings.audio_config = Some(config),
+            DeviceEvent::MicrophoneBoostChanged(db_value) => settings.microphone_boost = db_value,
+        }
+    }
 }
 
 // ============================================================================
@@ -158,51 +194,65 @@ impl G6EventParser {
         events
     }
 
-    /// Parse audio effect events (0x11 family)
-    /// Format: 5a 11 08 01 00 96 [FEATURE] 00 [FLOAT_VALUE]
+    /// Parse DSP status reports (0x11 family): `5a 11 [len] [count] 00`
+    /// followed by `count` blocks of `[family] [feature] [f32 LE]`. A
+    /// single-feature report has len 0x08; on an output switch the G6 pushes
+    /// up to eight blocks per packet (len = 2 + count * 6). Only the playback
+    /// DSP family (0x96) is mapped; recording (0x95) and decoder (0x97)
+    /// reports use the same feature numbers for other settings.
     fn parse_audio_effect_events(packet: &[u8]) -> Vec<DeviceEvent> {
-        let mut events = Vec::new();
-
-        if packet.len() < 11 || packet[1] != 0x11 || packet[2] != 0x08 {
-            return events;
+        if packet.len() < 5 || packet[1] != 0x11 {
+            return Vec::new();
         }
 
-        // Feature ID is at index 6
-        let feature = packet[6];
+        let count = usize::from(packet[3]);
+        let blocks_end = 5 + count * 6;
+        if usize::from(packet[2]) != 2 + count * 6 || packet.len() < blocks_end {
+            return Vec::new();
+        }
 
-        // Float value at indices 7-10 (little-endian)
-        let value_bytes = &packet[7..11];
-        let float_value = f32::from_le_bytes([
-            value_bytes[0],
-            value_bytes[1],
-            value_bytes[2],
-            value_bytes[3],
-        ]);
+        let (blocks, _) = packet[5..blocks_end].as_chunks::<6>();
+        blocks
+            .iter()
+            .filter_map(|block| {
+                let value = f32::from_le_bytes([block[2], block[3], block[4], block[5]]);
+                Self::playback_dsp_event(block[0], block[1], value)
+            })
+            .collect()
+    }
 
-        let enabled = if float_value > 0.0001 {
+    /// Map one playback DSP (family 0x96) value to an event.
+    fn playback_dsp_event(family: u8, feature: u8, value: f32) -> Option<DeviceEvent> {
+        if family != 0x96 {
+            return None;
+        }
+
+        let enabled = if value > 0.0001 {
             EffectState::Enabled
         } else {
             EffectState::Disabled
         };
+        let percentage = (value * 100.0).round() as u8;
 
-        let percentage = (float_value * 100.0).round() as u8;
-
-        // Map feature ID to event
-        match feature {
-            0x00 => events.push(DeviceEvent::SurroundToggled(enabled)),
-            0x01 => events.push(DeviceEvent::SurroundValueChanged(percentage)),
-            0x02 => events.push(DeviceEvent::DialogPlusToggled(enabled)),
-            0x03 => events.push(DeviceEvent::DialogPlusValueChanged(percentage)),
-            0x04 => events.push(DeviceEvent::SmartVolumeToggled(enabled)),
-            0x05 => events.push(DeviceEvent::SmartVolumeValueChanged(percentage)),
-            0x07 => events.push(DeviceEvent::CrystalizerToggled(enabled)),
-            0x08 => events.push(DeviceEvent::CrystalizerValueChanged(percentage)),
-            0x18 => events.push(DeviceEvent::BassToggled(enabled)),
-            0x19 => events.push(DeviceEvent::BassValueChanged(percentage)),
-            _ => {}
-        }
-
-        events
+        let event = match feature {
+            0x00 => DeviceEvent::SurroundToggled(enabled),
+            0x01 => DeviceEvent::SurroundValueChanged(percentage),
+            0x02 => DeviceEvent::DialogPlusToggled(enabled),
+            0x03 => DeviceEvent::DialogPlusValueChanged(percentage),
+            0x04 => DeviceEvent::SmartVolumeToggled(enabled),
+            0x05 => DeviceEvent::SmartVolumeValueChanged(percentage),
+            0x07 => DeviceEvent::CrystalizerToggled(enabled),
+            0x08 => DeviceEvent::CrystalizerValueChanged(percentage),
+            FEATURE_EQ_TOGGLE => DeviceEvent::EqToggled(enabled),
+            FEATURE_EQ_PREAMP => DeviceEvent::EqPreampChanged(value),
+            0x18 => DeviceEvent::BassToggled(enabled),
+            0x19 => DeviceEvent::BassValueChanged(percentage),
+            other => DeviceEvent::EqBandChanged {
+                band: band_index(other)?,
+                gain_db: value,
+            },
+        };
+        Some(event)
     }
 
     /// Parse digital filter event (0x6c family)
@@ -258,5 +308,62 @@ impl G6EventParser {
         use crate::g6_spec::AudioConfig;
         let value = packet[5];
         Some(DeviceEvent::AudioConfigChanged(AudioConfig::Unknown(value)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hex(text: &str) -> Vec<u8> {
+        text.split_whitespace()
+            .map(|byte| u8::from_str_radix(byte, 16).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn single_report_maps_playback_feature() {
+        let events = G6EventParser::parse(&hex("5a 11 08 01 00 96 07 00 00 80 3f"));
+        assert_eq!(
+            events,
+            vec![DeviceEvent::CrystalizerToggled(EffectState::Enabled)]
+        );
+    }
+
+    #[test]
+    fn recording_family_is_not_read_as_playback() {
+        // 95:04 is noise reduction, not Smart Volume (96:04).
+        let events = G6EventParser::parse(&hex("5a 11 08 01 00 95 04 00 00 80 3f"));
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn multi_feature_report_maps_every_block() {
+        // Two blocks: EQ toggle on, 62 Hz band at -3.0 dB.
+        let events =
+            G6EventParser::parse(&hex("5a 11 0e 02 00 96 09 00 00 80 3f 96 0c 00 00 40 c0"));
+        assert_eq!(
+            events,
+            vec![
+                DeviceEvent::EqToggled(EffectState::Enabled),
+                DeviceEvent::EqBandChanged {
+                    band: 1,
+                    gain_db: -3.0
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn eq_events_update_settings() {
+        let mut settings = G6Settings::default();
+        DeviceEvent::EqPreampChanged(-2.5).apply_to(&mut settings);
+        DeviceEvent::EqBandChanged {
+            band: 9,
+            gain_db: 4.0,
+        }
+        .apply_to(&mut settings);
+        assert_eq!(settings.equalizer.preamp_db, -2.5);
+        assert_eq!(settings.equalizer.band_gains_db[9], 4.0);
     }
 }

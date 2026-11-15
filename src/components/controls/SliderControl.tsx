@@ -31,13 +31,13 @@ export function SliderControl({
   }, [value]);
 
   const handleSliderChange = (e: Event) => {
-    const newValue = parseInt((e.currentTarget as HTMLInputElement).value);
+    const newValue = parseFloat((e.currentTarget as HTMLInputElement).value);
     setLocalValue(newValue);
     onChange(newValue);
   };
 
   const handleSliderInput = (e: Event) => {
-    setLocalValue(parseInt((e.currentTarget as HTMLInputElement).value));
+    setLocalValue(parseFloat((e.currentTarget as HTMLInputElement).value));
   };
 
   const displayValue = formatValue ? formatValue(localValue) : `${localValue}${unit}`;

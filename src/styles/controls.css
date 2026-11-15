@@ -284,3 +284,84 @@ input:checked + .toggle-slider:before {
   letter-spacing: 0.5px;
   pointer-events: none;
 }
+
+/* =================================================================== */
+/* GRAPHIC EQ: preset picker and draggable curve                       */
+/* =================================================================== */
+.eq-preset-select {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--button-secondary-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font: inherit;
+  font-size: 0.85rem;
+  /* The open list is drawn by the system; ask it for its dark theme. */
+  color-scheme: dark;
+}
+
+.eq-preset-select option {
+  background: var(--button-secondary-bg);
+  color: var(--text-color);
+}
+
+.eq-graph {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+  background: var(--bg-color);
+  border-radius: var(--border-radius);
+  touch-action: none;
+}
+
+.eq-graph-dimmed .eq-curve,
+.eq-graph-dimmed .eq-curve-fill {
+  opacity: 0.4;
+}
+
+.eq-grid {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+
+.eq-grid-zero {
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+}
+
+.eq-axis-label {
+  fill: var(--text-soft);
+  font-size: 11px;
+}
+
+.eq-curve {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 2.5;
+}
+
+.eq-curve-fill {
+  fill: var(--primary-color);
+  opacity: 0.12;
+}
+
+.eq-handle {
+  fill: var(--bg-color);
+  stroke: var(--primary-color);
+  stroke-width: 2.5;
+  cursor: ns-resize;
+}
+
+.eq-handle:hover,
+.eq-handle:focus-visible {
+  fill: var(--primary-color);
+  outline: none;
+}
+
+.eq-drag-value {
+  fill: var(--text-bright);
+  font-size: 12px;
+  font-weight: 600;
+}
