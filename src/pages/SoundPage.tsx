@@ -24,9 +24,9 @@ export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
               <div class="control-row">
                 <span class="control-label">Playing on</span>
                 <span class="control-value">{settings.output}</span>
-                <Tooltip text="Switches the G6 between its speaker and headphone outputs.">
+                <Tooltip text={`Switches the G6 to its ${settings.output === "Speakers" ? "headphone" : "speaker"} output.`}>
                   <button onClick={actions.toggleOutput} class="btn-compact">
-                    Switch to {settings.output === "Speakers" ? "Headphones" : "Speakers"}
+                    Switch
                   </button>
                 </Tooltip>
               </div>
