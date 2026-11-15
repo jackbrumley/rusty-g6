@@ -153,7 +153,7 @@ Rusty G6's variations from the standard:
 
 - **Platforms:** Linux and Windows, so CI runs on both (no macOS).
 - **Settings:** `settings.json` holds only what the backend needs
-  (`close_to_tray`, `log_level`, `recording_source`); UI-only preferences
+  (`close_to_tray`, `log_level`, `recording_source`, `mic_level_db`); UI-only preferences
   stay in the webview's localStorage.
 
 ## Architecture
@@ -189,12 +189,18 @@ Rusty G6's variations from the standard:
 - `app/commands/device_settings.rs`: every setting command goes through
   `change_device_setting` (log, run, report the error, notify the UI and
   tray); the tray's output switch uses it too.
-- `g6_mixer/` (Linux): the G6's recording source, an ALSA control on card
-  `G6`. Its watch re-applies the stored source whenever the card appears or
-  another program (PipeWire) changes it.
+- `g6_mixer/` (Linux): the G6's ALSA controls on card `G6`: the recording
+  source and the mic level. `MixerWatch` re-applies the stored source when
+  the card appears and after another program (WirePlumber) changes it, and
+  the stored mic level when the card appears.
 - Frontend hooks, one concern each: `useDeviceConnection` (connection and
-  the cached settings), `useDeviceSettings` (every setting change),
-  `useRecordingSource`, `useAppPreferences`, `useUpdates`, `useRoute`.
+  the cached settings), `useDeviceSettings` (every device setting change),
+  `useMixer` (Linux recording source and mic level), `useAppPreferences`,
+  `useUpdates`, `useRoute`.
+- Frontend layout: every tab but Status is a `SettingsPage` of
+  `SettingsSection`s (plain rows with hairlines, two columns when wide);
+  rows are `ToggleControl`, `SliderControl`, `EffectControl`,
+  `SelectControl` (our own `Dropdown`, not a native select) and `InfoRow`.
 - `src/styles/`: the stylesheet, split by area and imported in order from
   `App.tsx` (the order is the cascade).
 

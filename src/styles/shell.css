@@ -237,25 +237,6 @@ body {
   padding: 12px 0 4px;
 }
 
-.tab-page-header {
-  margin-bottom: 12px;
-  padding: 6px 2px 8px;
-  border-bottom: 1px solid var(--line-subtle);
-  text-align: center;
-}
-
-.tab-page-title {
-  font-size: 1.06rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.tab-page-subtitle {
-  margin-top: 4px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-
 .status-header h1 {
   font-size: 1.7rem;
   color: var(--brand-primary);
@@ -373,57 +354,4 @@ body {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-}
-
-.ui-lab-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.ui-lab-section {
-  margin-top: 12px;
-}
-
-.ui-lab-shell-preview {
-  margin-top: 8px;
-  border-radius: var(--border-radius);
-  overflow: hidden;
-  box-shadow: var(--popover-shadow);
-}
-
-.ui-lab-controls-inline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ui-lab-preview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 10px;
-  margin-top: 8px;
-  justify-items: center;
-}
-
-.ui-lab-preview-cell {
-  width: 100%;
-}
-
-.ui-lab-preview-cell .control-row {
-  margin: 0;
-  width: 100%;
-}
-
-.ui-lab-checklist ol {
-  margin: 8px 0 0 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ui-lab-checklist li {
-  color: var(--text-main);
-  font-size: 0.85rem;
 }

@@ -1,6 +1,6 @@
 use crate::app::settings::{self, AppSettings};
 use crate::app::state::AppState;
-use crate::g6_spec::RecordingSource;
+use crate::g6_spec::{MicLevel, RecordingSource};
 use tauri::State;
 
 #[tauri::command]
@@ -48,7 +48,43 @@ pub fn set_recording_source(
             updated
         };
         log::info!("Setting changed: recording_source={:?}", source);
-        state.recording_source.set(source)?;
+        state.mixer.set_recording_source(source)?;
         Ok(updated)
+    }
+}
+
+/// The G6's current mic level and range (Linux).
+#[tauri::command(async)]
+pub fn get_mic_level(state: State<AppState>) -> Result<MicLevel, String> {
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = &state;
+        Err("The mic level is set in Windows sound settings on this platform".to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    state.mixer.mic_level()
+}
+
+/// Set the G6's mic level in dB and keep it (Linux). Returns what the
+/// control took.
+#[tauri::command(async)]
+pub fn set_mic_level(state: State<AppState>, level_db: f32) -> Result<MicLevel, String> {
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (&state, level_db);
+        Err("The mic level is set in Windows sound settings on this platform".to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let level = state.mixer.set_mic_level(level_db)?;
+        let mut current = state.settings.lock().unwrap();
+        let mut updated = current.clone();
+        updated.mic_level_db = Some(level.level_db);
+        settings::save(&updated)?;
+        *current = updated;
+        log::info!("Setting changed: mic_level_db={}", level.level_db);
+        Ok(level)
     }
 }

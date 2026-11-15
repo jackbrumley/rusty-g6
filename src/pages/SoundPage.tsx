@@ -1,8 +1,8 @@
 import { EffectControl } from "../components/controls/EffectControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
 import { DeviceRequired } from "../components/ui/DeviceRequired";
+import { SettingsPage } from "../components/ui/SettingsPage";
 import { SettingsSection } from "../components/ui/SettingsSection";
-import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
 import type { DeviceSettingsActions } from "../hooks/useDeviceSettings";
 import { SBX_EFFECTS, type G6Settings } from "../types/g6";
@@ -16,10 +16,9 @@ interface SoundPageProps {
 export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
   return (
     <>
-      <TabPageHeader title="Sound" subtitle="Output and SBX effects for what you're listening to." />
       <DeviceRequired connected={settings !== null} onGoToStatus={onGoToStatus}>
         {settings && (
-          <>
+          <SettingsPage>
             <SettingsSection title="Output">
               <div class="control-row">
                 <span class="control-label">Playing on</span>
@@ -58,7 +57,7 @@ export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
                 />
               ))}
             </SettingsSection>
-          </>
+          </SettingsPage>
         )}
       </DeviceRequired>
     </>

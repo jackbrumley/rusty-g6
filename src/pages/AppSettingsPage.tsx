@@ -1,48 +1,23 @@
 import { ToggleControl } from "../components/controls/ToggleControl";
 import { LogsBlock } from "../components/debug/LogsBlock";
 import { InfoRow } from "../components/ui/InfoRow";
+import { SettingsPage } from "../components/ui/SettingsPage";
 import { SettingsSection } from "../components/ui/SettingsSection";
-import { TabPageHeader } from "../components/ui/TabPageHeader";
-import { Tooltip } from "../components/ui/Tooltip";
 import type { AppPreferences } from "../hooks/useAppPreferences";
 import type { DeviceConnection } from "../hooks/useDeviceConnection";
 import type { Updates } from "../hooks/useUpdates";
 import type { ToastType } from "../types/g6";
 
-interface DebugPageProps {
+interface AppSettingsPageProps {
   preferences: AppPreferences;
   updates: Updates;
   connection: DeviceConnection;
-  onNavigateUiLab: () => void;
   showToast: (message: string, type: ToastType) => void;
 }
 
-export function DebugPage({ preferences, updates, connection, onNavigateUiLab, showToast }: DebugPageProps) {
-  const logSeparator = (
-    <div class="control-row">
-      <input
-        type="text"
-        class="ghost-input"
-        placeholder="Note for a log separator (optional)"
-        value={preferences.logSeparatorMessage}
-        onInput={(e) => preferences.setLogSeparatorMessage(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            preferences.insertLogSeparator();
-          }
-        }}
-      />
-      <Tooltip text="Writes a visible separator line, with your note, into the session log.">
-        <button onClick={preferences.insertLogSeparator} class="btn-compact btn-secondary">
-          Add separator
-        </button>
-      </Tooltip>
-    </div>
-  );
-
+export function AppSettingsPage({ preferences, updates, connection, showToast }: AppSettingsPageProps) {
   return (
-    <>
-      <TabPageHeader title="Settings" subtitle="How Rusty G6 starts and updates, and tools for bug reports." />
+    <SettingsPage>
 
       <SettingsSection title="General">
         <ToggleControl
@@ -60,10 +35,9 @@ export function DebugPage({ preferences, updates, connection, onNavigateUiLab, s
 
       <SettingsSection title="Updates">
         <InfoRow label="Installed" value={`v${preferences.appVersion || "1.0.x"}`} />
-        <InfoRow
-          label="Latest"
-          value={updates.updateResult ? `v${updates.updateResult.latestVersion}` : "Unknown"}
-        />
+        {updates.updateAvailable && updates.updateResult && (
+          <InfoRow label="Available" value={`v${updates.updateResult.latestVersion}`} />
+        )}
         <InfoRow label="Last checked" value={updates.lastCheckedLabel}>
           {updates.updateAvailable && (
             <button onClick={() => updates.setShowUpdateModal(true)} class="btn-compact">
@@ -80,26 +54,15 @@ export function DebugPage({ preferences, updates, connection, onNavigateUiLab, s
         </InfoRow>
       </SettingsSection>
 
-      <LogsBlock showToast={showToast} separator={logSeparator} />
+      <LogsBlock showToast={showToast} />
 
       <SettingsSection title="Device">
         <InfoRow label="Connection">
-          <button onClick={connection.readDeviceState} class="btn-compact btn-secondary">
-            Read device state
-          </button>
           <button onClick={connection.resetConnection} class="btn-compact btn-secondary">
             Reconnect
           </button>
         </InfoRow>
       </SettingsSection>
-
-      <SettingsSection title="Developer">
-        <InfoRow label="UI Lab">
-          <button onClick={onNavigateUiLab} class="btn-compact btn-secondary">
-            Open
-          </button>
-        </InfoRow>
-      </SettingsSection>
-    </>
+    </SettingsPage>
   );
 }

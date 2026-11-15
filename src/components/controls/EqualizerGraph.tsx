@@ -9,7 +9,7 @@ interface EqualizerGraphProps {
 
 // Drawing area in SVG units; the SVG scales to its container.
 const WIDTH = 600;
-const HEIGHT = 240;
+const HEIGHT = 200;
 const PAD_LEFT = 40;
 const PAD_RIGHT = 20;
 const PAD_TOP = 20;

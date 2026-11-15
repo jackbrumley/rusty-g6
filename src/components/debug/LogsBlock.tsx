@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { SelectControl } from "../controls/SelectControl";
 import { InfoRow } from "../ui/InfoRow";
@@ -13,8 +12,6 @@ const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"] as const;
 
 interface LogsBlockProps {
   showToast: (message: string, type: ToastType) => void;
-  /// The log separator row, shown in the Logs section.
-  separator: ComponentChildren;
 }
 
 const systemInfoText = (info: SystemInfo) =>
@@ -27,7 +24,7 @@ const systemInfoText = (info: SystemInfo) =>
     `Executable: ${info.executable}`,
   ].join("\n");
 
-export function LogsBlock({ showToast, separator }: LogsBlockProps) {
+export function LogsBlock({ showToast }: LogsBlockProps) {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [logLevel, setLogLevel] = useState("info");
 
@@ -94,7 +91,6 @@ export function LogsBlock({ showToast, separator }: LogsBlockProps) {
             Folder
           </button>
         </InfoRow>
-        {separator}
       </SettingsSection>
 
       <SettingsSection title="System info">

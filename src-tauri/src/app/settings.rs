@@ -18,6 +18,8 @@ pub struct AppSettings {
     /// The G6 recording source Rusty G6 keeps selected (Linux only; on
     /// Windows the driver handles it).
     pub recording_source: RecordingSource,
+    /// The G6 mic level in dB (Linux); `None` keeps the kernel's level.
+    pub mic_level_db: Option<f32>,
 }
 
 impl Default for AppSettings {
@@ -26,6 +28,7 @@ impl Default for AppSettings {
             close_to_tray: true,
             log_level: "info".to_string(),
             recording_source: RecordingSource::ExternalMic,
+            mic_level_db: None,
         }
     }
 }
@@ -71,6 +74,7 @@ mod tests {
             close_to_tray: false,
             log_level: "debug".to_string(),
             recording_source: RecordingSource::LineIn,
+            mic_level_db: Some(4.5),
         };
         let text = serde_json::to_string(&settings).unwrap();
         assert_eq!(parse(&text).unwrap(), settings);

@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Rusty G6",
-        "width": 640,
-        "height": 720,
+        "width": 740,
+        "height": 560,
         "minWidth": 520,
         "minHeight": 440,
         "resizable": true,

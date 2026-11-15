@@ -133,6 +133,14 @@ export interface AppSettings {
   close_to_tray: boolean;
   log_level: string;
   recording_source: RecordingSource;
+  mic_level_db: number | null;
+}
+
+/// `g6_spec::MicLevel`: the G6's mic level (Linux) and its range, in dB.
+export interface MicLevel {
+  level_db: number;
+  min_db: number;
+  max_db: number;
 }
 
 /// `g6_spec::RecordingSource`: the G6's `PCM Capture Source` on Linux.

@@ -21,7 +21,7 @@ const TABS: { route: AppRoute; label: string }[] = [
   { route: "eq", label: "EQ" },
   { route: "mic", label: "Mic" },
   { route: "device", label: "Device" },
-  { route: "debug", label: "Settings" },
+  { route: "settings", label: "Settings" },
 ];
 
 export function AppShell({

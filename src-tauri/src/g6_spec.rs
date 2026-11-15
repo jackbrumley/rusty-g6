@@ -12,7 +12,7 @@ pub enum OutputDevice {
 }
 
 /// The G6's recording source: its `PCM Capture Source` ALSA control on
-/// Linux (item names in `g6_mixer::alsa_item`). The kernel starts it on Line
+/// Linux (item names in `g6_mixer::recording_source`). The kernel starts it on Line
 /// In, so the mic is barely audible until External Mic is selected.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum RecordingSource {
@@ -21,6 +21,15 @@ pub enum RecordingSource {
     ExternalMic,
     SpdifIn,
     WhatUHear,
+}
+
+/// The G6's mic level (ALSA `External Mic` capture volume, Linux) and its
+/// range, in dB.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct MicLevel {
+    pub level_db: f32,
+    pub min_db: f32,
+    pub max_db: f32,
 }
 
 /// The SBX effects that each have an on/off switch and a 0-100 level. The

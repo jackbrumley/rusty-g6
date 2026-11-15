@@ -1,6 +1,7 @@
 import { EQ_GAIN_STEP_DB, EQ_PREAMP_LIMIT_DB, type EqualizerSettings } from "../../types/g6";
 import { EqualizerGraph } from "./EqualizerGraph";
 import { EQ_PRESETS, matchingPreset } from "./eqPresets";
+import { SettingsPage } from "../ui/SettingsPage";
 import { SettingsSection } from "../ui/SettingsSection";
 import { SelectControl } from "./SelectControl";
 import { SliderControl } from "./SliderControl";
@@ -36,8 +37,8 @@ export function EqualizerControl({
   };
 
   return (
-    <>
-      <SettingsSection title="Settings">
+    <SettingsPage>
+      <SettingsSection title="Equalizer">
         <ToggleControl
           label="Equalizer"
           checked={enabled}
@@ -63,8 +64,10 @@ export function EqualizerControl({
         />
       </SettingsSection>
 
-      <EqualizerGraph gainsDb={equalizer.band_gains_db} dimmed={!enabled} onSetBand={onSetBand} />
-      <p class="info-note eq-hint">Drag a point to change that band. Double-click a point to reset it.</p>
-    </>
+      <SettingsSection title="Curve" wide>
+        <EqualizerGraph gainsDb={equalizer.band_gains_db} dimmed={!enabled} onSetBand={onSetBand} />
+        <p class="info-note eq-hint">Drag a point to change that band. Double-click a point to reset it.</p>
+      </SettingsSection>
+    </SettingsPage>
   );
 }

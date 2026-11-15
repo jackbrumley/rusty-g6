@@ -10,13 +10,12 @@ import type { AppSettings, ToastType } from "../types/g6";
 
 export type AppPreferences = ReturnType<typeof useAppPreferences>;
 
-/// App-level preferences in Settings: auto-start, close to tray, the app
-/// version and the log separator tool.
+/// App-level preferences in Settings: auto-start, close to tray and the app
+/// version.
 export function useAppPreferences(showToast: (message: string, type: ToastType, durationMs?: number) => void) {
   const [appVersion, setAppVersion] = useState("");
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [closeToTray, setCloseToTray] = useState(true);
-  const [logSeparatorMessage, setLogSeparatorMessage] = useState("");
 
   useEffect(() => {
     invoke<string>("get_app_version")
@@ -55,25 +54,11 @@ export function useAppPreferences(showToast: (message: string, type: ToastType, 
     }
   };
 
-  const insertLogSeparator = async () => {
-    try {
-      await invoke("clear_terminal", { message: logSeparatorMessage || null });
-      showToast("Log separator added", "success", 2000);
-      setLogSeparatorMessage("");
-    } catch (error) {
-      console.error("Failed to add log separator:", error);
-      showToast(`Failed to add log separator: ${error}`, "error", 3000);
-    }
-  };
-
   return {
     appVersion,
     autostartEnabled,
     closeToTray,
-    logSeparatorMessage,
     toggleAutostart,
     toggleCloseToTray,
-    setLogSeparatorMessage,
-    insertLogSeparator,
   };
 }

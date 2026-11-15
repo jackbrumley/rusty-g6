@@ -3,56 +3,58 @@ import { SelectControl } from "../components/controls/SelectControl";
 import { SliderControl } from "../components/controls/SliderControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
 import { DeviceRequired } from "../components/ui/DeviceRequired";
+import { SettingsPage } from "../components/ui/SettingsPage";
 import { SettingsSection } from "../components/ui/SettingsSection";
-import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { IS_LINUX } from "../app/platform";
 import type { DeviceSettingsActions } from "../hooks/useDeviceSettings";
-import {
-  MIC_SWITCHES,
-  RECORDING_SOURCES,
-  type G6Settings,
-  type RecordingSource,
-} from "../types/g6";
+import type { Mixer } from "../hooks/useMixer";
+import { MIC_SWITCHES, RECORDING_SOURCES, type G6Settings } from "../types/g6";
 
 interface MicPageProps {
   settings: G6Settings | null;
-  recordingSource: RecordingSource | null;
-  onSetRecordingSource: (source: RecordingSource) => void;
+  mixer: Mixer;
   actions: DeviceSettingsActions;
   onGoToStatus: () => void;
 }
 
 export function MicPage({
   settings,
-  recordingSource,
-  onSetRecordingSource,
+  mixer,
   actions,
   onGoToStatus,
 }: MicPageProps) {
   return (
     <>
-      <TabPageHeader
-        title="Microphone"
-        subtitle="What the G6 records, and how loud."
-      />
       <DeviceRequired connected={settings !== null} onGoToStatus={onGoToStatus}>
         {settings && (
-          <>
+          <SettingsPage>
             <SettingsSection title="Input">
               {IS_LINUX ? (
                 <SelectControl
                   label="Source"
                   tooltip="What the G6 records. Rusty G6 keeps this selected, also after reboots and replugs, because Linux resets it to Line In."
-                  value={recordingSource}
+                  value={mixer.recordingSource}
                   placeholder="Loading..."
                   options={RECORDING_SOURCES}
-                  onChange={onSetRecordingSource}
-                  disabled={recordingSource === null}
+                  onChange={mixer.setRecordingSource}
+                  disabled={mixer.recordingSource === null}
                 />
               ) : (
                 <p class="info-note">
                   Windows selects the G6 recording source itself.
                 </p>
+              )}
+              {IS_LINUX && mixer.micLevel && (
+                <SliderControl
+                  label="Mic level"
+                  value={mixer.micLevel.level_db}
+                  tooltip="The G6's mic level after the boost. Raise this before adding more boost: it adds less noise."
+                  min={mixer.micLevel.min_db}
+                  max={mixer.micLevel.max_db}
+                  step={1}
+                  onChange={mixer.setMicLevel}
+                  formatValue={(levelDb) => `${levelDb > 0 ? "+" : ""}${levelDb.toFixed(1)} dB`}
+                />
               )}
               <SliderControl
                 label="Mic boost"
@@ -93,7 +95,7 @@ export function MicPage({
                 />
               ))}
             </SettingsSection>
-          </>
+          </SettingsPage>
         )}
       </DeviceRequired>
     </>

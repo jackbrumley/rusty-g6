@@ -57,22 +57,3 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="041e", ATTRS{idProduct}=="3256", MODE="0666"
 pub fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
-
-#[tauri::command]
-pub fn clear_terminal(message: Option<String>) -> Result<String, String> {
-    print!("\x1b[2J\x1b[H");
-
-    info!("============================================================");
-    if let Some(msg) = message {
-        if !msg.trim().is_empty() {
-            info!("LOG SEPARATOR: {}", msg.trim());
-        } else {
-            info!("LOG SEPARATOR - User requested terminal break");
-        }
-    } else {
-        info!("LOG SEPARATOR - User requested terminal break");
-    }
-    info!("============================================================");
-
-    Ok("Log separator added".to_string())
-}

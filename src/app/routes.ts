@@ -1,8 +1,8 @@
-export type AppRoute = "status" | "sound" | "eq" | "mic" | "device" | "debug" | "ui-lab";
+export type AppRoute = "status" | "sound" | "eq" | "mic" | "device" | "settings";
 
 export const DEFAULT_ROUTE: AppRoute = "status";
 
-const ROUTES: AppRoute[] = ["status", "sound", "eq", "mic", "device", "debug", "ui-lab"];
+const ROUTES: AppRoute[] = ["status", "sound", "eq", "mic", "device", "settings"];
 
 /// Earlier page names, so old links still land on the right page.
 const RENAMED_ROUTES: Record<string, AppRoute> = {
@@ -10,6 +10,7 @@ const RENAMED_ROUTES: Record<string, AppRoute> = {
   output: "sound",
   input: "mic",
   microphone: "mic",
+  debug: "settings",
 };
 
 export const routeFromHash = (hash: string): AppRoute => {

@@ -10,26 +10,25 @@ import { UpdateModal } from "./components/shell/UpdateModal";
 import { useAppPreferences } from "./hooks/useAppPreferences";
 import { useDeviceConnection } from "./hooks/useDeviceConnection";
 import { useDeviceSettings } from "./hooks/useDeviceSettings";
-import { useRecordingSource } from "./hooks/useRecordingSource";
+import { useMixer } from "./hooks/useMixer";
 import { useRoute } from "./hooks/useRoute";
 import { useUiInteractionLogger } from "./hooks/useUiInteractionLogger";
 import { useToastManager } from "./hooks/useToastManager";
 import { useUpdates } from "./hooks/useUpdates";
 import { useWindowControls } from "./hooks/useWindowControls";
-import { DebugPage } from "./pages/DebugPage";
+import { AppSettingsPage } from "./pages/AppSettingsPage";
 import { DevicePage } from "./pages/DevicePage";
 import { EqPage } from "./pages/EqPage";
 import { MicPage } from "./pages/MicPage";
 import { SoundPage } from "./pages/SoundPage";
 import { StatusPage } from "./pages/StatusPage";
-import { UiLabPage } from "./pages/UiLabPage";
 
 function App() {
   const { toast, showToast, dismissToast, pauseToast, resumeToast } = useToastManager();
   const { activeTab, navigate } = useRoute();
   const connection = useDeviceConnection(showToast);
   const deviceSettings = useDeviceSettings({ showToast });
-  const { recordingSource, setRecordingSource } = useRecordingSource({ showToast });
+  const mixer = useMixer(showToast);
   const preferences = useAppPreferences(showToast);
   const updates = useUpdates(showToast);
   const windowControls = useWindowControls(showToast);
@@ -76,8 +75,7 @@ function App() {
         {activeTab === "mic" && (
           <MicPage
             settings={settings}
-            recordingSource={recordingSource}
-            onSetRecordingSource={setRecordingSource}
+            mixer={mixer}
             actions={deviceSettings}
             onGoToStatus={goToStatus}
           />
@@ -87,22 +85,15 @@ function App() {
           <DevicePage settings={settings} actions={deviceSettings} onGoToStatus={goToStatus} />
         )}
 
-        {activeTab === "debug" && (
-          <DebugPage
+        {activeTab === "settings" && (
+          <AppSettingsPage
             preferences={preferences}
             updates={updates}
             connection={connection}
-            onNavigateUiLab={() => navigate("ui-lab")}
             showToast={showToast}
           />
         )}
 
-        {activeTab === "ui-lab" && (
-          <UiLabPage
-            onBack={() => navigate("debug")}
-            onToast={(type, message, durationMs) => showToast(message, type, durationMs)}
-          />
-        )}
       </main>
 
       {updates.showUpdateModal && <UpdateModal updates={updates} />}

@@ -1,10 +1,4 @@
-/* Page sections: status, compact buttons, cards, debug controls, effects list. */
-
-/* Status Section */
-.status-section {
-  padding: 8px 10px;
-  margin-bottom: 8px;
-}
+/* Page sections: the status page, buttons and settings sections. */
 
 .status-line {
   display: flex;
@@ -78,24 +72,6 @@
   background: var(--warning-strong);
 }
 
-/* Section Styles */
-.surface-card {
-  background: var(--bg-card);
-  border-radius: var(--border-radius);
-  border: none;
-  margin-bottom: 8px;
-  box-shadow: var(--card-shadow);
-}
-
-.debug-section.compact {
-  padding: 8px 10px;
-}
-
-.section-label {
-  font-weight: 600;
-  min-width: 50px;
-}
-
 .system-info-text {
   margin: 6px 0;
   padding: 8px 10px;
@@ -145,23 +121,31 @@
   margin-top: 16px;
 }
 
-/* Effects List */
-.effects-list {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
+/* Settings pages: titled groups of plain rows. A page flows its sections
+   into two balanced columns when the window is wide enough. */
+.settings-page {
+  columns: 2 300px;
+  column-gap: 32px;
+  max-width: 980px;
+  margin: 0 auto;
 }
 
-.effects-list h3 {
-  margin-bottom: 8px;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-/* Settings pages: titled groups of plain rows in one centred column. */
 .settings-section {
+  break-inside: avoid;
   max-width: 560px;
-  margin: 0 auto 20px;
+  margin: 0 auto 18px;
+}
+
+.settings-page .settings-section {
+  max-width: none;
+}
+
+.settings-section-wide {
+  column-span: all;
+}
+
+.settings-page .settings-section:last-child {
+  margin-bottom: 0;
 }
 
 .settings-section-title {
@@ -185,27 +169,4 @@
   justify-content: flex-end;
   gap: 6px;
   margin-left: auto;
-}
-
-/* Ghost text field, like the ghost dropdowns. */
-.ghost-input {
-  flex: 1;
-  min-width: 0;
-  padding: 5px 10px;
-  background: transparent;
-  color: var(--text-main);
-  border: 1px solid var(--outline-clear);
-  border-radius: var(--border-radius);
-  font: inherit;
-  font-size: 0.85rem;
-}
-
-.ghost-input:hover {
-  background: var(--line-subtle);
-}
-
-.ghost-input:focus-visible {
-  outline: none;
-  border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px var(--focus-ring);
 }

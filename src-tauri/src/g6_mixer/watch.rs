@@ -1,7 +1,9 @@
-//! Keeps the stored recording source selected: applies it whenever the G6's
-//! ALSA card appears, and again whenever another program changes it.
-use super::{alsa_item, apply, open_mixer};
-use crate::g6_spec::RecordingSource;
+//! Keeps the stored mixer settings applied: the recording source whenever
+//! the G6's ALSA card appears and whenever another program changes it, the
+//! mic level whenever the card appears.
+use super::recording_source::{alsa_item, apply};
+use super::{mic_level, open_mixer};
+use crate::g6_spec::{MicLevel, RecordingSource};
 use alsa::mixer::Mixer;
 use alsa::poll::{Descriptors, Flags};
 use log::{error, info, warn};
@@ -23,7 +25,7 @@ const SETTLE_MS: i32 = 1500;
 const MAX_REAPPLIES: usize = 5;
 const REAPPLY_WINDOW: Duration = Duration::from_secs(60);
 /// The UI shows this event's payload as an error toast.
-const ERROR_EVENT: &str = "recording-source-error";
+const ERROR_EVENT: &str = "mixer-error";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Reason {
@@ -33,6 +35,8 @@ enum Reason {
 
 struct WatchState {
     desired: RecordingSource,
+    /// `None` until the user sets a mic level: the kernel's level is kept.
+    mic_level_db: Option<f32>,
     /// Set when another program kept switching the source back.
     paused: bool,
     reapplies: VecDeque<Instant>,
@@ -41,15 +45,16 @@ struct WatchState {
 }
 
 #[derive(Clone)]
-pub struct RecordingSourceWatch {
+pub struct MixerWatch {
     state: Arc<Mutex<WatchState>>,
 }
 
-impl RecordingSourceWatch {
-    pub fn new(desired: RecordingSource) -> Self {
+impl MixerWatch {
+    pub fn new(desired: RecordingSource, mic_level_db: Option<f32>) -> Self {
         Self {
             state: Arc::new(Mutex::new(WatchState {
                 desired,
+                mic_level_db,
                 paused: false,
                 reapplies: VecDeque::new(),
                 last_error: None,
@@ -66,7 +71,7 @@ impl RecordingSourceWatch {
     /// Keep `source` selected from now on, and select it now if the G6 is
     /// present. An absent G6 is not an error: the watch applies it when the
     /// card appears.
-    pub fn set(&self, source: RecordingSource) -> Result<(), String> {
+    pub fn set_recording_source(&self, source: RecordingSource) -> Result<(), String> {
         {
             let mut state = self.state.lock().unwrap();
             state.desired = source;
@@ -89,6 +94,23 @@ impl RecordingSourceWatch {
             None => info!("RECORDING_SOURCE {} already selected", alsa_item(source)),
         }
         Ok(())
+    }
+
+    /// The G6's current mic level and range (read from the card).
+    pub fn mic_level(&self) -> Result<MicLevel, String> {
+        mic_level::read(&open_mixer()?)
+    }
+
+    /// Keep the mic level at `level_db` from now on and set it now. Returns
+    /// the level the control took.
+    pub fn set_mic_level(&self, level_db: f32) -> Result<MicLevel, String> {
+        let level = mic_level::apply(&open_mixer()?, level_db)?;
+        self.state.lock().unwrap().mic_level_db = Some(level.level_db);
+        info!(
+            "MIC_LEVEL set to {} dB (chosen by the user)",
+            level.level_db
+        );
+        Ok(level)
     }
 }
 
@@ -113,6 +135,7 @@ fn run(state: &Mutex<WatchState>, app: &AppHandle) {
         }
 
         enforce(state, &mixer, app, Reason::CardAppeared);
+        apply_stored_mic_level(state, &mixer, app);
         if let Err(error) = follow_changes(state, &mixer, app) {
             info!("RECORDING_SOURCE stopped following the card: {error}");
         }
@@ -181,6 +204,27 @@ fn enforce(state: &Mutex<WatchState>, mixer: &Mixer, app: &AppHandle, reason: Re
                 state,
                 app,
                 format!("Could not set the G6 recording source: {message}"),
+            );
+        }
+    }
+}
+
+/// Apply the stored mic level, if the user set one.
+fn apply_stored_mic_level(state: &Mutex<WatchState>, mixer: &Mixer, app: &AppHandle) {
+    let Some(level_db) = state.lock().unwrap().mic_level_db else {
+        return;
+    };
+    match mic_level::apply(mixer, level_db) {
+        Ok(level) => info!(
+            "MIC_LEVEL set to {} dB (the G6 sound card appeared)",
+            level.level_db
+        ),
+        Err(message) => {
+            error!("MIC_LEVEL {message}");
+            report_once(
+                state,
+                app,
+                format!("Could not set the G6 mic level: {message}"),
             );
         }
     }
