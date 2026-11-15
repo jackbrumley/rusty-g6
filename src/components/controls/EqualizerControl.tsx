@@ -42,7 +42,6 @@ export function EqualizerControl({
         <ToggleControl
           label="Equalizer"
           checked={enabled}
-          tooltip="10-band graphic EQ, stored on the G6 for the current output."
           onChange={onSetEnabled}
         />
         <SelectControl
@@ -59,7 +58,7 @@ export function EqualizerControl({
           max={EQ_PREAMP_LIMIT_DB}
           step={EQ_GAIN_STEP_DB}
           formatValue={formatDb}
-          tooltip="Lowers or raises the level before the EQ, to avoid clipping when bands are boosted."
+          description="Turn this down if boosted bands distort."
           onChange={onSetPreamp}
         />
       </SettingsSection>

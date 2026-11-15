@@ -8,28 +8,12 @@ export interface EffectSettings {
   level: number;
 }
 
-export const SBX_EFFECTS: { id: SbxEffect; name: string; tooltip: string }[] = [
-  {
-    id: "surround",
-    name: "Surround",
-    tooltip: "Expands stereo imaging into a wider virtual surround field.",
-  },
-  {
-    id: "crystalizer",
-    name: "Crystalizer",
-    tooltip: "Restores perceived detail and clarity in compressed or dull source audio.",
-  },
-  { id: "bass", name: "Bass", tooltip: "Boosts low-end presence and punch for fuller bass response." },
-  {
-    id: "smart_volume",
-    name: "Smart Volume",
-    tooltip: "Smooths loudness swings so quieter and louder moments stay more consistent.",
-  },
-  {
-    id: "dialog_plus",
-    name: "Dialog Plus",
-    tooltip: "Brings spoken dialogue forward so voices remain clear over background audio.",
-  },
+export const SBX_EFFECTS: { id: SbxEffect; name: string; description: string }[] = [
+  { id: "surround", name: "Surround", description: "Makes sound feel wider, as if it is around you." },
+  { id: "crystalizer", name: "Crystalizer", description: "Adds back detail lost in compressed music." },
+  { id: "bass", name: "Bass", description: "Adds weight and punch to low notes." },
+  { id: "smart_volume", name: "Smart Volume", description: "Keeps loud and quiet moments at a similar level." },
+  { id: "dialog_plus", name: "Dialog Plus", description: "Makes voices clearer over music and effects." },
 ];
 
 /// `g6_spec::MicSwitch`: also the keys of `MicProcessing`.
@@ -47,18 +31,14 @@ export interface MicProcessing {
 
 /// The on/off mic features shown as plain switches (noise reduction has a
 /// level too and is shown separately).
-export const MIC_SWITCHES: { id: Exclude<MicSwitch, "noise_reduction">; name: string; tooltip: string }[] = [
+export const MIC_SWITCHES: { id: Exclude<MicSwitch, "noise_reduction">; name: string; description: string }[] = [
   {
     id: "echo_cancellation",
     name: "Echo cancellation",
-    tooltip: "Removes speaker sound that the mic picks up, for calls without headphones.",
+    description: "Stops others hearing themselves when you use speakers.",
   },
-  {
-    id: "smart_volume",
-    name: "Smart volume",
-    tooltip: "Evens out your voice level, so quiet and loud speech come through alike.",
-  },
-  { id: "equalizer", name: "Mic EQ", tooltip: "The mic's own 8-band EQ, as last set on the G6." },
+  { id: "smart_volume", name: "Smart volume", description: "Evens out loud and quiet speech." },
+  { id: "equalizer", name: "Mic EQ", description: "Shapes your voice's tone with the G6's mic EQ." },
 ];
 
 /// `g6_spec::MICROPHONE_BOOST_STEPS_DB`.
@@ -79,6 +59,9 @@ export const EQ_BAND_FREQUENCIES = ["31", "62", "125", "250", "500", "1k", "2k",
 export const EQ_PREAMP_LIMIT_DB = 6;
 export const EQ_BAND_LIMIT_DB = 12;
 export const EQ_GAIN_STEP_DB = 0.5;
+
+/// `g6_spec::DeviceFlag`: on/off device features.
+export type DeviceFlag = "direct_mode" | "spdif_out_direct";
 
 /// `g6_spec::DecoderMode`: the decoder's dynamic range for Dolby/DTS.
 export type DecoderMode = "Full" | "Normal" | "Night";
@@ -110,12 +93,33 @@ export type DigitalFilter =
   | "FastRollOffLinearPhase"
   | "SlowRollOffLinearPhase";
 
-export const DIGITAL_FILTERS: { id: DigitalFilter; name: string }[] = [
-  { id: "FastRollOffMinimumPhase", name: "Fast roll-off, minimum phase" },
-  { id: "SlowRollOffMinimumPhase", name: "Slow roll-off, minimum phase" },
-  { id: "FastRollOffLinearPhase", name: "Fast roll-off, linear phase" },
-  { id: "SlowRollOffLinearPhase", name: "Slow roll-off, linear phase" },
-  { id: "NonOversampling", name: "NOS (non-oversampling)" },
+/// Named by how they sound; the technical name is in the description.
+export const DIGITAL_FILTERS: { id: DigitalFilter; name: string; description: string }[] = [
+  {
+    id: "FastRollOffMinimumPhase",
+    name: "Natural",
+    description: "Fast roll-off, minimum phase. Flat treble, crisp attacks, no pre-echo.",
+  },
+  {
+    id: "FastRollOffLinearPhase",
+    name: "Accurate",
+    description: "Fast roll-off, linear phase. The textbook filter: flattest, most neutral.",
+  },
+  {
+    id: "SlowRollOffMinimumPhase",
+    name: "Warm",
+    description: "Slow roll-off, minimum phase. Gently softened treble, relaxed sound.",
+  },
+  {
+    id: "SlowRollOffLinearPhase",
+    name: "Soft",
+    description: "Slow roll-off, linear phase. Softened treble with less ringing.",
+  },
+  {
+    id: "NonOversampling",
+    name: "Vintage",
+    description: "NOS (non-oversampling). No digital filter: the softest highs, an analogue feel.",
+  },
 ];
 
 /// `g6_spec::G6Settings`: what the backend knows of the device's state.
@@ -127,6 +131,8 @@ export interface G6Settings {
   equalizer: EqualizerSettings;
   digital_filter: DigitalFilter | null;
   decoder_mode: DecoderMode | null;
+  direct_mode: boolean;
+  spdif_out_direct: boolean;
   lighting: LightingSettings;
   /// `null` until read from the device.
   microphone_boost_db: number | null;

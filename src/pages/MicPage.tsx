@@ -32,7 +32,7 @@ export function MicPage({
               {IS_LINUX ? (
                 <SelectControl
                   label="Source"
-                  tooltip="What the G6 records. Rusty G6 keeps this selected, also after reboots and replugs, because Linux resets it to Line In."
+                  description="What the G6 records. Kept after reboots and replugs."
                   value={mixer.recordingSource}
                   placeholder="Loading..."
                   options={RECORDING_SOURCES}
@@ -48,7 +48,7 @@ export function MicPage({
                 <SliderControl
                   label="Mic level"
                   value={mixer.micLevel.level_db}
-                  tooltip="The G6's mic level after the boost. Raise this before adding more boost: it adds less noise."
+                  description="Your mic's volume. Raise this before adding boost."
                   min={mixer.micLevel.min_db}
                   max={mixer.micLevel.max_db}
                   step={1}
@@ -59,7 +59,7 @@ export function MicPage({
               <SliderControl
                 label="Mic boost"
                 value={settings.microphone_boost_db ?? 0}
-                tooltip="Microphone gain in 10 dB steps. Higher values also pick up more background noise."
+                description="Extra gain for quiet mics. Also raises background noise."
                 min={0}
                 max={30}
                 step={10}
@@ -75,7 +75,7 @@ export function MicPage({
             <SettingsSection title="Processing">
               <EffectControl
                 name="Noise reduction"
-                tooltip="Cuts steady background noise such as fans. Higher levels cut more, and can make your voice sound thinner."
+                description="Removes steady background noise, like fans."
                 enabled={settings.mic_processing.noise_reduction}
                 level={settings.mic_processing.noise_reduction_level}
                 onToggle={(enabled) =>
@@ -87,7 +87,7 @@ export function MicPage({
                 <ToggleControl
                   key={micSwitch.id}
                   label={micSwitch.name}
-                  tooltip={micSwitch.tooltip}
+                  description={micSwitch.description}
                   checked={settings.mic_processing[micSwitch.id]}
                   onChange={(enabled) =>
                     actions.setMicSwitch(micSwitch.id, enabled)

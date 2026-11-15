@@ -35,7 +35,7 @@ export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
             <SettingsSection title="Decoder">
               <SelectControl
                 label="Dynamic range"
-                tooltip="How the G6 decodes Dolby and DTS sound: full range, normal, or compressed for quiet late-night listening."
+                description="For Dolby and DTS sound. Night evens out loud and quiet parts for late listening."
                 value={settings.decoder_mode}
                 options={DECODER_MODES}
                 onChange={actions.setDecoderMode}
@@ -46,20 +46,20 @@ export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
               <ToggleControl
                 label="SBX"
                 checked={settings.sbx_enabled}
-                tooltip="Master switch for the SBX effects below."
+                description="Master switch for the effects below."
                 onChange={actions.setSbxEnabled}
               />
               <ToggleControl
                 label="Scout Mode"
                 checked={settings.scout_mode_enabled}
-                tooltip="Highlights positional cues such as footsteps in games. Switches SBX off."
+                description="Brings out footsteps and other game cues. Turns SBX off."
                 onChange={actions.setScoutModeEnabled}
               />
               {SBX_EFFECTS.map((effect) => (
                 <EffectControl
                   key={effect.id}
                   name={effect.name}
-                  tooltip={effect.tooltip}
+                  description={effect.description}
                   enabled={settings.effects[effect.id].enabled}
                   level={settings.effects[effect.id].level}
                   onToggle={(enabled) => actions.setEffectEnabled(effect.id, enabled)}

@@ -2,7 +2,9 @@
 //! commands; the G6's answers update the cached settings (`send_commands`),
 //! so the cache holds what the device took.
 use super::G6DeviceManager;
-use crate::g6_protocol::{dac_filter, decoder, effects, equalizer, lighting, microphone, writes};
+use crate::g6_protocol::{
+    dac_filter, decoder, device_flags, effects, equalizer, lighting, microphone, writes,
+};
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use log::{info, warn};
@@ -156,6 +158,22 @@ impl G6DeviceManager {
             equalizer::build_set_eq_bands(&snapped),
             &format!("EQ bands {snapped:?} dB"),
         )
+    }
+
+    /// The G6 re-enumerates on USB after this write; the reconnect's state
+    /// read shows the new value.
+    pub fn set_device_flag(&self, flag: DeviceFlag, enabled: bool) -> Result<()> {
+        let change = format!("{flag:?} {}", on_off(enabled));
+        if self
+            .send_write_before_reenumeration(device_flags::build_set_device_flag(flag, enabled))?
+        {
+            info!("{change}: acknowledged; the G6 reconnects to apply it");
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(
+                "The G6 did not acknowledge {change}. Check the Device tab after it reconnects"
+            ))
+        }
     }
 
     pub fn set_decoder_mode(&self, mode: DecoderMode) -> Result<()> {

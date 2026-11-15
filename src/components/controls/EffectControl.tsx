@@ -1,5 +1,5 @@
+import { ControlLabel } from "./ControlLabel";
 import { useEffect, useState } from "preact/hooks";
-import { Tooltip } from "../ui/Tooltip";
 
 interface EffectControlProps {
   name: string;
@@ -9,6 +9,8 @@ interface EffectControlProps {
   onLevelChange: (level: number) => void;
   disabled?: boolean;
   tooltip?: string;
+  /// One line under the label saying what the setting does.
+  description?: string;
 }
 
 export function EffectControl({
@@ -19,6 +21,7 @@ export function EffectControl({
   onLevelChange,
   disabled = false,
   tooltip,
+  description,
 }: EffectControlProps) {
   // The slider shows its position while dragging; the level is sent on release.
   const [localLevel, setLocalLevel] = useState(level);
@@ -31,9 +34,7 @@ export function EffectControl({
 
   return (
     <div class={`control-row ${disabled ? "disabled" : ""}`}>
-      <span class="control-label">
-        {tooltip ? <Tooltip text={tooltip}>{name}</Tooltip> : name}
-      </span>
+      <ControlLabel label={name} tooltip={tooltip} description={description} />
       <label class="toggle-switch">
         <input
           type="checkbox"

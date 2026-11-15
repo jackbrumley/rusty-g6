@@ -125,6 +125,16 @@ impl MicProcessing {
     }
 }
 
+/// On/off device features outside the DSP.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceFlag {
+    /// Bypasses all processing (SBX, EQ) for bit-perfect playback.
+    DirectMode,
+    /// Bit-perfect S/PDIF output (speakers only).
+    SpdifOutDirect,
+}
+
 /// The decoder's dynamic range mode for Dolby/DTS content.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DecoderMode {
@@ -206,6 +216,8 @@ pub struct G6Settings {
     pub equalizer: EqualizerSettings,
     pub digital_filter: Option<DigitalFilter>,
     pub decoder_mode: Option<DecoderMode>,
+    pub direct_mode: bool,
+    pub spdif_out_direct: bool,
     pub lighting: LightingSettings,
     /// One of `MICROPHONE_BOOST_STEPS_DB`; `None` until read.
     pub microphone_boost_db: Option<u8>,
@@ -225,6 +237,8 @@ impl Default for G6Settings {
             equalizer: EqualizerSettings::default(),
             digital_filter: None,
             decoder_mode: None,
+            direct_mode: false,
+            spdif_out_direct: false,
             lighting: LightingSettings::default(),
             microphone_boost_db: None,
             mic_processing: MicProcessing::default(),

@@ -1,13 +1,15 @@
-import { Tooltip } from "../ui/Tooltip";
+import { ControlLabel } from "./ControlLabel";
 import { Dropdown } from "./Dropdown";
 
 interface SelectControlProps<T extends string> {
   label: string;
   tooltip?: string;
+  /// One line under the label saying what the setting does.
+  description?: string;
   /// `null` shows `placeholder` (e.g. "Unknown") until a value is known.
   value: T | null;
   placeholder?: string;
-  options: { id: T; name: string }[];
+  options: { id: T; name: string; description?: string }[];
   onChange: (value: T) => void;
   disabled?: boolean;
 }
@@ -16,6 +18,7 @@ interface SelectControlProps<T extends string> {
 export function SelectControl<T extends string>({
   label,
   tooltip,
+  description,
   value,
   placeholder = "Unknown",
   options,
@@ -24,7 +27,7 @@ export function SelectControl<T extends string>({
 }: SelectControlProps<T>) {
   return (
     <div class="control-row">
-      <span class="control-label">{tooltip ? <Tooltip text={tooltip}>{label}</Tooltip> : label}</span>
+      <ControlLabel label={label} tooltip={tooltip} description={description} />
       <Dropdown
         value={value}
         placeholder={placeholder}

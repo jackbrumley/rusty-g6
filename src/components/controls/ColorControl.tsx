@@ -1,5 +1,5 @@
+import { ControlLabel } from "./ControlLabel";
 import type { RgbColor } from "../../types/g6";
-import { Tooltip } from "../ui/Tooltip";
 
 const SWATCHES: RgbColor[] = [
   { red: 255, green: 0, blue: 0 },
@@ -26,18 +26,20 @@ const sameColor = (a: RgbColor, b: RgbColor) => a.red === b.red && a.green === b
 interface ColorControlProps {
   label: string;
   tooltip?: string;
+  /// One line under the label saying what the setting does.
+  description?: string;
   color: RgbColor;
   onChange: (color: RgbColor) => void;
   disabled?: boolean;
 }
 
 /// A settings row with colour swatches and a custom colour picker.
-export function ColorControl({ label, tooltip, color, onChange, disabled = false }: ColorControlProps) {
+export function ColorControl({ label, tooltip, description, color, onChange, disabled = false }: ColorControlProps) {
   const isCustom = !SWATCHES.some((swatch) => sameColor(swatch, color));
 
   return (
     <div class={`control-row ${disabled ? "disabled" : ""}`}>
-      <span class="control-label">{tooltip ? <Tooltip text={tooltip}>{label}</Tooltip> : label}</span>
+      <ControlLabel label={label} tooltip={tooltip} description={description} />
       <span class="color-swatches">
         {SWATCHES.map((swatch) => (
           <button

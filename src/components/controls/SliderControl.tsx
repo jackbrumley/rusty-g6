@@ -1,5 +1,5 @@
+import { ControlLabel } from "./ControlLabel";
 import { useEffect, useState } from "preact/hooks";
-import { Tooltip } from "../ui/Tooltip";
 
 interface SliderControlProps {
   label: string;
@@ -11,6 +11,8 @@ interface SliderControlProps {
   onChange: (value: number) => void;
   formatValue?: (value: number) => string;
   tooltip?: string;
+  /// One line under the label saying what the setting does.
+  description?: string;
 }
 
 export function SliderControl({
@@ -23,6 +25,7 @@ export function SliderControl({
   onChange,
   formatValue,
   tooltip,
+  description,
 }: SliderControlProps) {
   const [localValue, setLocalValue] = useState(value);
 
@@ -44,7 +47,7 @@ export function SliderControl({
 
   return (
     <div class="control-row">
-      <span class="control-label">{tooltip ? <Tooltip text={tooltip}>{label}</Tooltip> : label}</span>
+      <ControlLabel label={label} tooltip={tooltip} description={description} />
       <input
         type="range"
         min={min}

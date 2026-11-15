@@ -29,7 +29,7 @@ export function AppSettingsPage({ preferences, updates, connection, showToast }:
           label="Close to tray"
           checked={preferences.closeToTray}
           onChange={preferences.toggleCloseToTray}
-          tooltip="Closing the window keeps Rusty G6 running in the system tray. Use Quit in the tray menu to exit."
+          description="Closing the window keeps Rusty G6 in the tray. Quit from the tray menu."
         />
       </SettingsSection>
 

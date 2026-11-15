@@ -3,6 +3,7 @@
 //! that most settings use; each area has its own module.
 pub mod dac_filter;
 pub mod decoder;
+pub mod device_flags;
 pub mod effects;
 pub mod equalizer;
 pub mod events;
@@ -41,6 +42,8 @@ pub enum CommandFamily {
     GlobalMode = 0x26,
     /// Speakers or headphones.
     Output = 0x2c,
+    /// On/off device features (Direct mode ...).
+    DeviceFlags = 0x39,
     Lighting = 0x3a,
     MicBoost = 0x3c,
     DacFilter = 0x6c,

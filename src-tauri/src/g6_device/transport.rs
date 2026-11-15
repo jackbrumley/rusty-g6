@@ -70,6 +70,28 @@ impl G6DeviceManager {
         Ok(!answers.is_empty())
     }
 
+    /// Send one write after which the G6 re-enumerates on USB (it drops off
+    /// the bus and returns about a second later). Its acknowledgement is the
+    /// confirmation; a read failure after it means the device went away as
+    /// expected, not that the write failed. The state read after the
+    /// reconnect reports the new value. Returns whether it was acknowledged.
+    pub(super) fn send_write_before_reenumeration(&self, command: Vec<u8>) -> Result<bool> {
+        self.with_device(|device| {
+            write_packet(device, &command, "TX")?;
+            loop {
+                match read_packet(device, WRITE_ANSWER_GAP_MS) {
+                    Ok(Some(answer)) if answer[1] == 0x02 => return Ok(true),
+                    Ok(Some(_)) => continue,
+                    Ok(None) => return Ok(false),
+                    Err(error) => {
+                        info!("The G6 went away after the write, as expected: {error:#}");
+                        return Ok(false);
+                    }
+                }
+            }
+        })
+    }
+
     /// Send queries and return each one's answer: the first packet of the
     /// same family, or an empty packet if none came. Fails with
     /// `DeviceUnresponsive` once `MAX_SILENT_QUERIES` in a row got no packet.
