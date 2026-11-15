@@ -156,25 +156,4 @@ impl G6DeviceManager {
         self.state_confirmed.store(false, Ordering::SeqCst);
         info!("Disconnected from G6 device");
     }
-
-    /// List all connected HID devices (for debugging)
-    pub fn list_devices(&self) -> Result<Vec<String>> {
-        let api = self.api.lock().unwrap();
-        let devices = api.device_list();
-
-        let device_list: Vec<String> = devices
-            .map(|dev| {
-                format!(
-                    "VID: {:04x}, PID: {:04x}, Interface: {}, Manufacturer: {}, Product: {}",
-                    dev.vendor_id(),
-                    dev.product_id(),
-                    dev.interface_number(),
-                    dev.manufacturer_string().unwrap_or("Unknown"),
-                    dev.product_string().unwrap_or("Unknown")
-                )
-            })
-            .collect();
-
-        Ok(device_list)
-    }
 }

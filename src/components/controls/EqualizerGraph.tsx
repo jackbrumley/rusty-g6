@@ -16,6 +16,7 @@ const PAD_TOP = 20;
 const PAD_BOTTOM = 30;
 const PLOT_HEIGHT = HEIGHT - PAD_TOP - PAD_BOTTOM;
 const GRID_DB = [12, 6, 0, -6, -12];
+const PENDING_TIMEOUT_MS = 5000;
 
 // The bands are an octave apart, so even spacing is a log-frequency axis.
 const bandX = (band: number) =>
@@ -54,22 +55,46 @@ export function EqualizerGraph({ gainsDb, dimmed, onSetBand }: EqualizerGraphPro
   const svgRef = useRef<SVGSVGElement>(null);
   const [localGains, setLocalGains] = useState(gainsDb);
   const [dragBand, setDragBand] = useState<number | null>(null);
+  // Gains sent to the device but not yet reported back in `gainsDb`. The
+  // curve shows them meanwhile; otherwise it would flick back to the old
+  // value when a drag ends and jump again when the device confirms.
+  const pendingRef = useRef(new Map<number, number>());
+  const gainsRef = useRef(gainsDb);
+  gainsRef.current = gainsDb;
+
+  const syncFromDevice = () => {
+    const pending = pendingRef.current;
+    for (const [band, gainDb] of pending) {
+      if (gainsRef.current[band] === gainDb) {
+        pending.delete(band);
+      }
+    }
+    setLocalGains(gainsRef.current.map((gainDb, band) => pending.get(band) ?? gainDb));
+  };
 
   useEffect(() => {
     if (dragBand === null) {
-      setLocalGains(gainsDb);
+      syncFromDevice();
     }
   }, [gainsDb, dragBand]);
 
-  const gainAtPointer = (event: PointerEvent): number | null => {
+  // Where on the handle the drag started, in dB from its centre, so the
+  // point doesn't jump to the pointer on the first move.
+  const grabOffsetRef = useRef(0);
+
+  const rawGainAtPointer = (event: PointerEvent): number | null => {
     const svg = svgRef.current;
     const matrix = svg?.getScreenCTM();
     if (!svg || !matrix) {
       return null;
     }
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-    const gainDb = EQ_BAND_LIMIT_DB - ((point.y - PAD_TOP) / PLOT_HEIGHT) * 2 * EQ_BAND_LIMIT_DB;
-    return snapGain(gainDb);
+    return EQ_BAND_LIMIT_DB - ((point.y - PAD_TOP) / PLOT_HEIGHT) * 2 * EQ_BAND_LIMIT_DB;
+  };
+
+  const gainAtPointer = (event: PointerEvent): number | null => {
+    const gainDb = rawGainAtPointer(event);
+    return gainDb === null ? null : snapGain(gainDb - grabOffsetRef.current);
   };
 
   const setLocalBand = (band: number, gainDb: number) =>
@@ -77,13 +102,26 @@ export function EqualizerGraph({ gainsDb, dimmed, onSetBand }: EqualizerGraphPro
 
   const commitBand = (band: number, gainDb: number) => {
     setLocalBand(band, gainDb);
-    if (gainDb !== gainsDb[band]) {
-      onSetBand(band, gainDb);
+    if (gainDb === gainsDb[band]) {
+      pendingRef.current.delete(band);
+      return;
     }
+    pendingRef.current.set(band, gainDb);
+    onSetBand(band, gainDb);
+    // A write that never shows up (it failed, with a toast) stops being
+    // shown after a while, and the curve returns to the device's value.
+    setTimeout(() => {
+      if (pendingRef.current.get(band) === gainDb) {
+        pendingRef.current.delete(band);
+        syncFromDevice();
+      }
+    }, PENDING_TIMEOUT_MS);
   };
 
   const handlePointerDown = (band: number) => (event: PointerEvent) => {
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    const grabbedAt = rawGainAtPointer(event);
+    grabOffsetRef.current = grabbedAt === null ? 0 : grabbedAt - localGains[band];
     setDragBand(band);
   };
 

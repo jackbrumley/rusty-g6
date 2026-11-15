@@ -138,7 +138,8 @@ Rusty G6's variations from the standard:
   `/etc/udev/rules.d/50-soundblaster-x-g6.rules` itself (needs root once); the
   `.deb`/`.rpm` install it in their post-install scripts
   (`src-tauri/scripts/{deb,rpm}/`).
-- **Build dependencies:** `libudev-dev`, `libusb-1.0-0-dev` (hidapi/rusb) and
+- **Build dependencies:** `libudev-dev`, `libusb-1.0-0-dev` (hidapi/rusb),
+  `libasound2-dev` (the alsa crate, `g6_mixer`) and
   `libayatana-appindicator3-dev` (required by tauri-cli for bundling, although
   the Linux tray is a ksni StatusNotifierItem over pure-Rust DBus), in
   `src-tauri/packaging/linux/Containerfile` and `.github/workflows/ci.yml`.
@@ -152,8 +153,8 @@ Rusty G6's variations from the standard:
 
 - **Platforms:** Linux and Windows, so CI runs on both (no macOS).
 - **Settings:** `settings.json` holds only what the backend needs
-  (`close_to_tray`, `log_level`); UI-only preferences stay in the webview's
-  localStorage.
+  (`close_to_tray`, `log_level`, `recording_source`); UI-only preferences
+  stay in the webview's localStorage.
 
 ## Architecture
 
@@ -173,10 +174,27 @@ Rusty G6's variations from the standard:
   `SELF-HEAL` and `UNCONFIRMED WRITE` lines for the cold-boot bug in
   `docs/TODO.md`.
 - `app/settings.rs` + `app/json_store.rs`: `settings.json`.
-- `g6_device/`: the HID connection (`mod.rs`), the event listener
-  (`listener.rs`) and state reads with self-healing (`state_read.rs`).
-- `g6_protocol_v2/`: command builders and the response parser (`mod.rs`),
-  device events (`events.rs`). `g6_spec.rs`: the device's data types.
+- `g6_device/`: the device manager (`mod.rs`), opening the HID interface
+  (`connection.rs`), sending packets and applying every answer
+  (`transport.rs`), settings writes (`setters.rs`), the event listener
+  (`listener.rs`) and state reads with self-healing (`state_read.rs`). The
+  cached settings only ever hold what the device reported: setters never
+  write them.
+- `g6_protocol/`: the bytes. Framing and the DSP parameter read/write
+  (`mod.rs`), one module per area (`effects.rs`, `equalizer.rs`,
+  `dac_filter.rs`, `firmware.rs`), `reads.rs`, `writes.rs`, and
+  `events.rs`, which parses every packet the G6 sends; its
+  `DeviceEvent::apply_to` is the one mapping from a report to settings.
+  `g6_spec.rs`: the device's settings model (no protocol knowledge).
+- `app/commands/device_settings.rs`: every setting command goes through
+  `change_device_setting` (log, run, report the error, notify the UI and
+  tray); the tray's output switch uses it too.
+- `g6_mixer/` (Linux): the G6's recording source, an ALSA control on card
+  `G6`. Its watch re-applies the stored source whenever the card appears or
+  another program (PipeWire) changes it.
+- Frontend hooks, one concern each: `useDeviceConnection` (connection and
+  the cached settings), `useDeviceSettings` (every setting change),
+  `useRecordingSource`, `useAppPreferences`, `useUpdates`, `useRoute`.
 - `src/styles/`: the stylesheet, split by area and imported in order from
   `App.tsx` (the order is the cascade).
 

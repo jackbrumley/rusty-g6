@@ -17,6 +17,7 @@ RUN test -n "${NODE_VERSION}" && test -n "${RUST_VERSION}" \
     || { echo "Build this image with scripts/build-linux-release.mjs, which passes the pinned versions." >&2; exit 1; }
 
 # libudev-dev and libusb-1.0-0-dev: hidapi and rusb (USB/HID access to the G6).
+# libasound2-dev: the alsa crate (the G6's recording source, g6_mixer).
 # libayatana-appindicator3-dev: required by tauri-cli when bundling (the Linux
 # tray itself is a ksni StatusNotifierItem over pure-Rust DBus, no libdbus).
 # xdg-utils: Tauri bundles xdg-open into the AppImage (opener plugin).
@@ -27,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         desktop-file-utils \
         file \
         git \
+        libasound2-dev \
         libayatana-appindicator3-dev \
         libfuse2 \
         libgtk-3-dev \

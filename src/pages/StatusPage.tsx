@@ -7,12 +7,14 @@ interface StatusPageProps {
   appVersion: string;
   permissionError: boolean;
   settings: G6Settings | null;
-  isLinux: boolean;
   onReadDeviceState: () => void;
   onSetupPermissions: () => void;
   showUpdatePill: boolean;
   onOpenUpdateModal: () => void;
 }
+
+const onOff = (enabled: boolean | undefined) =>
+  enabled === undefined ? "Unknown" : enabled ? "On" : "Off";
 
 export function StatusPage({
   connected,
@@ -20,7 +22,6 @@ export function StatusPage({
   appVersion,
   permissionError,
   settings,
-  isLinux,
   onReadDeviceState,
   onSetupPermissions,
   showUpdatePill,
@@ -42,65 +43,54 @@ export function StatusPage({
         )}
       </header>
 
-      <section class="status-section surface-card">
-        <div class="status-line status-line-centered">
-          <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
-            {connected ? "●" : "○"}
-          </span>
-          <span class="status-text">{status}</span>
-          {permissionError && (
-            <Tooltip text="Automatically sets up Linux USB permissions for the G6. Root authentication is required.">
-              <button onClick={onSetupPermissions} class="btn-compact btn-warning">
-                Fix Permissions
-              </button>
-            </Tooltip>
-          )}
-        </div>
-      </section>
-
-      <section class="debug-section compact surface-card">
-        <div class="status-info-grid">
-          <div class="status-info-tile">
-            <span class="status-info-label">Firmware</span>
-            <span class="status-info-value">
-              {settings?.firmware_info
-                ? `${settings.firmware_info.version}${settings.firmware_info.build ? ` (${settings.firmware_info.build})` : ""}`
-                : "Unknown"}
-            </span>
-          </div>
-          <div class="status-info-tile">
-            <span class="status-info-label">Output</span>
-            <span class="status-info-value">{settings?.output ?? "Unknown"}</span>
-          </div>
-          <div class="status-info-tile">
-            <span class="status-info-label">SBX Mode</span>
-            <span class="status-info-value">{settings?.sbx_enabled ?? "Unknown"}</span>
-          </div>
-          <div class="status-info-tile">
-            <span class="status-info-label">Scout Mode</span>
-            <span class="status-info-value">{settings?.scout_mode ?? "Unknown"}</span>
-          </div>
-          <div class="status-info-tile">
-            <span class="status-info-label">Platform</span>
-            <span class="status-info-value">{isLinux ? "Linux" : "Windows"}</span>
-          </div>
-          <div class="status-info-tile">
-            <span class="status-info-label">Last Read</span>
-            <span class="status-info-value">
-              {settings?.last_read_time
-                ? new Date(settings.last_read_time * 1000).toLocaleTimeString()
-                : "Not yet"}
-            </span>
-          </div>
-        </div>
-        {connected && (
-          <div class="status-action-grid">
-            <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
-              Read Device State
+      <div class="status-line status-line-centered">
+        <span class={`status-indicator ${connected ? "connected" : "disconnected"}`}>
+          {connected ? "●" : "○"}
+        </span>
+        <span class="status-text">{status}</span>
+        {permissionError && (
+          <Tooltip text="Automatically sets up Linux USB permissions for the G6. Root authentication is required.">
+            <button onClick={onSetupPermissions} class="btn-compact btn-warning">
+              Fix Permissions
             </button>
-          </div>
+          </Tooltip>
         )}
-      </section>
+      </div>
+
+      <dl class="status-details">
+        <div class="status-detail">
+          <dt>Firmware</dt>
+          <dd>{settings?.firmware_version ?? "Unknown"}</dd>
+        </div>
+        <div class="status-detail">
+          <dt>Output</dt>
+          <dd>{settings?.output ?? "Unknown"}</dd>
+        </div>
+        <div class="status-detail">
+          <dt>SBX</dt>
+          <dd>{onOff(settings?.sbx_enabled)}</dd>
+        </div>
+        <div class="status-detail">
+          <dt>Scout Mode</dt>
+          <dd>{onOff(settings?.scout_mode_enabled)}</dd>
+        </div>
+        <div class="status-detail">
+          <dt>Last read</dt>
+          <dd>
+            {settings?.last_read_time
+              ? new Date(settings.last_read_time * 1000).toLocaleTimeString()
+              : "Not yet"}
+          </dd>
+        </div>
+      </dl>
+
+      {connected && (
+        <div class="status-actions">
+          <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
+            Read Device State
+          </button>
+        </div>
+      )}
     </>
   );
 }

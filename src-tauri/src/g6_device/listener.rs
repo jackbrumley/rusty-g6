@@ -1,18 +1,23 @@
 //! The device event listener: one thread for the life of the app that reads
-//! change events from the G6 and applies them to the cached settings.
+//! the reports the G6 pushes (a change made on the device, an output switch)
+//! and applies them to the cached settings.
 
+use super::transport::read_packet;
 use super::G6DeviceManager;
-use crate::g6_protocol_v2;
-use crate::g6_protocol_v2::events::DeviceEvent;
+use crate::g6_protocol::events::{parse_device_packet, DeviceEvent};
 use log::{error, info};
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
 
+/// How long a read blocks while holding the device handle.
+const LISTEN_POLL_MS: i32 = 100;
+
 impl G6DeviceManager {
     /// Start the event listener thread. It runs for the life of the app and
     /// reads from whatever handle is current, so calling this again after a
-    /// reconnect is a no-op.
+    /// reconnect is a no-op. `on_event` runs after every applied report and
+    /// after a disconnect.
     pub fn start_listener<F>(&self, on_event: F)
     where
         F: Fn() + Send + Sync + 'static,
@@ -21,101 +26,55 @@ impl G6DeviceManager {
             return;
         }
 
-        let device_arc = self.device.clone();
-        let settings_arc = self.current_settings.clone();
-        let active_arc = self.command_active.clone();
-        let confirmed_arc = self.state_confirmed.clone();
+        let device = self.device.clone();
+        let settings = self.current_settings.clone();
+        let command_active = self.command_active.clone();
+        let state_confirmed = self.state_confirmed.clone();
 
         thread::spawn(move || {
-            info!("Device Event Listener Started");
+            info!("Device event listener started");
             loop {
-                // If main thread is sending commands, back off
-                if active_arc.load(Ordering::SeqCst) {
+                // A command batch reads its own answers.
+                if command_active.load(Ordering::SeqCst) {
                     thread::sleep(Duration::from_millis(50));
                     continue;
                 }
 
-                let mut buffer = vec![0u8; 65];
-                let read_result = {
-                    // Try to acquire lock - if connection drops, lock might fail?
-                    match device_arc.lock() {
-                        Ok(guard) => {
-                            if let Some(dev) = guard.as_ref() {
-                                dev.read_timeout(&mut buffer, 100)
-                            } else {
-                                // Device disconnected
-                                Ok(0)
-                            }
-                        }
-                        Err(_) => Ok(0), // Poisoned lock
-                    }
+                let read = {
+                    let guard = device.lock().unwrap();
+                    guard
+                        .as_ref()
+                        .map(|handle| read_packet(handle, LISTEN_POLL_MS))
                 };
 
-                match read_result {
-                    Ok(bytes) if bytes > 0 => {
-                        let packet = if buffer[0] == 0x00 && bytes > 1 {
-                            &buffer[1..bytes]
-                        } else {
-                            &buffer[0..bytes]
-                        };
-
-                        // Parse packet using the unified event parser
-                        if packet.len() > 2 && packet[0] == 0x5a {
-                            // Get high-precision timestamp
-                            let timestamp = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap();
-                            let millis = timestamp.as_millis();
-                            let micros = timestamp.as_micros() % 1000;
-
-                            // Log all incoming events with full hex dump (up to 20 bytes)
-                            let hex_str: String = packet
-                                .iter()
-                                .take(20)
-                                .map(|b| format!("{:02x}", b))
-                                .collect();
-                            let desc = g6_protocol_v2::describe_packet(packet);
-
-                            // Enhanced logging with timestamp
-                            info!(
-                                "\x1b[33m[RX-EVENT @{}.{:03}µs] {}\x1b[0m | \x1b[35m{}\x1b[0m",
-                                millis, micros, hex_str, desc
-                            );
-
-                            // Parse events using the protocol V2 parser
-                            let events =
-                                crate::g6_protocol_v2::events::G6EventParser::parse(packet);
-
-                            // Process each detected event
-                            for event in &events {
-                                if let Ok(mut settings) = settings_arc.lock() {
-                                    event.apply_to(&mut settings);
-                                    if matches!(event, DeviceEvent::OutputChanged(_)) {
-                                        confirmed_arc.store(true, Ordering::SeqCst);
-                                    }
-                                    info!("Detected {:?}", event);
-                                }
-                            }
-
-                            // Notify UI if any events were processed
-                            if !events.is_empty() {
-                                on_event();
-                            }
+                match read {
+                    // Not connected.
+                    None => thread::sleep(Duration::from_millis(500)),
+                    Some(Ok(None)) => {}
+                    Some(Ok(Some(packet))) => {
+                        let events = parse_device_packet(&packet);
+                        if events.is_empty() {
+                            continue;
                         }
-                    }
-                    Ok(_) => {} // No data
-                    Err(e) => {
-                        error!("Read error in listener (possibly disconnected): {}", e);
-                        // Clear the device on error to trigger reconnection flow
-                        *device_arc.lock().unwrap() = None;
-                        confirmed_arc.store(false, Ordering::SeqCst);
-                        // Notify UI of disconnect
+                        let mut cached = settings.lock().unwrap();
+                        for event in &events {
+                            event.apply_to(&mut cached);
+                            if matches!(event, DeviceEvent::OutputChanged(_)) {
+                                state_confirmed.store(true, Ordering::SeqCst);
+                            }
+                            info!("Device reported {:?}", event);
+                        }
+                        drop(cached);
                         on_event();
-                        // Sleep a bit longer before next attempt
+                    }
+                    Some(Err(read_error)) => {
+                        error!("Listener read failed (G6 disconnected?): {read_error:#}");
+                        *device.lock().unwrap() = None;
+                        state_confirmed.store(false, Ordering::SeqCst);
+                        on_event();
                         thread::sleep(Duration::from_millis(500));
                     }
                 }
-
                 thread::sleep(Duration::from_millis(10));
             }
         });

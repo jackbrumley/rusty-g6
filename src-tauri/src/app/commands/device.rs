@@ -6,8 +6,8 @@ use tauri::{AppHandle, Emitter, State};
 /// re-reads the cached settings on "device-update") and the tray's output
 /// item.
 pub fn notify_device_changed(app: &AppHandle) {
-    if let Err(e) = app.emit("device-update", ()) {
-        eprintln!("Failed to emit device update: {}", e);
+    if let Err(error) = app.emit("device-update", ()) {
+        log::error!("Failed to notify the UI of a device change: {error}");
     }
     crate::app::tray::sync_output_state(app);
 }
@@ -20,20 +20,9 @@ pub fn connect_device(app: AppHandle, state: State<AppState>) -> Result<String, 
         return Ok("Already connected".to_string());
     }
 
-    match manager.list_devices() {
-        Ok(devices) => {
-            eprintln!("=== USB Devices Found ===");
-            for device in &devices {
-                eprintln!("{}", device);
-            }
-            eprintln!("========================");
-        }
-        Err(e) => eprintln!("Failed to list devices: {}", e),
-    }
-
-    manager.connect().map_err(|e| {
-        eprintln!("Connection error: {}", e);
-        e.to_string()
+    manager.connect().map_err(|error| {
+        log::error!("Connecting to the G6 failed: {error:#}");
+        format!("{error:#}")
     })?;
 
     let app_clone = app.clone();
@@ -75,19 +64,4 @@ pub fn read_device_state(app: AppHandle, state: State<AppState>) -> Result<G6Set
     // A read may reopen or reset the device; tell the UI either way.
     notify_device_changed(&app);
     result
-}
-
-#[tauri::command(async)]
-pub fn synchronize_device(state: State<AppState>) -> Result<String, String> {
-    let manager = state.device_manager.lock().unwrap();
-    manager
-        .synchronize_with_device()
-        .map(|_| "Device synchronized successfully".to_string())
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command(async)]
-pub fn list_usb_devices(state: State<AppState>) -> Result<Vec<String>, String> {
-    let manager = state.device_manager.lock().unwrap();
-    manager.list_devices().map_err(|e| e.to_string())
 }

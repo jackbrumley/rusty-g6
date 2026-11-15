@@ -92,6 +92,20 @@ Test on hardware after a cold boot: does playback still work after our
 handle reopen) and offer a boot-time helper like theirs instead, as an
 explicit install step with its side effects listed.
 
+### Check the protocol refactor on hardware (2026-11-15)
+
+The device layer was restructured (one effect model, one parse path, every
+write answered by the device). Behaviour that changed and needs a check on
+the G6:
+- The controls show what the G6 answers, not what was clicked. A write the
+  G6 does not answer now shows an error toast instead of failing silently.
+- The Bass level slider now reaches the device (`96:19`); before, only the
+  on/off switch was sent.
+- Mic boost is read from the device and always shown on the Input page (the
+  Experimental switch is gone).
+- An EQ preset or SBX switch can take up to about half a second, because
+  every answer the G6 sends is read and applied.
+
 ### Microphone very quiet on Linux
 
 Reported 2026-11-15. The G6 mic is barely audible on Linux, and a manual
@@ -113,7 +127,31 @@ Reported 2026-11-15. The G6 mic is barely audible on Linux, and a manual
   toast names the wrong source ("Digital Input (S/PDIF)"; it is "Analog
   Stereo"). It logs with `eprintln!`.
 
-**Plan:**
+**Built (dev, 2026-11-15), to test on hardware:** `g6_mixer/` keeps the
+stored recording source (`settings.json`, default External Mic) selected. It
+applies it when the G6's sound card appears and again whenever another
+program changes it. If something switches it back more than 5 times in a
+minute, it stops and shows an error. The Input page has a Recording source
+picker; the old `amixer` "Setup Mic" button is gone. Check after a reboot:
+the mic is loud without touching anything, and the session log shows
+`RECORDING_SOURCE` lines. Mic level and mic boost read-back are still to do.
+
+**Hardware findings (2026-11-15):**
+- WirePlumber (0.4.17) writes `PCM Capture Source = Line In` in a short
+  burst (about 6 writes in 2 s) whenever it starts or re-activates the G6's
+  input (its ACP "Line In" path). The first watch re-applied after every
+  write, hit its 5-per-minute limit and stopped.
+- Fix (in `g6_mixer/watch.rs`): wait for 1.5 s of quiet, then re-apply once.
+  Tested: a WirePlumber restart now ends on External Mic with one re-apply.
+- A per-user WirePlumber rule with `api.alsa.soft-mixer = true` did **not**
+  help: the port activation still writes Line In. Not needed; removed.
+- WirePlumber renames the G6's nodes (`.2`, `.3` ...) when it sees a
+  duplicate during a replug or profile switch, then cannot find the default
+  it remembered by name and falls back to another output. A clean restart
+  with the stale names removed from `~/.local/state/wireplumber/default-nodes`
+  fixed it on the maintainer's machine. Worth a line in the docs for users.
+
+**Original plan:**
 - A Linux-only mixer module on the `alsa` crate (model: linuxblaster_control
   `src/mixer.rs`, MIT). Store the recording source in `settings.json`
   (default External Mic) and apply it on every connect.
@@ -154,7 +192,7 @@ they wrote down. Re-check each one on our G6 before it ships.
 Order (each item: protocol builder + parser, state read, setter, Tauri
 command, UI):
 1. ~~**Split first.**~~ Done: `g6_device/` (connection, transport,
-   setters) and `g6_protocol_v2/` (parser, reads, writes, equalizer).
+   setters) and `g6_protocol/` (parser, reads, writes, equalizer).
 2. **Graphic EQ.** Built (toggle, presets, draggable curve, preamp), not yet
    tested on hardware. Check: each write takes effect, the curve follows
    output switches (multi-feature `0x11` reports), presets apply in one go.
@@ -165,9 +203,10 @@ command, UI):
    fills them, and `0x0a`–`0x14` are the EQ, not "extended params". The EQ
    also sets bit 0 of the `0x26` status. Captures: `set_eq_on`, `set_eq_off`,
    `set_eq_62hz_0db`.
-3. **DAC filter.** Add the setter (`5a 6c 03 00 [f] 00`), the read
-   (`5a 6c 01 01`) and the missing NOS value `0x03`. Captures:
-   `set_filter_*`.
+3. **DAC filter.** Built (Output page dropdown, all five filters, read at
+   start-up), not yet tested on hardware. Bytes confirmed against
+   linuxblaster's `set_filter_*` captures; NOS (`0x03`) is listed by the
+   device but its write is not captured, so check NOS first.
 4. **Recording controls.** Noise reduction `95:04` and level `95:05` (device
    scale 0–0.5). Echo cancellation `95:00`. Mic smart volume `95:2c`. Mic EQ
    toggle `95:13` and presets on `95:14`–`95:1b`. Captures:

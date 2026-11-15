@@ -15,6 +15,13 @@ interface AppShellProps {
   children: ComponentChildren;
 }
 
+const TABS: { route: AppRoute; label: string }[] = [
+  { route: "status", label: "Status" },
+  { route: "output", label: "Output" },
+  { route: "input", label: "Input" },
+  { route: "debug", label: "Settings" },
+];
+
 export function AppShell({
   activeTab,
   isMaximized,
@@ -27,6 +34,7 @@ export function AppShell({
   onResizeMouseDown,
   children,
 }: AppShellProps) {
+  const activeIndex = TABS.findIndex((tab) => tab.route === activeTab);
   return (
     <div class="app-shell">
       <div class="resize-overlay" data-no-drag="true">
@@ -62,18 +70,23 @@ export function AppShell({
       <div class="app-body-shell" data-no-drag="true">
         <div class="tab-nav-shell">
           <nav class="tab-nav">
-            <button class={`tab-button ${activeTab === "status" ? "active" : ""}`} onClick={() => onNavigate("status")}>
-              Status
-            </button>
-            <button class={`tab-button ${activeTab === "output" ? "active" : ""}`} onClick={() => onNavigate("output")}>
-              Output
-            </button>
-            <button class={`tab-button ${activeTab === "input" ? "active" : ""}`} onClick={() => onNavigate("input")}>
-              Input
-            </button>
-            <button class={`tab-button ${activeTab === "debug" ? "active" : ""}`} onClick={() => onNavigate("debug")}>
-              Settings
-            </button>
+            {TABS.map((tab) => (
+              <button
+                key={tab.route}
+                class={`tab-button ${activeTab === tab.route ? "active" : ""}`}
+                aria-current={activeTab === tab.route ? "page" : undefined}
+                onClick={() => onNavigate(tab.route)}
+              >
+                {tab.label}
+              </button>
+            ))}
+            {activeIndex >= 0 && (
+              <span
+                class="tab-indicator"
+                style={{ left: `${((activeIndex + 0.5) / TABS.length) * 100}%` }}
+                aria-hidden="true"
+              />
+            )}
           </nav>
         </div>
 

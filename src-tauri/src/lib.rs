@@ -1,6 +1,8 @@
 mod app;
 mod g6_device;
-mod g6_protocol_v2;
+#[cfg(target_os = "linux")]
+mod g6_mixer;
+mod g6_protocol;
 mod g6_spec;
 mod paths;
 
@@ -44,29 +46,21 @@ pub fn run(launch: LaunchOptions, second_launch_shows_window: fn(&[String]) -> b
             is_device_connected,
             get_device_settings,
             read_device_state,
-            synchronize_device,
             toggle_output,
-            set_output,
-            set_surround,
-            set_crystalizer,
-            set_bass,
-            set_smart_volume,
-            set_dialog_plus,
-            set_sbx_mode,
-            set_scout_mode,
+            set_sbx_enabled,
+            set_scout_mode_enabled,
+            set_effect_enabled,
+            set_effect_level,
             set_microphone_boost,
+            set_dac_filter,
             set_eq_enabled,
             set_eq_preamp,
             set_eq_band,
             set_eq_bands,
-            list_usb_devices,
             get_app_version,
-            configure_microphone,
+            get_recording_source,
+            set_recording_source,
             clear_terminal,
-            get_protocol_console_messages,
-            clear_protocol_console,
-            test_protocol_v2,
-            test_output_toggle_v2,
             setup_udev_rules,
             check_usb_permissions,
             copy_session_log,

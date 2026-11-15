@@ -50,6 +50,10 @@ pub fn run_setup(
     };
     crate::app::session_log::apply_log_level(&settings.log_level);
     app.manage(crate::app::state::create_app_state(settings));
+    #[cfg(target_os = "linux")]
+    app.state::<AppState>()
+        .recording_source
+        .start(app.handle().clone());
 
     configure_shell(app, &launch)?;
     refresh_autostart_entry(app);

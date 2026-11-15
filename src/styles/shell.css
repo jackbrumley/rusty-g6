@@ -1,29 +1,5 @@
-/* Theme tokens, window chrome (resize handles, title bar), layout, tabs,
+/* Window chrome (resize handles, title bar), layout, tabs,
    update modal, tooltip and UI Lab. */
-
-:root {
-  --primary-color: #ff4444;
-  --primary-hover: #ff6666;
-  --secondary-color: #666;
-  --text-bright: #f8fbff;
-  --text-soft: #d6deec;
-  --button-secondary-bg: #141414;
-  --button-secondary-hover: #1d1d1d;
-  --button-secondary-border: rgba(255, 68, 68, 0.35);
-  --button-secondary-border-hover: rgba(255, 68, 68, 0.55);
-  --toggle-off-bg: #6b2f35;
-  --bg-color: #1a1a1a;
-  --card-bg: #2a2a2a;
-  --titlebar-bg: #141414;
-  --tabs-bg: #222222;
-  --text-color: var(--text-bright);
-  --border-color: #444;
-  --success-color: #4caf50;
-  --warning-color: #ff9800;
-  --border-radius: 6px;
-  --transition: all 0.3s ease;
-  --card-shadow-soft: 0 6px 16px rgba(0, 0, 0, 0.18);
-}
 
 * {
   box-sizing: border-box;
@@ -33,12 +9,17 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-bright);
+  font-family: var(--font-main);
+  background-color: var(--bg-page);
+  color: var(--text-main);
   line-height: 1.4;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
 }
 
 .app,
@@ -48,7 +29,7 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: var(--bg-color);
+  background: var(--bg-page);
 }
 
 /* Corner resize handles (the window has no decorations). Only the outer
@@ -101,8 +82,8 @@ body {
 
 /* Custom Title Bar */
 .title-bar {
-  background: linear-gradient(180deg, #151515 0%, var(--titlebar-bg) 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--titlebar-bg);
+  border-bottom: 1px solid var(--titlebar-border);
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -115,7 +96,7 @@ body {
 .title-bar-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--text-bright);
+  color: var(--text-main);
 }
 
 .title-bar-controls {
@@ -127,8 +108,8 @@ body {
   width: 30px;
   height: 30px;
   border: none;
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--text-bright);
+  background: var(--window-control-bg);
+  color: var(--text-main);
   cursor: pointer;
   border-radius: 999px;
   display: flex;
@@ -140,12 +121,12 @@ body {
 }
 
 .title-bar-button:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: var(--window-control-bg-hover);
 }
 
 .title-bar-button.close:hover {
-  background: #e81123;
-  color: white;
+  background: var(--window-close-bg-hover);
+  color: var(--brand-on-color);
 }
 
 .container {
@@ -163,11 +144,25 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(120% 140% at 10% -20%, rgba(255, 68, 68, 0.14) 0%, rgba(255, 68, 68, 0) 48%),
-    radial-gradient(90% 120% at 100% 0%, rgba(214, 222, 236, 0.08) 0%, rgba(214, 222, 236, 0) 52%),
-    linear-gradient(180deg, rgba(24, 24, 24, 0.98) 0%, rgba(20, 20, 20, 1) 100%);
+  background-color: var(--bg-page);
+  background-image: var(--bg-page-wash);
   overflow: hidden;
+  /* Keeps the art's negative z-index above this background. */
+  isolation: isolate;
+}
+
+/* The hexagon art on its own layer: sharing background-image with the
+   multi-layer wash would pair it with the wrong background-size entries. */
+.app-body-shell::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: -40px;
+  width: 360px;
+  aspect-ratio: 420 / 340;
+  background: var(--bg-page-art) center / contain no-repeat;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .workspace-shell {
@@ -193,105 +188,94 @@ body {
 
 .tab-nav-shell {
   width: 100%;
-  padding: 8px 12px 0;
-  background: rgba(18, 18, 18, 0.22);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(6px) saturate(120%);
-  -webkit-backdrop-filter: blur(6px) saturate(120%);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .tab-nav-shell {
-    background: rgba(18, 18, 18, 0.3);
-  }
+  padding: 4px 12px 0;
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .tab-nav {
+  position: relative;
   display: flex;
-  gap: 0;
   width: 100%;
-  margin: 0;
-  background: transparent;
-  border-radius: 0;
-  padding: 0 4px;
-  box-shadow: none;
-  align-items: flex-end;
 }
 
+/* Plain text tabs with one underline that slides to the active tab
+   (after Voquill). */
 .tab-button {
   flex: 1;
-  padding: 11px 20px 9px;
+  padding: 10px 16px 9px;
   background: transparent;
-  color: var(--text-soft);
+  color: var(--text-muted);
   border: none;
-  border-radius: 8px 8px 0 0;
   cursor: pointer;
-  transition: var(--transition);
-  font-weight: 600;
-  position: relative;
-  overflow: hidden;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
 }
 
+.tab-button:hover,
 .tab-button.active {
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-bright);
-  border: none;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 16px rgba(0, 0, 0, 0.16);
+  color: var(--text-main);
 }
 
-.tab-button:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--text-bright);
+.tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  width: 72px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent-bar);
+  box-shadow: 0 0 10px var(--focus-ring);
+  transform: translateX(-50%);
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
 }
 
 .status-header {
   text-align: center;
-  margin-bottom: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+  padding: 12px 0 4px;
 }
 
 .tab-page-header {
   margin-bottom: 12px;
   padding: 6px 2px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--line-subtle);
   text-align: center;
 }
 
 .tab-page-title {
   font-size: 1.06rem;
   font-weight: 700;
-  color: var(--text-bright);
+  color: var(--text-main);
 }
 
 .tab-page-subtitle {
   margin-top: 4px;
   font-size: 0.82rem;
-  color: var(--text-soft);
+  color: var(--text-muted);
 }
 
 .status-header h1 {
   font-size: 1.7rem;
-  color: var(--primary-color);
+  color: var(--brand-primary);
 }
 
 .subtitle {
-  color: var(--text-soft);
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .version-text {
-  color: var(--text-soft);
+  color: var(--text-muted);
   font-size: 0.8rem;
   margin-top: 6px;
 }
 
 .update-pill {
-  background: var(--primary-color);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--brand-gradient);
+  color: var(--brand-on-color);
+  border: 1px solid var(--line-subtle);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.72rem;
@@ -302,14 +286,14 @@ body {
 }
 
 .update-pill:hover {
-  background: var(--primary-hover);
+  background: var(--brand-gradient-hover);
 }
 
 .update-pill-icon {
   width: 14px;
   height: 14px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid currentColor;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -321,7 +305,7 @@ body {
 .modal-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -331,17 +315,17 @@ body {
 
 .update-modal {
   width: min(560px, 100%);
-  background: var(--card-bg);
+  background: var(--bg-elevated);
   border-radius: var(--border-radius);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: var(--card-shadow-soft);
+  box-shadow: var(--popover-shadow);
 }
 
 .update-last-checked {
-  color: var(--text-soft);
+  color: var(--text-muted);
   font-size: 0.82rem;
 }
 
@@ -381,10 +365,10 @@ body {
   max-width: min(320px, calc(100vw - 20px));
   padding: 6px 9px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 68, 68, 0.55);
-  background: var(--titlebar-bg);
-  color: var(--text-bright);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--brand-border);
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  box-shadow: var(--popover-shadow);
   font-size: 0.74rem;
   line-height: 1.3;
   white-space: normal;
@@ -413,7 +397,7 @@ body {
   margin-top: 8px;
   border-radius: var(--border-radius);
   overflow: hidden;
-  box-shadow: var(--card-shadow-soft);
+  box-shadow: var(--popover-shadow);
 }
 
 .ui-lab-controls-inline {
@@ -447,6 +431,6 @@ body {
 }
 
 .ui-lab-checklist li {
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 0.85rem;
 }

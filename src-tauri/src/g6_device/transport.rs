@@ -1,249 +1,166 @@
-//! Sending packets to the G6 and collecting its answers.
+//! Sending packets to the G6 and collecting its answers. While a batch runs
+//! the event listener is paused, so every answer is read here.
 use super::{DeviceUnresponsive, G6DeviceManager};
-use crate::g6_protocol_v2;
+use crate::g6_protocol::{describe_packet, events::parse_device_packet};
 use anyhow::{Context, Result};
+use hidapi::HidDevice;
 use log::{error, info, warn};
 use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// A state read stops after this many queries in a row get no packet at
 /// all: a healthy G6 answers each query within a few milliseconds, so
-/// waiting out the remaining queries (500 ms each) only delays recovery.
+/// waiting out the remaining queries only delays recovery.
 const MAX_SILENT_QUERIES: u32 = 2;
+/// How long a query waits for its answer.
+const QUERY_TIMEOUT: Duration = Duration::from_millis(500);
+/// How long a write waits for further packets once the G6 goes quiet.
+const WRITE_ANSWER_GAP_MS: i32 = 50;
+/// How long a single read blocks.
+const READ_POLL_MS: i32 = 100;
+
 impl G6DeviceManager {
-    /// Send commands to the G6 device (DATA + COMMIT pair). Returns whether
-    /// the device acknowledged the batch with at least one response packet.
-    /// An unacknowledged batch is logged and marks the cached state as
-    /// unconfirmed, so the next toggle re-reads the device first.
-    pub(super) fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<bool> {
-        // Signal listener to pause
+    /// Run `action` on the open handle with the listener paused.
+    fn with_device<T>(&self, action: impl FnOnce(&HidDevice) -> Result<T>) -> Result<T> {
         self.command_active.store(true, Ordering::SeqCst);
-
-        // Ensure strictly scoped lock
-        let result = (|| -> Result<bool> {
+        let result = {
             let device_guard = self.device.lock().unwrap();
-            let device = device_guard.as_ref().context("Device not connected")?;
-            let mut acknowledged = false;
+            match device_guard.as_ref() {
+                Some(device) => action(device),
+                None => Err(anyhow::anyhow!("Device not connected")),
+            }
+        };
+        self.command_active.store(false, Ordering::SeqCst);
+        result
+    }
 
-            for command in commands.iter() {
-                // Helper logging
-                let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
-                let desc = g6_protocol_v2::describe_packet(command);
-
-                // Color Scheme: Green for TX
-                info!("\x1b[32m[TX] {}\x1b[0m | \x1b[35m{}\x1b[0m", hex_str, desc);
-
-                let mut data_with_report_id = vec![0x00];
-                data_with_report_id.extend_from_slice(command);
-
-                device
-                    .write(&data_with_report_id)
-                    .map_err(|e| anyhow::anyhow!("Failed to write to device: {}", e))?;
-
-                // Wait for device to process
-                std::thread::sleep(Duration::from_millis(20));
-
-                // Try to read acknowledgment
-                let mut buffer = vec![0u8; 65];
-                if let Ok(bytes) = device.read_timeout(&mut buffer, 50) {
-                    if bytes > 0 {
-                        let response = if buffer[0] == 0x00 && bytes > 1 {
-                            buffer[1..bytes].to_vec()
-                        } else {
-                            buffer[0..bytes].to_vec()
-                        };
-
-                        if response.len() >= 2 && response[0] == 0x5a {
-                            acknowledged = true;
-                            let rx_hex: String =
-                                response.iter().map(|b| format!("{:02x}", b)).collect();
-                            let rx_desc = g6_protocol_v2::describe_packet(&response);
-                            info!(
-                                "\x1b[33m[RX-ACK] {}\x1b[0m | \x1b[35m{}\x1b[0m",
-                                rx_hex, rx_desc
-                            );
-                        }
-                    }
+    /// Send writes (each followed by a read-back) and apply every report the
+    /// G6 answers with to the cached settings, so they hold what the device
+    /// took, not what was asked for. Returns whether any packet came back.
+    /// A batch with no answer at all is logged as `UNCONFIRMED WRITE` and
+    /// marks the cached state as unconfirmed.
+    pub(super) fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<bool> {
+        let answers = self.with_device(|device| {
+            let mut answers = Vec::new();
+            for command in &commands {
+                write_packet(device, command, "TX")?;
+                while let Some(answer) = read_packet(device, WRITE_ANSWER_GAP_MS)? {
+                    answers.push(answer);
                 }
             }
-            Ok(acknowledged)
-        })();
+            Ok(answers)
+        })?;
 
-        // Resume listener
-        self.command_active.store(false, Ordering::SeqCst);
+        let mut settings = self.current_settings.lock().unwrap();
+        for answer in &answers {
+            for event in parse_device_packet(answer) {
+                event.apply_to(&mut settings);
+            }
+        }
+        drop(settings);
 
-        if let Ok(false) = result {
+        if answers.is_empty() {
             warn!(
-                "UNCONFIRMED WRITE: the G6 sent no acknowledgement for {} command(s); \
+                "UNCONFIRMED WRITE: the G6 sent no answer to {} command(s); \
                  cached state is no longer trusted",
                 commands.len()
             );
             self.state_confirmed.store(false, Ordering::SeqCst);
         }
-
-        result
+        Ok(!answers.is_empty())
     }
 
-    /// Send a single raw command and return the response (for Protocol V2 testing)
-    pub fn send_raw_command(&self, command: &[u8]) -> Result<Vec<u8>> {
-        self.command_active.store(true, Ordering::SeqCst);
-
-        let result = (|| -> Result<Vec<u8>> {
-            let device_guard = self.device.lock().unwrap();
-            let device = device_guard.as_ref().context("Device not connected")?;
-
-            // Log TX
-            let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
-            info!("\x1b[32m[TX-RAW] {}\x1b[0m", hex_str);
-
-            // Prepend report ID
-            let mut data_with_report_id = vec![0x00];
-            data_with_report_id.extend_from_slice(command);
-
-            // Send command
-            device
-                .write(&data_with_report_id)
-                .context("Failed to write raw command to device")?;
-
-            // Read response with timeout (100ms)
-            let mut buffer = vec![0u8; 512];
-            let bytes_read = device
-                .read_timeout(&mut buffer, 100)
-                .context("Failed to read raw response from device")?;
-
-            // Remove report ID if present
-            let response = if bytes_read > 0 && buffer[0] == 0x00 && bytes_read > 1 {
-                buffer[1..bytes_read].to_vec()
-            } else {
-                buffer[0..bytes_read].to_vec()
-            };
-
-            // Log RX
-            let rx_hex: String = response.iter().map(|b| format!("{:02x}", b)).collect();
-            info!("\x1b[33m[RX-RAW] {}\x1b[0m", rx_hex);
-
-            Ok(response)
-        })();
-
-        self.command_active.store(false, Ordering::SeqCst);
-        result
-    }
-
-    /// Send read commands and collect responses with robust filtering
+    /// Send queries and return each one's answer: the first packet of the
+    /// same family, or an empty packet if none came. Fails with
+    /// `DeviceUnresponsive` once `MAX_SILENT_QUERIES` in a row got no packet.
     pub(super) fn send_read_commands(&self, commands: Vec<Vec<u8>>) -> Result<Vec<Vec<u8>>> {
-        self.command_active.store(true, Ordering::SeqCst);
-
-        let result = (|| -> Result<Vec<Vec<u8>>> {
-            let device_guard = self.device.lock().unwrap();
-            let device = device_guard.as_ref().context("Device not connected")?;
-
-            let mut responses = Vec::new();
-            let mut consecutive_silent = 0;
-            info!("Sending {} read commands to G6 device", commands.len());
-
-            for (i, command) in commands.iter().enumerate() {
-                if command.len() < 2 {
-                    continue;
-                }
-                let cmd_type = command[1];
-
-                // Log TX
-                let hex_str: String = command.iter().map(|b| format!("{:02x}", b)).collect();
-                let desc = g6_protocol_v2::describe_packet(command);
-                info!(
-                    "\x1b[32m[TX-READ] {}\x1b[0m | \x1b[35m{}\x1b[0m",
-                    hex_str, desc
-                );
-
-                let mut data_with_report_id = vec![0x00];
-                data_with_report_id.extend_from_slice(command);
-
-                if let Err(e) = device.write(&data_with_report_id) {
-                    error!("  ✗ Write failed for command {}: {}", i + 1, e);
-                    responses.push(Vec::new());
-                    continue;
-                }
-
-                let mut matched_response = None;
-                let mut all_received = Vec::new();
-                let mut packets_seen = 0;
-                let start_time = std::time::Instant::now();
-
-                while start_time.elapsed().as_millis() < 500 {
-                    // 500ms total timeout per command
-                    let mut buffer = vec![0u8; 65];
-                    match device.read_timeout(&mut buffer, 100) {
-                        // 100ms per read
-                        Ok(bytes_read) if bytes_read > 0 => {
-                            packets_seen += 1;
-                            let response = if buffer[0] == 0x00 && bytes_read > 1 {
-                                buffer[1..bytes_read].to_vec()
-                            } else {
-                                buffer[0..bytes_read].to_vec()
-                            };
-
-                            if response.len() < 2 || response[0] != 0x5a {
-                                continue;
-                            }
-
-                            // Log ALL RX packets with detailed info
-                            let rx_hex: String =
-                                response.iter().map(|b| format!("{:02x}", b)).collect();
-                            let rx_desc = g6_protocol_v2::describe_packet(&response);
-
-                            // Check if this matches our expected response
-                            let matches = response[1] == cmd_type;
-                            let match_status = if matches { "✓ MATCH" } else { "✗ NO MATCH" };
-
-                            info!(
-                                "\x1b[33m[RX-READ] {}\x1b[0m | \x1b[35m{}\x1b[0m | Expected: 0x{:02x}, Got: 0x{:02x} {}",
-                                rx_hex, rx_desc, cmd_type, response[1], match_status
-                            );
-
-                            all_received.push(response.clone());
-
-                            if matches {
-                                matched_response = Some(response);
-                                break;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
-                if let Some(resp) = matched_response {
-                    info!(
-                        "  ✓ Found matching response for command {} (0x{:02x})",
-                        i + 1,
-                        cmd_type
+        info!("Sending {} read commands to G6 device", commands.len());
+        self.with_device(|device| {
+            let mut answers = Vec::with_capacity(commands.len());
+            let mut silent_in_a_row = 0;
+            for command in &commands {
+                write_packet(device, command, "TX-READ")?;
+                let (answer, heard_anything) = await_answer(device, command[1])?;
+                if answer.is_none() {
+                    error!(
+                        "No answer to {} ({})",
+                        describe_packet(command),
+                        hex(&command[..8])
                     );
-                    responses.push(resp);
-                } else {
-                    error!("  ✗ No matching response for command {} (0x{:02x}). Received {} packet(s) total.",
-                        i + 1, cmd_type, all_received.len());
-                    // No fallback used - return empty if not matched
-                    responses.push(Vec::new());
                 }
+                answers.push(answer.unwrap_or_default());
 
-                if packets_seen == 0 {
-                    consecutive_silent += 1;
-                    if consecutive_silent >= MAX_SILENT_QUERIES {
-                        return Err(DeviceUnresponsive(format!(
-                            "{} state queries in a row got no packet at all \
-                             (the HID handle is open and writes succeed, but nothing comes back)",
-                            consecutive_silent
-                        ))
-                        .into());
-                    }
+                silent_in_a_row = if heard_anything {
+                    0
                 } else {
-                    consecutive_silent = 0;
+                    silent_in_a_row + 1
+                };
+                if silent_in_a_row >= MAX_SILENT_QUERIES {
+                    return Err(DeviceUnresponsive(format!(
+                        "{silent_in_a_row} state queries in a row got no packet at all \
+                         (the HID handle is open and writes succeed, but nothing comes back)"
+                    ))
+                    .into());
                 }
-                std::thread::sleep(Duration::from_millis(5));
             }
-            Ok(responses)
-        })();
-
-        self.command_active.store(false, Ordering::SeqCst);
-        result
+            Ok(answers)
+        })
     }
+}
+
+/// Wait up to `QUERY_TIMEOUT` for a packet of `family`. Returns it, and
+/// whether any packet arrived at all.
+fn await_answer(device: &HidDevice, family: u8) -> Result<(Option<Vec<u8>>, bool)> {
+    let started = Instant::now();
+    let mut heard_anything = false;
+    while started.elapsed() < QUERY_TIMEOUT {
+        if let Some(packet) = read_packet(device, READ_POLL_MS)? {
+            heard_anything = true;
+            if packet[1] == family {
+                return Ok((Some(packet), true));
+            }
+        }
+    }
+    Ok((None, heard_anything))
+}
+
+fn write_packet(device: &HidDevice, packet: &[u8], label: &str) -> Result<()> {
+    info!("[{label}] {} | {}", hex(packet), describe_packet(packet));
+    let mut report = Vec::with_capacity(packet.len() + 1);
+    report.push(0x00); // HID report ID
+    report.extend_from_slice(packet);
+    device
+        .write(&report)
+        .map_err(|error| anyhow::anyhow!("Failed to write to the G6: {error}"))?;
+    Ok(())
+}
+
+/// The next G6 packet within `timeout_ms`, without the report ID. Non-G6
+/// data is skipped.
+pub(super) fn read_packet(device: &HidDevice, timeout_ms: i32) -> Result<Option<Vec<u8>>> {
+    let mut buffer = [0u8; 65];
+    let length = device
+        .read_timeout(&mut buffer, timeout_ms)
+        .context("Failed to read from the G6")?;
+    let data = match &buffer[..length] {
+        [0x00, rest @ ..] if !rest.is_empty() => rest,
+        other => other,
+    };
+    if data.len() < 2 || data[0] != 0x5a {
+        return Ok(None);
+    }
+    info!("[RX] {} | {}", hex(data), describe_packet(data));
+    Ok(Some(data.to_vec()))
+}
+
+fn hex(bytes: &[u8]) -> String {
+    let end = bytes
+        .iter()
+        .rposition(|&byte| byte != 0)
+        .map_or(0, |last| last + 1);
+    bytes[..end.max(2.min(bytes.len()))]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }

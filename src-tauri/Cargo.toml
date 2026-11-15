@@ -39,6 +39,9 @@ rusb = "0.9"
 hidapi = { version = "2.6", features = ["linux-static-hidraw"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+# The G6's recording source is a USB Audio Class control that the kernel
+# exposes through ALSA (`g6_mixer`). Needs libasound2-dev to build.
+alsa = "0.11"
 # Sets the GTK prgname / Wayland app_id (same gtk version Tauri uses).
 gtk = "0.18"
 # The Linux tray is a StatusNotifierItem published over DBus (pure Rust, no

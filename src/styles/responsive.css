@@ -15,13 +15,11 @@
   }
 
   .debug-toggle-grid,
-  .output-controls-grid,
-  .status-info-grid {
+  .output-controls-grid {
     grid-template-columns: 1fr;
   }
 
-  .debug-action-grid .btn-compact,
-  .status-action-grid .btn-compact {
+  .debug-action-grid .btn-compact {
     max-width: none;
   }
 }

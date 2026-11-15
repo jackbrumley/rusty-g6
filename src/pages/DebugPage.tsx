@@ -3,54 +3,21 @@ import { ToggleControl } from "../components/controls/ToggleControl";
 import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
 import { LogsBlock } from "../components/debug/LogsBlock";
+import type { AppPreferences } from "../hooks/useAppPreferences";
+import type { DeviceConnection } from "../hooks/useDeviceConnection";
+import type { Updates } from "../hooks/useUpdates";
 import type { ToastType } from "../types/g6";
 import { useState } from "preact/hooks";
 
 interface DebugPageProps {
-  appVersion: string;
-  autostartEnabled: boolean;
-  closeToTray: boolean;
-  showExperimental: boolean;
-  checkingUpdates: boolean;
-  updateAvailable: boolean;
-  latestVersion: string | null;
-  lastCheckedLabel: string;
-  logSeparatorMessage: string;
+  preferences: AppPreferences;
+  updates: Updates;
+  connection: DeviceConnection;
   onNavigateUiLab: () => void;
-  onReadDeviceState: () => void;
-  onResetConnection: () => void;
-  onToggleAutostart: (enabled: boolean) => void;
-  onToggleCloseToTray: (enabled: boolean) => void;
-  onToggleExperimental: (enabled: boolean) => void;
-  onCheckForUpdates: () => void;
-  onOpenUpdateModal: () => void;
-  onSetLogSeparatorMessage: (value: string) => void;
-  onClearTerminal: () => void;
   showToast: (message: string, type: ToastType) => void;
 }
 
-export function DebugPage({
-  appVersion,
-  autostartEnabled,
-  closeToTray,
-  showExperimental,
-  checkingUpdates,
-  updateAvailable,
-  latestVersion,
-  lastCheckedLabel,
-  logSeparatorMessage,
-  onNavigateUiLab,
-  onReadDeviceState,
-  onResetConnection,
-  onToggleAutostart,
-  onToggleCloseToTray,
-  onToggleExperimental,
-  onCheckForUpdates,
-  onOpenUpdateModal,
-  onSetLogSeparatorMessage,
-  onClearTerminal,
-  showToast,
-}: DebugPageProps) {
+export function DebugPage({ preferences, updates, connection, onNavigateUiLab, showToast }: DebugPageProps) {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const toggleSection = (section: string) => {
     setActiveSection((current) => (current === section ? null : section));
@@ -74,13 +41,13 @@ export function DebugPage({
             <div class="debug-toggle-grid">
               <ToggleControl
                 label="Auto-start with system"
-                checked={autostartEnabled}
-                onChange={onToggleAutostart}
+                checked={preferences.autostartEnabled}
+                onChange={preferences.toggleAutostart}
               />
               <ToggleControl
                 label="Close to tray"
-                checked={closeToTray}
-                onChange={onToggleCloseToTray}
+                checked={preferences.closeToTray}
+                onChange={preferences.toggleCloseToTray}
                 tooltip="Closing the window keeps Rusty G6 running in the system tray. Use Quit in the tray menu to exit."
               />
             </div>
@@ -98,23 +65,23 @@ export function DebugPage({
             <div class="device-details">
               <div class="read-only-item">
                 <span class="readonly-label">Current Version:</span>
-                <span class="readonly-value">v{appVersion || "1.0.x"}</span>
+                <span class="readonly-value">v{preferences.appVersion || "1.0.x"}</span>
               </div>
               <div class="read-only-item">
                 <span class="readonly-label">Latest Version:</span>
-                <span class="readonly-value">{latestVersion ? `v${latestVersion}` : "Unknown"}</span>
+                <span class="readonly-value">{updates.updateResult ? `v${updates.updateResult.latestVersion}` : "Unknown"}</span>
               </div>
               <div class="read-only-item">
                 <span class="readonly-label">Last Checked:</span>
-                <span class="readonly-value">{lastCheckedLabel}</span>
+                <span class="readonly-value">{updates.lastCheckedLabel}</span>
               </div>
             </div>
             <div class="debug-log-actions">
-              <button onClick={onCheckForUpdates} class="btn-compact btn-secondary" disabled={checkingUpdates}>
-                {checkingUpdates ? "Checking..." : "Check for Updates"}
+              <button onClick={() => updates.checkForUpdates(true)} class="btn-compact btn-secondary" disabled={updates.checkingUpdates}>
+                {updates.checkingUpdates ? "Checking..." : "Check for Updates"}
               </button>
-              {updateAvailable && (
-                <button onClick={onOpenUpdateModal} class="btn-compact btn-secondary">
+              {updates.updateAvailable && (
+                <button onClick={() => updates.setShowUpdateModal(true)} class="btn-compact btn-secondary">
                   View Update
                 </button>
               )}
@@ -136,16 +103,16 @@ export function DebugPage({
                 type="text"
                 class="log-message-input"
                 placeholder="Optional: Add a note to the log separator..."
-                value={logSeparatorMessage}
-                onInput={(e) => onSetLogSeparatorMessage(e.currentTarget.value)}
+                value={preferences.logSeparatorMessage}
+                onInput={(e) => preferences.setLogSeparatorMessage(e.currentTarget.value)}
                 onKeyPress={(e) => {
                   if (e.key === "Enter") {
-                    onClearTerminal();
+                    preferences.insertLogSeparator();
                   }
                 }}
               />
               <Tooltip text="Inserts a visible separator marker in terminal logs using your optional note.">
-                <button onClick={onClearTerminal} class="btn-compact btn-secondary debug-log-button">
+                <button onClick={preferences.insertLogSeparator} class="btn-compact btn-secondary debug-log-button">
                   Add Log Separator
                 </button>
               </Tooltip>
@@ -162,10 +129,10 @@ export function DebugPage({
         <div class="debug-log-tools">
           <div class="debug-log-card">
             <div class="debug-action-grid">
-              <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
+              <button onClick={connection.readDeviceState} class="btn-compact btn-secondary">
                 Read Device State
               </button>
-              <button onClick={onResetConnection} class="btn-compact btn-secondary">
+              <button onClick={connection.resetConnection} class="btn-compact btn-secondary">
                 Reset Connection
               </button>
             </div>
@@ -184,13 +151,6 @@ export function DebugPage({
               <button onClick={onNavigateUiLab} class="btn-compact btn-secondary">
                 Open UI Lab
               </button>
-            </div>
-            <div class="debug-toggle-grid">
-              <ToggleControl
-                label="Experimental Features"
-                checked={showExperimental}
-                onChange={onToggleExperimental}
-              />
             </div>
           </div>
         </div>

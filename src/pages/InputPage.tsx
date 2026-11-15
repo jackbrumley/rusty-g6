@@ -1,27 +1,25 @@
 import { SliderControl } from "../components/controls/SliderControl";
 import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
-import type { G6Settings } from "../types/g6";
+import { IS_LINUX } from "../app/platform";
+import type { DeviceSettingsActions } from "../hooks/useDeviceSettings";
+import { RECORDING_SOURCES, type G6Settings, type RecordingSource } from "../types/g6";
 
 interface InputPageProps {
   connected: boolean;
   settings: G6Settings | null;
-  showExperimental: boolean;
-  micBoost: number;
-  isLinux: boolean;
-  onSetupMicClick: () => void;
-  onSetMicrophoneBoost: (dbValue: number) => void;
+  recordingSource: RecordingSource | null;
+  onSetRecordingSource: (source: RecordingSource) => void;
+  actions: DeviceSettingsActions;
   onGoToStatus: () => void;
 }
 
 export function InputPage({
   connected,
   settings,
-  showExperimental,
-  micBoost,
-  isLinux,
-  onSetupMicClick,
-  onSetMicrophoneBoost,
+  recordingSource,
+  onSetRecordingSource,
+  actions,
   onGoToStatus,
 }: InputPageProps) {
   if (!connected || !settings) {
@@ -51,39 +49,42 @@ export function InputPage({
       />
 
       <section class="input-section compact surface-card">
-        <div class="section-line">
-          <span class="section-label">Input:</span>
-          {showExperimental ? (
-            <Tooltip
-              text={
-                isLinux
-                  ? "Configures ALSA capture routing for G6 microphone input."
-                  : "Microphone setup is automatic on Windows."
+        {IS_LINUX ? (
+          <div class="control-row">
+            <span class="control-label">
+              <Tooltip text="What the G6 records. Rusty G6 keeps this selected, also after reboots and replugs, because Linux resets it to Line In.">
+                Recording source
+              </Tooltip>
+            </span>
+            <select
+              class="select-control"
+              value={recordingSource ?? ""}
+              disabled={recordingSource === null}
+              onChange={(event) =>
+                onSetRecordingSource((event.currentTarget as HTMLSelectElement).value as RecordingSource)
               }
             >
-              <button onClick={onSetupMicClick} class="btn-compact">
-                Setup Mic
-              </button>
-            </Tooltip>
-          ) : (
-            <span class="info-note" style={{ fontSize: "0.75rem" }}>
-              Experimental on Linux. Recommended to use motherboard input for reliability.
-            </span>
-          )}
-        </div>
-
-        {showExperimental && settings && (
-          <SliderControl
-            label="Mic Boost:"
-            value={micBoost}
-            tooltip="Adjusts microphone input gain in 10 dB steps. Higher values increase sensitivity and background pickup."
-            min={0}
-            max={30}
-            step={10}
-            onChange={onSetMicrophoneBoost}
-            formatValue={(val) => (val > 0 ? `+${val}dB` : `${val}dB`)}
-          />
+              {RECORDING_SOURCES.map((source) => (
+                <option key={source.id} value={source.id}>
+                  {source.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <p class="info-note">Windows selects the G6 recording source itself.</p>
         )}
+
+        <SliderControl
+          label="Mic Boost"
+          value={settings.microphone_boost_db ?? 0}
+          tooltip="Microphone input gain in 10 dB steps. Higher values increase sensitivity and background pickup."
+          min={0}
+          max={30}
+          step={10}
+          onChange={actions.setMicrophoneBoost}
+          formatValue={(dbValue) => (settings.microphone_boost_db === null ? "Unknown" : `+${dbValue} dB`)}
+        />
       </section>
     </>
   );

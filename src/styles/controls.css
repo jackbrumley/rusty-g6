@@ -10,14 +10,14 @@
   padding: 6px 8px;
   margin-top: 8px; /* Spacing from section-line above */
   margin-bottom: 6px;
-  background: var(--bg-color);
+  background: var(--bg-inset);
   border-radius: var(--border-radius);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line-highlight);
   transition: var(--transition);
 }
 
 .control-row:hover {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow: var(--control-hover-shadow), inset 0 0 0 1px var(--line-subtle);
 }
 
 /* Disabled state (for effect controls when SBX Mode is off) */
@@ -25,11 +25,11 @@
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-disabled);
 }
 
 .control-row.disabled:hover {
-  border-color: var(--border-color);
+  border-color: var(--line-soft);
 }
 
 .control-label {
@@ -82,13 +82,18 @@
   width: 14px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--toggle-thumb);
+  box-shadow: var(--control-shadow);
   transition: var(--transition);
   border-radius: 50%;
 }
 
 input:checked + .toggle-slider {
-  background-color: var(--success-color);
+  background: var(--switch-on);
+}
+
+input:focus-visible + .toggle-slider {
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 input:checked + .toggle-slider:before {
@@ -110,7 +115,7 @@ input:checked + .toggle-slider:before {
 .slider::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--border-color);
+  background: var(--line-strong);
 }
 
 .slider::-webkit-slider-thumb {
@@ -119,35 +124,53 @@ input:checked + .toggle-slider:before {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--primary-color);
+  background: var(--brand-primary);
   cursor: pointer;
   transition: var(--transition);
   margin-top: -5px; /* Centers the 16px thumb on the 6px track */
 }
 
 .slider::-webkit-slider-thumb:hover {
-  background: var(--primary-hover);
+  background: var(--brand-soft);
   transform: scale(1.1);
 }
 
 .slider::-moz-range-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--border-color);
+  background: var(--line-strong);
+}
+
+.slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent-bar);
+}
+
+.slider:focus-visible {
+  outline: none;
+}
+
+.slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 .slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--primary-color);
+  background: var(--brand-primary);
   cursor: pointer;
   border: none;
   transition: var(--transition);
 }
 
 .slider::-moz-range-thumb:hover {
-  background: var(--primary-hover);
+  background: var(--brand-soft);
   transform: scale(1.1);
 }
 
@@ -160,7 +183,7 @@ input:checked + .toggle-slider:before {
   min-width: 28px;
   text-align: right;
   font-weight: bold;
-  color: var(--primary-color);
+  color: var(--brand-primary);
   font-size: 0.85rem;
 }
 
@@ -177,7 +200,7 @@ input:checked + .toggle-slider:before {
 }
 
 .info-note {
-  color: var(--text-soft);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -185,11 +208,11 @@ input:checked + .toggle-slider:before {
 .toast {
   position: relative;
   width: min(560px, 100%);
-  background: var(--titlebar-bg);
+  background: var(--bg-elevated);
   border-radius: var(--border-radius);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid var(--border-color);
+  box-shadow: var(--popover-shadow);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--line-soft);
   backdrop-filter: blur(4px);
   animation: slideIn 0.3s ease;
   pointer-events: auto;
@@ -212,7 +235,7 @@ input:checked + .toggle-slider:before {
 .toast-close {
   background: none;
   border: none;
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 1.3rem;
   cursor: pointer;
   padding: 0;
@@ -231,15 +254,15 @@ input:checked + .toggle-slider:before {
 }
 
 .toast-info {
-  border-left-color: #2196f3;
+  border-left-color: var(--info);
 }
 
 .toast-success {
-  border-left-color: var(--success-color);
+  border-left-color: var(--success);
 }
 
 .toast-error {
-  border-left-color: #f44336;
+  border-left-color: var(--danger);
 }
 
 /* Animations */
@@ -260,16 +283,16 @@ input:checked + .toggle-slider:before {
 }
 
 .container::-webkit-scrollbar-track {
-  background: var(--bg-color);
+  background: transparent;
 }
 
 .container::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--line-soft);
   border-radius: 4px;
 }
 
 .container::-webkit-scrollbar-thumb:hover {
-  background: var(--secondary-color);
+  background: var(--line-strong);
 }
 
 /* App Version */
@@ -278,7 +301,7 @@ input:checked + .toggle-slider:before {
   bottom: 8px;
   right: 12px;
   font-size: 10px;
-  color: rgba(248, 251, 255, 0.65);
+  color: var(--text-faint);
   user-select: none;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -286,14 +309,14 @@ input:checked + .toggle-slider:before {
 }
 
 /* =================================================================== */
-/* GRAPHIC EQ: preset picker and draggable curve                       */
+/* DROPDOWN inside a control row (EQ preset, recording source)         */
 /* =================================================================== */
-.eq-preset-select {
+.select-control {
   flex: 1;
   padding: 4px 8px;
-  background: var(--button-secondary-bg);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
+  background: var(--field-bg);
+  color: var(--text-main);
+  border: 1px solid var(--field-border);
   border-radius: var(--border-radius);
   font: inherit;
   font-size: 0.85rem;
@@ -301,17 +324,31 @@ input:checked + .toggle-slider:before {
   color-scheme: dark;
 }
 
-.eq-preset-select option {
-  background: var(--button-secondary-bg);
-  color: var(--text-color);
+.select-control:hover {
+  border-color: var(--field-border-hover);
 }
+
+.select-control:focus-visible {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.select-control option {
+  background: var(--bg-elevated);
+  color: var(--text-main);
+}
+
+/* =================================================================== */
+/* GRAPHIC EQ: draggable curve                                         */
+/* =================================================================== */
 
 .eq-graph {
   display: block;
   width: 100%;
   height: auto;
   margin-top: 8px;
-  background: var(--bg-color);
+  background: var(--bg-inset);
   border-radius: var(--border-radius);
   touch-action: none;
 }
@@ -322,46 +359,47 @@ input:checked + .toggle-slider:before {
 }
 
 .eq-grid {
-  stroke: rgba(255, 255, 255, 0.06);
+  stroke: var(--eq-grid-line);
   stroke-width: 1;
 }
 
 .eq-grid-zero {
-  stroke: rgba(255, 255, 255, 0.2);
+  stroke: var(--eq-grid-zero);
   stroke-width: 1;
 }
 
 .eq-axis-label {
-  fill: var(--text-soft);
+  fill: var(--text-muted);
   font-size: 11px;
 }
 
 .eq-curve {
   fill: none;
-  stroke: var(--primary-color);
+  stroke: var(--brand-primary);
   stroke-width: 2.5;
 }
 
 .eq-curve-fill {
-  fill: var(--primary-color);
-  opacity: 0.12;
+  fill: var(--brand-highlight);
+  opacity: 0.14;
 }
 
 .eq-handle {
-  fill: var(--bg-color);
-  stroke: var(--primary-color);
+  fill: var(--bg-inset);
+  stroke: var(--brand-primary);
   stroke-width: 2.5;
   cursor: ns-resize;
 }
 
 .eq-handle:hover,
 .eq-handle:focus-visible {
-  fill: var(--primary-color);
+  fill: var(--brand-primary);
   outline: none;
 }
 
 .eq-drag-value {
-  fill: var(--text-bright);
+  fill: var(--text-main);
   font-size: 12px;
   font-weight: 600;
 }
+

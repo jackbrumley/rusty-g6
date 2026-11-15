@@ -77,12 +77,12 @@ fn handle_menu_item(app_handle: &tauri::AppHandle, item: TrayMenuItem) {
             let app_handle = app_handle.clone();
             // Device I/O blocks; keep it off the tray and UI threads.
             tauri::async_runtime::spawn_blocking(move || {
-                log::info!("Tray: switch output requested");
-                if let Err(error) = crate::app::commands::audio::perform_toggle_output(&app_handle)
-                {
-                    log::warn!("Tray: switching output failed: {}", error);
-                }
-                crate::app::commands::device::notify_device_changed(&app_handle);
+                // Failures are logged by the helper; the tray has nowhere to show them.
+                let _ = crate::app::commands::device_settings::change_device_setting(
+                    &app_handle,
+                    "Switch output (tray)",
+                    |device| device.toggle_output(),
+                );
             });
         }
         TrayMenuItem::Quit => quit(app_handle),

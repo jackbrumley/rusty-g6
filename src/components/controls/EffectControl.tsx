@@ -4,8 +4,9 @@ import { Tooltip } from "../ui/Tooltip";
 interface EffectControlProps {
   name: string;
   enabled: boolean;
-  value: number;
-  onChange: (enabled: boolean, value: number) => void;
+  level: number;
+  onToggle: (enabled: boolean) => void;
+  onLevelChange: (level: number) => void;
   disabled?: boolean;
   tooltip?: string;
 }
@@ -13,36 +14,20 @@ interface EffectControlProps {
 export function EffectControl({
   name,
   enabled,
-  value,
-  onChange,
+  level,
+  onToggle,
+  onLevelChange,
   disabled = false,
   tooltip,
 }: EffectControlProps) {
-  const [localValue, setLocalValue] = useState(value);
-  const [localEnabled, setLocalEnabled] = useState(enabled);
+  // The slider shows its position while dragging; the level is sent on release.
+  const [localLevel, setLocalLevel] = useState(level);
 
   useEffect(() => {
-    setLocalValue(value);
-    setLocalEnabled(enabled);
-  }, [value, enabled]);
+    setLocalLevel(level);
+  }, [level]);
 
-  const handleToggle = (e: Event) => {
-    const newEnabled = (e.currentTarget as HTMLInputElement).checked;
-    setLocalEnabled(newEnabled);
-    onChange(newEnabled, localValue);
-  };
-
-  const handleSliderChange = (e: Event) => {
-    const newValue = parseInt((e.currentTarget as HTMLInputElement).value);
-    setLocalValue(newValue);
-    if (localEnabled) {
-      onChange(localEnabled, newValue);
-    }
-  };
-
-  const handleSliderInput = (e: Event) => {
-    setLocalValue(parseInt((e.currentTarget as HTMLInputElement).value));
-  };
+  const sliderLevel = (e: Event) => parseInt((e.currentTarget as HTMLInputElement).value, 10);
 
   return (
     <div class={`control-row ${disabled ? "disabled" : ""}`}>
@@ -52,8 +37,8 @@ export function EffectControl({
       <label class="toggle-switch">
         <input
           type="checkbox"
-          checked={localEnabled}
-          onChange={handleToggle}
+          checked={enabled}
+          onChange={(e) => onToggle((e.currentTarget as HTMLInputElement).checked)}
           disabled={disabled}
         />
         <span class="toggle-slider"></span>
@@ -62,13 +47,13 @@ export function EffectControl({
         type="range"
         min="0"
         max="100"
-        value={localValue}
-        onInput={handleSliderInput}
-        onChange={handleSliderChange}
-        disabled={!localEnabled || disabled}
+        value={localLevel}
+        onInput={(e) => setLocalLevel(sliderLevel(e))}
+        onChange={(e) => onLevelChange(sliderLevel(e))}
+        disabled={!enabled || disabled}
         class="slider"
       />
-      <span class="slider-value">{localValue}</span>
+      <span class="slider-value">{localLevel}</span>
     </div>
   );
 }

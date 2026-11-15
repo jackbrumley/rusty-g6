@@ -1,11 +1,43 @@
-export interface FirmwareInfo {
-  version: string;
-  build: string | null;
+/// `g6_spec::SbxEffect`: also the keys of `G6Settings.effects`.
+export type SbxEffect = "surround" | "crystalizer" | "bass" | "smart_volume" | "dialog_plus";
+
+/// `g6_spec::EffectSettings`.
+export interface EffectSettings {
+  enabled: boolean;
+  /// 0-100.
+  level: number;
 }
+
+export const SBX_EFFECTS: { id: SbxEffect; name: string; tooltip: string }[] = [
+  {
+    id: "surround",
+    name: "Surround",
+    tooltip: "Expands stereo imaging into a wider virtual surround field.",
+  },
+  {
+    id: "crystalizer",
+    name: "Crystalizer",
+    tooltip: "Restores perceived detail and clarity in compressed or dull source audio.",
+  },
+  { id: "bass", name: "Bass", tooltip: "Boosts low-end presence and punch for fuller bass response." },
+  {
+    id: "smart_volume",
+    name: "Smart Volume",
+    tooltip: "Smooths loudness swings so quieter and louder moments stay more consistent.",
+  },
+  {
+    id: "dialog_plus",
+    name: "Dialog Plus",
+    tooltip: "Brings spoken dialogue forward so voices remain clear over background audio.",
+  },
+];
+
+/// `g6_spec::MICROPHONE_BOOST_STEPS_DB`.
+export const MICROPHONE_BOOST_STEPS_DB = [0, 10, 20, 30];
 
 /// `g6_spec::EqualizerSettings`: the graphic EQ of the active output.
 export interface EqualizerSettings {
-  enabled: "Enabled" | "Disabled";
+  enabled: boolean;
   preamp_db: number;
   /// Gains in dB of the bands in `EQ_BAND_FREQUENCIES`.
   band_gains_db: number[];
@@ -19,25 +51,33 @@ export const EQ_PREAMP_LIMIT_DB = 6;
 export const EQ_BAND_LIMIT_DB = 12;
 export const EQ_GAIN_STEP_DB = 0.5;
 
+/// `g6_spec::DigitalFilter`: the DAC's reconstruction filter.
+export type DigitalFilter =
+  | "FastRollOffMinimumPhase"
+  | "SlowRollOffMinimumPhase"
+  | "NonOversampling"
+  | "FastRollOffLinearPhase"
+  | "SlowRollOffLinearPhase";
+
+export const DIGITAL_FILTERS: { id: DigitalFilter; name: string }[] = [
+  { id: "FastRollOffMinimumPhase", name: "Fast roll-off, minimum phase" },
+  { id: "SlowRollOffMinimumPhase", name: "Slow roll-off, minimum phase" },
+  { id: "FastRollOffLinearPhase", name: "Fast roll-off, linear phase" },
+  { id: "SlowRollOffLinearPhase", name: "Slow roll-off, linear phase" },
+  { id: "NonOversampling", name: "NOS (non-oversampling)" },
+];
+
+/// `g6_spec::G6Settings`: what the backend knows of the device's state.
 export interface G6Settings {
   output: "Speakers" | "Headphones";
-  surround_enabled: "Enabled" | "Disabled";
-  surround_value: number;
-  crystalizer_enabled: "Enabled" | "Disabled";
-  crystalizer_value: number;
-  bass_enabled: "Enabled" | "Disabled";
-  bass_value: number;
-  smart_volume_enabled: "Enabled" | "Disabled";
-  smart_volume_value: number;
-  smart_volume_preset: "Night" | "Loud" | null;
-  dialog_plus_enabled: "Enabled" | "Disabled";
-  dialog_plus_value: number;
-  microphone_boost: number;
-  sbx_enabled: "Enabled" | "Disabled";
-  firmware_info: FirmwareInfo | null;
-  scout_mode: "Enabled" | "Disabled";
+  sbx_enabled: boolean;
+  scout_mode_enabled: boolean;
+  effects: Record<SbxEffect, EffectSettings>;
   equalizer: EqualizerSettings;
-  is_connected: boolean;
+  digital_filter: DigitalFilter | null;
+  /// `null` until read from the device.
+  microphone_boost_db: number | null;
+  firmware_version: string | null;
   last_read_time: number | null;
 }
 
@@ -62,7 +102,18 @@ export interface UpdateCheckResult {
 export interface AppSettings {
   close_to_tray: boolean;
   log_level: string;
+  recording_source: RecordingSource;
 }
+
+/// `g6_spec::RecordingSource`: the G6's `PCM Capture Source` on Linux.
+export type RecordingSource = "LineIn" | "ExternalMic" | "SpdifIn" | "WhatUHear";
+
+export const RECORDING_SOURCES: { id: RecordingSource; name: string }[] = [
+  { id: "ExternalMic", name: "Microphone (front jack)" },
+  { id: "LineIn", name: "Line In" },
+  { id: "SpdifIn", name: "S/PDIF In" },
+  { id: "WhatUHear", name: "What U Hear (playback)" },
+];
 
 /// `app::system_info::SystemInfo`: the session log header and the Logs block.
 export interface SystemInfo {

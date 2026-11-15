@@ -1,3 +1,5 @@
+import "@fontsource-variable/inter";
+import "./styles/tokens.css";
 import "./styles/shell.css";
 import "./styles/sections.css";
 import "./styles/controls.css";
@@ -5,10 +7,15 @@ import "./styles/diagnostics.css";
 import "./styles/responsive.css";
 import { AppShell } from "./components/shell/AppShell";
 import { ToastHost } from "./components/toast/ToastHost";
-import { useAudioEffects } from "./hooks/useAudioEffects";
-import { useDeviceRuntime } from "./hooks/useDeviceRuntime";
+import { UpdateModal } from "./components/shell/UpdateModal";
+import { useAppPreferences } from "./hooks/useAppPreferences";
+import { useDeviceConnection } from "./hooks/useDeviceConnection";
+import { useDeviceSettings } from "./hooks/useDeviceSettings";
+import { useRecordingSource } from "./hooks/useRecordingSource";
+import { useRoute } from "./hooks/useRoute";
 import { useUiInteractionLogger } from "./hooks/useUiInteractionLogger";
 import { useToastManager } from "./hooks/useToastManager";
+import { useUpdates } from "./hooks/useUpdates";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { DebugPage } from "./pages/DebugPage";
 import { InputPage } from "./pages/InputPage";
@@ -18,84 +25,42 @@ import { UiLabPage } from "./pages/UiLabPage";
 
 function App() {
   const { toast, showToast, dismissToast, pauseToast, resumeToast } = useToastManager();
-  const {
-    connected,
-    status,
-    settings,
-    activeTab,
-    appVersion,
-    isLinux,
-    checkingUpdates,
-    installingUpdate,
-    updateResult,
-    showUpdateModal,
-    updateError,
-    lastCheckedLabel,
-    logSeparatorMessage,
-    micBoost,
-    permissionError,
-    autostartEnabled,
-    closeToTray,
-    showExperimental,
-    navigate,
-    resetConnection,
-    handleSetupUsbPermissions,
-    toggleOutput,
-    readDeviceState,
-    logUiEvent,
-    toggleAutostart,
-    toggleCloseToTray,
-    toggleExperimental,
-    setLogSeparatorMessage,
-    clearTerminal,
-    checkForUpdates,
-    setShowUpdateModal,
-    openLatestReleasePage,
-    installUpdate,
-    handleSetupMicClick,
-    setMicrophoneBoost,
-  } = useDeviceRuntime({ showToast });
-
-  const { setSbxMode, setScoutMode, setEffect, setEqEnabled, setEqPreamp, setEqBand, setEqBands } =
-    useAudioEffects({ showToast, logUiEvent });
-
+  const { activeTab, navigate } = useRoute();
+  const connection = useDeviceConnection(showToast);
+  const deviceSettings = useDeviceSettings({ showToast });
+  const { recordingSource, setRecordingSource } = useRecordingSource({ showToast });
+  const preferences = useAppPreferences(showToast);
+  const updates = useUpdates(showToast);
+  const windowControls = useWindowControls(showToast);
   useUiInteractionLogger();
 
-  const {
-    isMaximized,
-    handleMinimize,
-    handleToggleMaximize,
-    handleClose,
-    handleTitleBarMouseDown,
-    handleTitleBarDoubleClick,
-    handleResizeMouseDown,
-  } = useWindowControls(showToast);
+  const { connected, settings } = connection;
+  const goToStatus = () => navigate("status");
 
   return (
     <AppShell
       activeTab={activeTab}
-      isMaximized={isMaximized}
+      isMaximized={windowControls.isMaximized}
       onNavigate={navigate}
-      onMinimize={handleMinimize}
-      onToggleMaximize={handleToggleMaximize}
-      onClose={handleClose}
-      onTitleBarMouseDown={handleTitleBarMouseDown}
-      onTitleBarDoubleClick={handleTitleBarDoubleClick}
-      onResizeMouseDown={handleResizeMouseDown}
+      onMinimize={windowControls.handleMinimize}
+      onToggleMaximize={windowControls.handleToggleMaximize}
+      onClose={windowControls.handleClose}
+      onTitleBarMouseDown={windowControls.handleTitleBarMouseDown}
+      onTitleBarDoubleClick={windowControls.handleTitleBarDoubleClick}
+      onResizeMouseDown={windowControls.handleResizeMouseDown}
     >
       <main class="container">
         {activeTab === "status" && (
           <StatusPage
             connected={connected}
-            status={status}
-            appVersion={appVersion}
-            permissionError={permissionError}
+            status={connection.status}
+            appVersion={preferences.appVersion}
+            permissionError={connection.permissionError}
             settings={settings}
-            isLinux={isLinux}
-            onReadDeviceState={readDeviceState}
-            onSetupPermissions={handleSetupUsbPermissions}
-            showUpdatePill={Boolean(updateResult?.updateAvailable)}
-            onOpenUpdateModal={() => setShowUpdateModal(true)}
+            onReadDeviceState={connection.readDeviceState}
+            onSetupPermissions={connection.setupUsbPermissions}
+            showUpdatePill={updates.updateAvailable}
+            onOpenUpdateModal={() => updates.setShowUpdateModal(true)}
           />
         )}
 
@@ -103,15 +68,8 @@ function App() {
           <OutputPage
             connected={connected}
             settings={settings}
-            onToggleOutput={toggleOutput}
-            onSetScoutMode={setScoutMode}
-            onSetSbxMode={setSbxMode}
-            onSetEffect={setEffect}
-            onSetEqEnabled={setEqEnabled}
-            onSetEqPreamp={setEqPreamp}
-            onSetEqBand={setEqBand}
-            onSetEqBands={setEqBands}
-            onGoToStatus={() => navigate("status")}
+            actions={deviceSettings}
+            onGoToStatus={goToStatus}
           />
         )}
 
@@ -119,36 +77,19 @@ function App() {
           <InputPage
             connected={connected}
             settings={settings}
-            showExperimental={showExperimental}
-            micBoost={micBoost}
-            isLinux={isLinux}
-            onSetupMicClick={handleSetupMicClick}
-            onSetMicrophoneBoost={setMicrophoneBoost}
-            onGoToStatus={() => navigate("status")}
+            recordingSource={recordingSource}
+            onSetRecordingSource={setRecordingSource}
+            actions={deviceSettings}
+            onGoToStatus={goToStatus}
           />
         )}
 
         {activeTab === "debug" && (
           <DebugPage
-            appVersion={appVersion}
-            autostartEnabled={autostartEnabled}
-            closeToTray={closeToTray}
-            showExperimental={showExperimental}
-            checkingUpdates={checkingUpdates}
-            updateAvailable={Boolean(updateResult?.updateAvailable)}
-            latestVersion={updateResult?.latestVersion ?? null}
-            lastCheckedLabel={lastCheckedLabel}
-            logSeparatorMessage={logSeparatorMessage}
+            preferences={preferences}
+            updates={updates}
+            connection={connection}
             onNavigateUiLab={() => navigate("ui-lab")}
-            onReadDeviceState={readDeviceState}
-            onResetConnection={resetConnection}
-            onToggleAutostart={toggleAutostart}
-            onToggleCloseToTray={toggleCloseToTray}
-            onToggleExperimental={toggleExperimental}
-            onCheckForUpdates={() => checkForUpdates(true)}
-            onOpenUpdateModal={() => setShowUpdateModal(true)}
-            onSetLogSeparatorMessage={setLogSeparatorMessage}
-            onClearTerminal={clearTerminal}
             showToast={showToast}
           />
         )}
@@ -159,42 +100,9 @@ function App() {
             onToast={(type, message, durationMs) => showToast(message, type, durationMs)}
           />
         )}
-
       </main>
 
-      {showUpdateModal && (
-        <div class="modal-overlay" onClick={() => setShowUpdateModal(false)}>
-          <section class="update-modal" onClick={(event) => event.stopPropagation()}>
-            <h2>{updateResult?.updateAvailable ? "Update Available" : "Rusty G6 is Up to Date"}</h2>
-            <p>
-              {updateResult?.updateAvailable
-                ? `A newer Rusty G6 version is available. Current: v${updateResult.currentVersion} -> Latest: v${updateResult.latestVersion}.`
-                : "You are already running the latest available version."}
-            </p>
-            {updateError && <p class="info-note">Last check error: {updateError}</p>}
-            <p class="update-last-checked">Last checked: {lastCheckedLabel}</p>
-            <div class="update-modal-actions">
-              <button class="btn-compact btn-secondary" onClick={() => setShowUpdateModal(false)}>
-                Later
-              </button>
-              {updateResult?.updateAvailable ? (
-                <>
-                  <button class="btn-compact btn-secondary" onClick={openLatestReleasePage}>
-                    View Release Notes
-                  </button>
-                  <button class="btn-compact" onClick={installUpdate} disabled={installingUpdate}>
-                    {installingUpdate ? "Updating..." : "Update Now"}
-                  </button>
-                </>
-              ) : (
-                <button class="btn-compact" onClick={() => setShowUpdateModal(false)}>
-                  Close
-                </button>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
+      {updates.showUpdateModal && <UpdateModal updates={updates} />}
 
       <ToastHost toast={toast} onDismiss={dismissToast} onPause={pauseToast} onResume={resumeToast} />
     </AppShell>

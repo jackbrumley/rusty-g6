@@ -6,7 +6,7 @@ import { ToggleControl } from "./ToggleControl";
 
 interface EqualizerControlProps {
   equalizer: EqualizerSettings;
-  onSetEnabled: (enabled: "Enabled" | "Disabled") => void;
+  onSetEnabled: (enabled: boolean) => void;
   onSetPreamp: (gainDb: number) => void;
   onSetBand: (band: number, gainDb: number) => void;
   onSetBands: (gainsDb: number[]) => void;
@@ -23,7 +23,7 @@ export function EqualizerControl({
   onSetBand,
   onSetBands,
 }: EqualizerControlProps) {
-  const enabled = equalizer.enabled === "Enabled";
+  const enabled = equalizer.enabled;
   const preset = matchingPreset(equalizer.band_gains_db);
 
   const handlePresetChange = (event: Event) => {
@@ -43,12 +43,12 @@ export function EqualizerControl({
           label="Equalizer"
           checked={enabled}
           tooltip="10-band graphic EQ, stored on the G6 for the current output."
-          onChange={(checked) => onSetEnabled(checked ? "Enabled" : "Disabled")}
+          onChange={onSetEnabled}
         />
 
         <div class="control-row">
           <span class="control-label">Preset</span>
-          <select class="eq-preset-select" value={preset?.id ?? "custom"} onChange={handlePresetChange}>
+          <select class="select-control" value={preset?.id ?? "custom"} onChange={handlePresetChange}>
             {!preset && (
               <option value="custom" disabled>
                 Custom

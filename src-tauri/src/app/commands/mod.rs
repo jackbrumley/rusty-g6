@@ -1,18 +1,14 @@
-pub mod audio;
-pub mod debug;
 pub mod device;
+pub mod device_settings;
 pub mod diagnostics;
-pub mod equalizer;
 pub mod settings;
 pub mod system;
 pub mod update;
 pub mod window;
 
-pub use audio::*;
-pub use debug::*;
 pub use device::*;
+pub use device_settings::*;
 pub use diagnostics::*;
-pub use equalizer::*;
 pub use settings::*;
 pub use system::*;
 pub use update::*;

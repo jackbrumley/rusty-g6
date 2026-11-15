@@ -2,8 +2,7 @@
 //! family (0x96). Bytes from linuxblaster_control's hardware-verified
 //! protocol reference (captures `set_eq_on`, `set_eq_off`, `set_eq_62hz_0db`,
 //! https://github.com/RizeCrime/linuxblaster_control).
-use super::reads::build_audio_effect_read;
-use super::{CommandFamily, G6CommandBuilder};
+use super::{dsp_read, dsp_write, dsp_write_and_read};
 
 /// EQ on/off (f32 0.0 / 1.0).
 pub const FEATURE_EQ_TOGGLE: u8 = 0x09;
@@ -32,19 +31,19 @@ pub fn band_index(feature: u8) -> Option<usize> {
 /// Reads of the toggle, the preamp and every band.
 pub fn build_eq_read_commands() -> Vec<Vec<u8>> {
     (FEATURE_EQ_TOGGLE..=FEATURE_EQ_LAST_BAND)
-        .map(build_audio_effect_read)
+        .map(dsp_read)
         .collect()
 }
 
 /// Turn the EQ on or off: `5a 12 07 01 96 09 [f32]`, then a read-back.
 pub fn build_set_eq_toggle(enabled: bool) -> Vec<Vec<u8>> {
-    build_eq_write(FEATURE_EQ_TOGGLE, if enabled { 1.0 } else { 0.0 })
+    dsp_write_and_read(FEATURE_EQ_TOGGLE, if enabled { 1.0 } else { 0.0 })
 }
 
 /// Set the preamp or a band (`feature`) to `gain_db`:
 /// `5a 12 07 01 96 [feature] [f32 dB]`, then a read-back.
 pub fn build_set_eq_gain(feature: u8, gain_db: f32) -> Vec<Vec<u8>> {
-    build_eq_write(feature, gain_db)
+    dsp_write_and_read(feature, gain_db)
 }
 
 /// Set all ten bands at once (a preset): one write per band, without
@@ -52,22 +51,8 @@ pub fn build_set_eq_gain(feature: u8, gain_db: f32) -> Vec<Vec<u8>> {
 pub fn build_set_eq_bands(gains_db: &[f32; 10]) -> Vec<Vec<u8>> {
     (FEATURE_EQ_FIRST_BAND..=FEATURE_EQ_LAST_BAND)
         .zip(gains_db)
-        .map(|(feature, gain_db)| build_feature_write(feature, *gain_db))
+        .map(|(feature, gain_db)| dsp_write(feature, *gain_db))
         .collect()
-}
-
-fn build_eq_write(feature: u8, value: f32) -> Vec<Vec<u8>> {
-    vec![
-        build_feature_write(feature, value),
-        build_audio_effect_read(feature),
-    ]
-}
-
-fn build_feature_write(feature: u8, value: f32) -> Vec<u8> {
-    G6CommandBuilder::new(CommandFamily::DataControl)
-        .operation(&[0x07, 0x01, 0x96, feature])
-        .float_value(value)
-        .build()
 }
 
 #[cfg(test)]

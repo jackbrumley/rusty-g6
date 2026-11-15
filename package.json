@@ -20,6 +20,7 @@
     "release:promote": "node scripts/promote-release.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@tabler/icons-preact": "^3.41.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",

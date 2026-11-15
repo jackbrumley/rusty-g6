@@ -2,6 +2,7 @@
 //! webview's localStorage). Stored as `~/.config/rusty-g6/settings.json`.
 
 use crate::app::json_store;
+use crate::g6_spec::RecordingSource;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -14,6 +15,9 @@ pub struct AppSettings {
     pub close_to_tray: bool,
     /// One of `session_log::LOG_LEVELS`, chosen in Settings -> Debug.
     pub log_level: String,
+    /// The G6 recording source Rusty G6 keeps selected (Linux only; on
+    /// Windows the driver handles it).
+    pub recording_source: RecordingSource,
 }
 
 impl Default for AppSettings {
@@ -21,6 +25,7 @@ impl Default for AppSettings {
         Self {
             close_to_tray: true,
             log_level: "info".to_string(),
+            recording_source: RecordingSource::ExternalMic,
         }
     }
 }
@@ -56,6 +61,7 @@ mod tests {
         let existing = parse(r#"{"close_to_tray": false}"#).unwrap();
         assert!(!existing.close_to_tray);
         assert_eq!(existing.log_level, "info");
+        assert_eq!(existing.recording_source, RecordingSource::ExternalMic);
         assert_eq!(parse("{}").unwrap(), AppSettings::default());
     }
 
@@ -64,6 +70,7 @@ mod tests {
         let settings = AppSettings {
             close_to_tray: false,
             log_level: "debug".to_string(),
+            recording_source: RecordingSource::LineIn,
         };
         let text = serde_json::to_string(&settings).unwrap();
         assert_eq!(parse(&text).unwrap(), settings);

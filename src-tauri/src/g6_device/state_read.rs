@@ -2,6 +2,7 @@
 //! (`SELF-HEAL` in the session log, docs/TODO.md).
 
 use super::{is_unresponsive, DeviceUnresponsive, G6DeviceManager};
+use crate::g6_protocol::events::parse_device_packet;
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use log::{error, info, warn};
@@ -101,10 +102,8 @@ impl G6DeviceManager {
     fn read_state_once(&self) -> Result<G6Settings> {
         info!("Reading complete device state from G6...");
 
-        // Build all read commands using V2 protocol
-        let commands = crate::g6_protocol_v2::reads::build_read_all_state_commands();
+        let commands = crate::g6_protocol::reads::build_read_all_state_commands();
 
-        // Send commands and get responses
         let responses = self.send_read_commands(commands)?;
 
         info!("Processing {} read responses...", responses.len());
@@ -134,84 +133,22 @@ impl G6DeviceManager {
             responses.len()
         );
 
-        // Return updated settings
         Ok(settings.clone())
-    }
-
-    /// Synchronize with device state on startup
-    pub fn synchronize_with_device(&self) -> Result<()> {
-        info!("Synchronizing with device state...");
-
-        match self.read_device_state() {
-            Ok(device_settings) => {
-                info!("Device synchronization successful");
-
-                // Log interesting findings
-                if let Some(firmware) = &device_settings.firmware_info {
-                    info!("Device firmware: {}", firmware.version);
-                }
-
-                let eq = &device_settings.equalizer;
-                info!(
-                    "EQ: {:?}, preamp {} dB, bands {:?} dB",
-                    eq.enabled, eq.preamp_db, eq.band_gains_db
-                );
-
-                Ok(())
-            }
-            Err(e) => {
-                error!("Device synchronization failed: {}.", e);
-                // Do NOT apply defaults on failure per user request.
-                // Just leave internal state as default but don't write to device.
-                Ok(())
-            }
-        }
     }
 }
 
 /// Applies state-read responses to `settings`. Returns how many responses
-/// carried data that was parsed; empty (unanswered) responses count as none.
+/// carried a report; empty (unanswered) responses count as none.
 fn apply_read_responses(settings: &mut G6Settings, responses: &[Vec<u8>]) -> usize {
-    use crate::g6_protocol_v2::events::G6EventParser;
-    use crate::g6_protocol_v2::parser::{G6ResponseParser, ParsedResponse};
-
     let mut parsed = 0;
     for response in responses {
-        if response.len() < 2 {
-            continue;
+        let events = parse_device_packet(response);
+        for event in &events {
+            event.apply_to(settings);
+            info!("Read {:?}", event);
         }
-
-        match response[1] {
-            0x07 => {
-                // Firmware query
-                if let (Ok(ParsedResponse::FirmwareInfo(info)), _) =
-                    G6ResponseParser::parse(response)
-                {
-                    info!("Firmware: {}", info.version);
-                    settings.firmware_info = Some(info);
-                    parsed += 1;
-                }
-            }
-            0x2c => {
-                // Output routing
-                if let (Ok(ParsedResponse::OutputDevice(output)), _) =
-                    G6ResponseParser::parse(response)
-                {
-                    info!("Output: {:?}", output);
-                    settings.output = output;
-                    parsed += 1;
-                }
-            }
-            _ => {
-                let events = G6EventParser::parse(response);
-                for event in &events {
-                    event.apply_to(settings);
-                    info!("Read {:?}", event);
-                }
-                if !events.is_empty() {
-                    parsed += 1;
-                }
-            }
+        if !events.is_empty() {
+            parsed += 1;
         }
     }
     parsed
@@ -275,7 +212,7 @@ mod tests {
         let mut settings = G6Settings::default();
         let responses = vec![Vec::new(); 14];
         assert_eq!(apply_read_responses(&mut settings, &responses), 0);
-        assert!(settings.firmware_info.is_none());
+        assert!(settings.firmware_version.is_none());
     }
 
     #[test]
@@ -283,9 +220,12 @@ mod tests {
         let mut settings = G6Settings::default();
         let parsed = apply_read_responses(&mut settings, &healthy_responses());
         assert_eq!(parsed, 4);
-        assert_eq!(settings.firmware_info.unwrap().version, "2.1.250903.1324");
+        assert_eq!(
+            settings.firmware_version.as_deref(),
+            Some("2.1.250903.1324")
+        );
         assert_eq!(settings.output, OutputDevice::Speakers);
-        assert_eq!(settings.sbx_enabled, EffectState::Enabled);
-        assert_eq!(settings.surround_enabled, EffectState::Enabled);
+        assert!(settings.sbx_enabled);
+        assert!(settings.effects.surround.enabled);
     }
 }

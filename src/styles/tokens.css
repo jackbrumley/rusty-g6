@@ -1,0 +1,100 @@
+/*
+ * Design tokens. The background and neutrals follow the install site's dark
+ * theme (https://brumley.info/rusty-g6/: shared/v1/app-page.css, whose
+ * color-mix() neutrals are worked out to fixed colours here). The accent is
+ * Rusty G6's own stronger red (#ff4444) and switches use its darker green.
+ * Token names follow SomeDrive's desktop app. Every colour in src/styles/
+ * comes from here.
+ */
+:root {
+  color-scheme: dark;
+
+  --font-main: "Inter Variable", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
+
+  /* Page: the site's dark --bg and its hero wash, toned down for a full window. */
+  --bg-page: #151014;
+  /* The site's dark hero wash (shared/v1/app-page.css): two soft glows, the
+     second accent top right and the accent top left, over an accent-tinted
+     dark gradient. color-mix() values worked out for #e5483f / #ff8a3d. */
+  --bg-page-wash:
+    radial-gradient(ellipse 55% 85% at 88% 5%, rgba(255, 138, 61, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 90% at 5% 0%, rgba(229, 72, 63, 0.26) 0%, transparent 70%),
+    linear-gradient(180deg, #281517 0%, #211815 100%);
+  /* The install page's hexagon art (docs/index.html), drawn faintly behind
+     the top right of every page, as SomeDrive does. */
+  --bg-page-art: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 340'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff5a4f' stop-opacity='0.55'/%3E%3Cstop offset='1' stop-color='%23ff8a3d' stop-opacity='0.08'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff8a3d' stop-opacity='0.45'/%3E%3Cstop offset='1' stop-color='%23e5483f' stop-opacity='0.04'/%3E%3C/linearGradient%3E%3ClinearGradient id='c' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23c2185b' stop-opacity='0.04'/%3E%3Cstop offset='1' stop-color='%23e5483f' stop-opacity='0.3'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='250,40 362.6,105 362.6,235 250,300 137.4,235 137.4,105' fill='url%28%23c%29'/%3E%3Cpolygon points='150,150 219.3,190 219.3,270 150,310 80.7,270 80.7,190' fill='url%28%23a%29'/%3E%3Cpolygon points='350,30 402,60 402,120 350,150 298,120 298,60' fill='url%28%23b%29'/%3E%3Cpolyline points='137.4,105 250,40 362.6,105' fill='none' stroke='%23ffffff' stroke-opacity='0.25' stroke-width='1'/%3E%3C/svg%3E");
+  --bg-card: rgba(33, 27, 32, 0.88);
+  --bg-elevated: #261d22;
+  --bg-inset: #100c0f;
+  --bg-selected: rgba(255, 68, 68, 0.14);
+  --bg-disabled: rgba(0, 0, 0, 0.2);
+
+  --line-soft: #3b2e34;
+  --line-strong: #4d3c44;
+  --line-subtle: rgba(255, 255, 255, 0.06);
+  --line-highlight: rgba(255, 255, 255, 0.04);
+
+  --text-main: #f4f3f6;
+  --text-muted: #b1a2aa;
+  --text-faint: #8a7c83;
+
+  /* Accent: Rusty G6's red. */
+  --brand-primary: #ff4444;
+  --brand-highlight: #ff6666;
+  --brand-soft: #ff6666;
+  --brand-on-color: #ffffff;
+  --brand-gradient: linear-gradient(135deg, #ff4444 0%, #e63939 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #ff6666 0%, #ff4f4f 100%);
+  --accent-bar: linear-gradient(90deg, #ff4444 0%, #ff6666 100%);
+  --brand-border: rgba(255, 68, 68, 0.55);
+
+  --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 22px rgba(0, 0, 0, 0.3);
+  --popover-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --control-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --control-hover-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+
+  --titlebar-bg: #110d10;
+  --titlebar-border: rgba(255, 255, 255, 0.05);
+  --window-control-bg: rgba(255, 255, 255, 0.1);
+  --window-control-bg-hover: rgba(255, 255, 255, 0.2);
+  --window-close-bg-hover: #d93a52;
+
+  /* Secondary buttons: the site's manual download button. */
+  --control-muted-bg: #241c21;
+  --control-muted-bg-hover: #2c2228;
+  --control-muted-border: #3b2e34;
+  --control-muted-border-hover: rgba(255, 68, 68, 0.5);
+  --focus-ring: rgba(255, 68, 68, 0.4);
+
+  --field-bg: #100c0f;
+  --field-border: #3b2e34;
+  --field-border-hover: #4d3c44;
+  --field-bg-focus: rgba(255, 68, 68, 0.05);
+
+  --toggle-off-bg: #4d3c44;
+  --toggle-thumb: #f4f3f6;
+
+  /* The site's code block, used by the protocol console. */
+  --code-bg: #0a0a0e;
+  --code-text: #eceaf0;
+  --code-border: #413137;
+
+  --overlay-backdrop: rgba(8, 5, 7, 0.7);
+
+  --success: #10b981;
+  --success-strong: #34d399;
+  /* Switches when on: Rusty G6's own darker green. */
+  --switch-on: #4caf50;
+  --warning: #f59e0b;
+  --warning-strong: #fbbf24;
+  --on-warning: #1a1206;
+  --danger: #f0647f;
+  --info: #5b8cff;
+
+  --eq-grid-line: rgba(255, 255, 255, 0.06);
+  --eq-grid-zero: rgba(255, 255, 255, 0.2);
+
+  --border-radius: 6px;
+  --transition: all 0.3s ease;
+}

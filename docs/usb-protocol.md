@@ -1,173 +1,94 @@
 # USB Protocol Implementation
 
-This document reflects the protocol behavior currently implemented in Rusty G6.
+This document describes the G6 protocol as Rusty G6 implements it. For a
+broader command catalogue, see [rusty-g6-usb-spec.md](rusty-g6-usb-spec.md).
 
-## Sources and Scope
+## Sources
 
-Rusty G6 protocol work is based on:
-
-- reverse engineering from [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli)
-- the hardware-verified protocol reference and USB captures of
+- Reverse engineering from
+  [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli).
+- The hardware-verified protocol reference and USB captures of
   [linuxblaster_control](https://github.com/RizeCrime/linuxblaster_control)
-  (graphic EQ, multi-feature status reports)
-- additional packet-capture validation from Rusty G6 development
-- current implementation in:
-  - `src-tauri/src/g6_protocol_v2/` (framing, `reads.rs`, `writes.rs`,
-    `equalizer.rs`, `parser.rs`, `events.rs`)
-  - `src-tauri/src/g6_device/` (connection, transport, setters, state read,
-    event listener)
-  - `src-tauri/src/app/commands/audio.rs` and `equalizer.rs`
+  (graphic EQ, DAC filter, mic boost read, multi-feature status reports).
+- Packet captures and session logs from Rusty G6 development.
 
-For a broader command catalog/reference, see `rusty-g6-usb-spec.md`.
+## Where It Lives
 
----
+- `src-tauri/src/g6_protocol/`: the bytes.
+  - `mod.rs`: packet framing and the DSP parameter read/write.
+  - `effects.rs`, `equalizer.rs`, `dac_filter.rs`, `firmware.rs`: one area
+    each.
+  - `reads.rs`: state queries and the full state read.
+  - `writes.rs`: output, SBX/Scout and mic boost writes.
+  - `events.rs`: parses every packet the G6 sends; `DeviceEvent::apply_to`
+    is the one mapping from a report to the cached settings.
+- `src-tauri/src/g6_device/`: the HID connection, sending and answers
+  (`transport.rs`), setters, the state read and the event listener.
+- `src-tauri/src/app/commands/device_settings.rs`: the Tauri commands.
 
-## Device Baseline
+## Transport
 
-- USB Vendor ID: `041e`
-- USB Product ID: `3256`
-- Control interface: HID Interface 4
-- Packet payload size used by command builders: 64 bytes
+- USB `041e:3256`, HID interface 4.
+- Every packet is 64 bytes: `5a [family] [payload...]`, zero padded. hidapi
+  writes get a leading report ID `00`.
+- The G6 answers on its interrupt IN endpoint: an acknowledgement
+  (`5a 02 ...`) and, for settings, a status report with the new value.
 
-Important: commands are written with report id prefix `0x00` before the 64-byte payload.
+Every write is followed by a read of the same setting, and every answer is
+parsed and applied to the cached settings. So the app shows what the device
+took, never what was asked for. A write the G6 does not answer is an error.
 
----
-
-## Implemented in Rusty G6
-
-### Output Routing (`0x2c`)
-
-- Set output (`Speakers`/`Headphones`)
-- Commit output
-- Toggle output helper
-
-Typical sequence:
+## DSP Parameters (`0x11` read, `0x12` write)
 
 ```text
-5a 2c 05 00 [OUTPUT]
-5a 2c 01 01
+read:  5a 11 03 01 [family] [id]
+write: 5a 12 07 01 [family] [id] [f32 LE]
 ```
 
-Output values:
+Rusty G6 uses the playback family `0x96`:
 
-- `0x02` = Speakers
-- `0x04` = Headphones
+| Id | Setting | Value |
+|---|---|---|
+| `00` / `01` | Surround on / level | 0.0 or 1.0 / 0.0-1.0 |
+| `02` / `03` | Dialog+ on / level | |
+| `04` / `05` | Smart Volume on / level | |
+| `07` / `08` | Crystalizer on / level | |
+| `18` / `19` | Bass on / level | |
+| `09` | EQ on | 0.0 or 1.0 |
+| `0a` | EQ preamp | -6 to +6 dB, step 0.5 |
+| `0b`-`14` | EQ bands 31 Hz-16 kHz | -12 to +12 dB, step 0.5 |
 
-### Audio Effects
+Levels are shown as 0-100.
 
-Implemented controls:
-
-- Surround
-- Crystalizer
-- Bass (toggle command + local value state)
-- Smart Volume
-- Dialog Plus
-
-Core read format used by builders:
-
-```text
-5a 11 03 01 96 [FEATURE]
-```
-
-Core write format used for most effect toggles/values:
-
-```text
-5a 12 07 01 96 [FEATURE] [FLOAT]
-```
-
-### Graphic EQ (family `0x96`)
-
-Implemented and exposed in the Output page.
-
-- `0x09` EQ toggle (f32 `0.0` / `1.0`)
-- `0x0a` preamp, -6 to +6 dB
-- `0x0b`-`0x14` bands 31, 62, 125, 250, 500 Hz and 1, 2, 4, 8, 16 kHz,
-  -12 to +12 dB
-
-Gains are f32 dB values in steps of 0.5 dB, written with the core write
-format above and read back with the core read format.
-
-### Status Reports (`0x11`)
+### Status Reports
 
 The G6 reports DSP values as `5a 11 [len] [count] 00` followed by `count`
-blocks of `[family] [feature] [f32 LE]`, with `len = 2 + count * 6`. A single
-value has `count = 1` (`len = 0x08`); on an output switch the G6 pushes the
-new output's whole profile, up to eight blocks per packet. Only family `0x96`
-(playback) is mapped to settings: families `0x95` (recording) and `0x97`
-(decoder) reuse the same feature numbers for other settings.
+blocks of `[family] [id] [f32 LE]`, with `len = 2 + count * 6`. A single value
+has `count = 1` (`len = 0x08`). On an output switch the G6 pushes the new
+output's profile, up to eight blocks per packet. Only family `0x96` is mapped:
+families `0x95` (recording) and `0x97` (decoder) reuse the same ids for other
+settings.
 
-### Gaming Modes (`0x26`)
+## Other Families
 
-Implemented:
+| Family | Write | Read | Answer |
+|---|---|---|---|
+| `0x2c` output | `5a 2c 05 00 [02 speakers / 04 headphones]` | `5a 2c 01 01` | `5a 2c 05 01 [output]` |
+| `0x26` SBX / Scout | `5a 26 05 07 [01 SBX / 02 Scout] 00 [0/1] 00` | `5a 26 03 08 ff ff` | `5a 26 0b 08 ff ff [bitmask]`: bit 0 SBX, bit 1 Scout |
+| `0x3c` mic boost | `5a 3c 04 00 00 02 [dB]` (0, 10, 20, 30) | `5a 3c 02 01 00` | `5a 3c 04 01 00 02 [dB]` |
+| `0x6c` DAC filter | `5a 6c 03 00 [filter] 00` | `5a 6c 01 01` | `5a 6c 03 01 [filter] 00` |
+| `0x07` firmware | | `5a 07 01 02` | `5a 07 [len] [ASCII version]` |
 
-- SBX mode set
-- Scout mode set
-- mode read query helper
+DAC filters: `01` fast roll-off minimum phase, `02` slow roll-off minimum
+phase, `03` NOS, `04` fast roll-off linear phase, `05` slow roll-off linear
+phase. The G6 lists all five in its filter list (`5a 6c 01 02` answers
+`5a 6c 0e 02 05 85 00 01 00 02 00 03 00 04 00 05 00`); the NOS write itself
+is not captured.
 
-Set operations use data + commit style builder flow.
+## Not Implemented Yet
 
-### Microphone Boost (`0x3c`)
-
-Implemented and exposed in UI/commands.
-
-Allowed values:
-
-- `0`, `10`, `20`, `30` dB
-
-Builder uses:
-
-- data command (`0x3c 04 ...`)
-- commit command (`0x3c 02 01`)
-
----
-
-## Read and Sync Behavior
-
-Rusty G6 performs device synchronization via:
-
-1. explicit read command set in `build_read_all_state_commands()`
-2. event listener updates in `g6_device/listener.rs`; both apply events
-   through `DeviceEvent::apply_to`
-
-Events parsed include output changes, gaming mode state, audio effect toggles/values, digital filter reports, audio config reports, and microphone boost events.
-
-Note: Rusty G6 keeps runtime device state in memory. This is not currently persisted as a dedicated JSON settings file in the protocol layer.
-
----
-
-## Feature IDs Used
-
-Audio effect features used by implementation:
-
-- `0x00` Surround Toggle
-- `0x01` Surround Value
-- `0x02` Dialog Plus Toggle
-- `0x03` Dialog Plus Value
-- `0x04` Smart Volume Toggle
-- `0x05` Smart Volume Value
-- `0x06` Smart Volume Preset (read path)
-- `0x07` Crystalizer Toggle
-- `0x08` Crystalizer Value
-- `0x09` EQ Toggle
-- `0x0a` EQ Preamp
-- `0x0b`-`0x14` EQ Bands
-- `0x18` Bass Toggle
-- `0x19` Bass Value
-
-Gaming feature IDs:
-
-- `0x01` SBX mode
-- `0x02` Scout mode
-
----
-
-## Not Fully Productized
-
-- Digital filter: reports are parsed, but there is no write builder or
-  command yet.
-- Extended profile/preset workflows are not implemented as first-class user flows.
-
----
+The plan, with the decoded but uncaptured commands, is in
+[TODO.md](TODO.md).
 
 ## References
 
@@ -176,4 +97,6 @@ Gaming feature IDs:
 - [linuxblaster_control USB protocol reference](https://github.com/RizeCrime/linuxblaster_control/blob/main/UsbProtocol.md)
 - [Rusty G6 reference spec](rusty-g6-usb-spec.md)
 
-If this documentation is used elsewhere, please credit both Nils Skowasch's original reverse-engineering work and the Rusty G6 project.
+If this documentation is used elsewhere, please credit Nils Skowasch's
+original reverse-engineering work, linuxblaster_control and the Rusty G6
+project.

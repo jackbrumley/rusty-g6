@@ -151,13 +151,11 @@ export function UiLabPage({ onBack, onToast }: UiLabPageProps) {
             <EffectControl
               name="Effect Preview"
               enabled={previewEnabled}
-              value={previewValue}
+              level={previewValue}
               tooltip="Shows how effect tooltip help appears when hovering the effect label text."
               disabled={!previewSbxEnabled}
-              onChange={(enabled, value) => {
-                setPreviewEnabled(enabled);
-                setPreviewValue(value);
-              }}
+              onToggle={setPreviewEnabled}
+              onLevelChange={setPreviewValue}
             />
           </div>
         </div>

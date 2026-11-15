@@ -1,64 +1,102 @@
-/// SoundBlaster X G6 USB Device Specifications
-/// Based on reverse engineering from soundblaster-x-g6-cli project
-/// https://github.com/nils-skowasch/soundblaster-x-g6-cli
+//! The Sound BlasterX G6's settings as Rusty G6 models them. Protocol bytes
+//! live in `g6_protocol`; this module has no knowledge of them.
 use serde::{Deserialize, Serialize};
 
-// USB Device Identifiers
 pub const USB_VENDOR_ID: u16 = 0x041e; // Creative Technology Ltd
-pub const USB_PRODUCT_ID: u16 = 0x3256; // Sound Blaster X G6
+pub const USB_PRODUCT_ID: u16 = 0x3256; // Sound BlasterX G6
 
-/// Audio output types
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OutputDevice {
     Speakers,
     Headphones,
 }
 
-/// Sound effect enable/disable state
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum EffectState {
-    Enabled,
-    Disabled,
+/// The G6's recording source: its `PCM Capture Source` ALSA control on
+/// Linux (item names in `g6_mixer::alsa_item`). The kernel starts it on Line
+/// In, so the mic is barely audible until External Mic is selected.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum RecordingSource {
+    LineIn,
+    #[default]
+    ExternalMic,
+    SpdifIn,
+    WhatUHear,
 }
 
-/// Smart Volume special presets
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum SmartVolumePreset {
-    Night,
-    Loud,
+/// The SBX effects that each have an on/off switch and a 0-100 level. The
+/// serialized names are the keys of `SbxEffects`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SbxEffect {
+    Surround,
+    Crystalizer,
+    Bass,
+    SmartVolume,
+    DialogPlus,
 }
 
-/// Scout Mode state (read-only for now)
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum ScoutModeState {
-    Enabled,
-    Disabled,
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EffectSettings {
+    pub enabled: bool,
+    /// 0-100.
+    pub level: u8,
 }
 
-/// Digital Filter Types (DAC filter characteristics)
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-// The variants are the DAC's filter names (fast/slow roll-off, minimum/linear
-// phase), and they are serialized into the settings the UI receives.
-#[allow(clippy::enum_variant_names)]
+impl Default for EffectSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            level: 50,
+        }
+    }
+}
+
+/// One `EffectSettings` per `SbxEffect`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SbxEffects {
+    pub surround: EffectSettings,
+    pub crystalizer: EffectSettings,
+    pub bass: EffectSettings,
+    pub smart_volume: EffectSettings,
+    pub dialog_plus: EffectSettings,
+}
+
+impl SbxEffects {
+    pub fn get_mut(&mut self, effect: SbxEffect) -> &mut EffectSettings {
+        match effect {
+            SbxEffect::Surround => &mut self.surround,
+            SbxEffect::Crystalizer => &mut self.crystalizer,
+            SbxEffect::Bass => &mut self.bass,
+            SbxEffect::SmartVolume => &mut self.smart_volume,
+            SbxEffect::DialogPlus => &mut self.dialog_plus,
+        }
+    }
+}
+
+/// Checks an effect level (0-100).
+pub fn validate_effect_level(level: u8) -> anyhow::Result<u8> {
+    if level <= 100 {
+        Ok(level)
+    } else {
+        Err(anyhow::anyhow!(
+            "Effect level must be between 0 and 100, got {level}"
+        ))
+    }
+}
+
+/// The DAC's digital reconstruction filter (CS43131). The G6 lists all five
+/// in its `0x6c` filter list; protocol bytes are in `g6_protocol::dac_filter`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DigitalFilter {
-    FastRollOffMinimumPhase, // 0x01
-    SlowRollOffMinimumPhase, // 0x02
-    FastRollOffLinearPhase,  // 0x04
-    SlowRollOffLinearPhase,  // 0x05
+    FastRollOffMinimumPhase,
+    SlowRollOffMinimumPhase,
+    NonOversampling,
+    FastRollOffLinearPhase,
+    SlowRollOffLinearPhase,
 }
 
-/// Audio Configuration (0x3c family - purpose unclear, may be Windows notification)
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum AudioConfig {
-    Unknown(u8), // Placeholder until we understand the meaning
-}
-
-/// Device firmware information (read-only)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FirmwareInfo {
-    pub version: String,
-    pub build: Option<String>,
-}
+/// The mic boost steps in dB.
+pub const MICROPHONE_BOOST_STEPS_DB: [u8; 4] = [0, 10, 20, 30];
 
 /// EQ preamp range in dB (device range dump `0x15`: -6 to +6).
 pub const EQ_PREAMP_LIMIT_DB: f32 = 6.0;
@@ -71,23 +109,13 @@ pub const EQ_GAIN_STEP_DB: f32 = 0.5;
 
 /// Graphic equalizer state of the active output. The G6 keeps one per
 /// output (speakers and headphones).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct EqualizerSettings {
-    pub enabled: EffectState,
+    pub enabled: bool,
     pub preamp_db: f32,
     /// Gains in dB of the ten bands: 31, 62, 125, 250, 500 Hz and
     /// 1, 2, 4, 8, 16 kHz.
     pub band_gains_db: [f32; 10],
-}
-
-impl Default for EqualizerSettings {
-    fn default() -> Self {
-        Self {
-            enabled: EffectState::Disabled,
-            preamp_db: 0.0,
-            band_gains_db: [0.0; 10],
-        }
-    }
 }
 
 /// Checks an EQ gain against its range (`limit_db` either way) and snaps it
@@ -101,109 +129,36 @@ pub fn validate_eq_gain(gain_db: f32, limit_db: f32) -> anyhow::Result<f32> {
     Ok((gain_db / EQ_GAIN_STEP_DB).round() * EQ_GAIN_STEP_DB)
 }
 
-/// G6 device settings structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// What Rusty G6 knows of the device's state. Filled by state reads and
+/// device reports (`DeviceEvent::apply_to`) and by confirmed writes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct G6Settings {
-    // Controllable settings (read-write)
     pub output: OutputDevice,
-
-    pub surround_enabled: EffectState,
-    pub surround_value: u8, // 0-100
-
-    pub crystalizer_enabled: EffectState,
-    pub crystalizer_value: u8, // 0-100
-
-    pub bass_enabled: EffectState,
-    pub bass_value: u8, // 0-100
-
-    pub smart_volume_enabled: EffectState,
-    pub smart_volume_value: u8, // 0-100
-    pub smart_volume_preset: Option<SmartVolumePreset>,
-
-    pub dialog_plus_enabled: EffectState,
-    pub dialog_plus_value: u8, // 0-100
-
-    // Microphone boost (0, 10, 20, or 30 dB)
-    pub microphone_boost: u8, // 0, 10, 20, or 30
-
-    // Global SBX processing switch
-    pub sbx_enabled: EffectState,
-
-    // Digital filter setting
-    pub digital_filter: Option<DigitalFilter>,
-
-    // Audio configuration (0x3c family)
-    pub audio_config: Option<AudioConfig>,
-
-    // Read-only device information
-    pub firmware_info: Option<FirmwareInfo>,
-    pub scout_mode: ScoutModeState,
+    /// The SBX master switch.
+    pub sbx_enabled: bool,
+    pub scout_mode_enabled: bool,
+    pub effects: SbxEffects,
     pub equalizer: EqualizerSettings,
-
-    // Device connection state
-    pub is_connected: bool,
-    pub last_read_time: Option<u64>, // Unix timestamp
+    pub digital_filter: Option<DigitalFilter>,
+    /// One of `MICROPHONE_BOOST_STEPS_DB`; `None` until read.
+    pub microphone_boost_db: Option<u8>,
+    pub firmware_version: Option<String>,
+    /// Unix time of the last state read that got answers.
+    pub last_read_time: Option<u64>,
 }
 
 impl Default for G6Settings {
     fn default() -> Self {
         Self {
             output: OutputDevice::Headphones,
-            surround_enabled: EffectState::Disabled,
-            surround_value: 50,
-            crystalizer_enabled: EffectState::Disabled,
-            crystalizer_value: 50,
-            bass_enabled: EffectState::Disabled,
-            bass_value: 50,
-            smart_volume_enabled: EffectState::Disabled,
-            smart_volume_value: 50,
-            smart_volume_preset: None,
-            dialog_plus_enabled: EffectState::Disabled,
-            dialog_plus_value: 50,
-            microphone_boost: 0,
-            sbx_enabled: EffectState::Disabled,
-            digital_filter: None,
-            audio_config: None,
-            firmware_info: None,
-            scout_mode: ScoutModeState::Disabled,
+            sbx_enabled: false,
+            scout_mode_enabled: false,
+            effects: SbxEffects::default(),
             equalizer: EqualizerSettings::default(),
-            is_connected: false,
+            digital_filter: None,
+            microphone_boost_db: None,
+            firmware_version: None,
             last_read_time: None,
-        }
-    }
-}
-
-/// Validate that a value is within 0-100 range
-pub fn validate_effect_value(value: u8) -> anyhow::Result<u8> {
-    if value <= 100 {
-        Ok(value)
-    } else {
-        Err(anyhow::anyhow!(
-            "Value must be between 0 and 100, got {}",
-            value
-        ))
-    }
-}
-
-/// Protocol console message for debugging
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProtocolConsoleMessage {
-    pub timestamp: u64,
-    pub level: String, // "command", "response", "error", "info"
-    pub text: String,
-    pub details: Option<String>,
-}
-
-impl ProtocolConsoleMessage {
-    pub fn new(level: &str, text: String, details: Option<String>) -> Self {
-        Self {
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            level: level.to_string(),
-            text,
-            details,
         }
     }
 }
@@ -222,5 +177,20 @@ mod tests {
     fn eq_gain_outside_range_is_rejected() {
         assert!(validate_eq_gain(6.5, EQ_PREAMP_LIMIT_DB).is_err());
         assert!(validate_eq_gain(f32::NAN, EQ_BAND_LIMIT_DB).is_err());
+    }
+
+    #[test]
+    fn effect_keys_match_effect_names() {
+        let json = serde_json::to_value(SbxEffects::default()).unwrap();
+        for effect in [
+            "surround",
+            "crystalizer",
+            "bass",
+            "smart_volume",
+            "dialog_plus",
+        ] {
+            let name: SbxEffect = serde_json::from_value(serde_json::json!(effect)).unwrap();
+            assert!(json.get(effect).is_some(), "{name:?}");
+        }
     }
 }
