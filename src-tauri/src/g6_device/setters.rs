@@ -2,7 +2,7 @@
 //! commands; the G6's answers update the cached settings (`send_commands`),
 //! so the cache holds what the device took.
 use super::G6DeviceManager;
-use crate::g6_protocol::{dac_filter, effects, equalizer, writes};
+use crate::g6_protocol::{dac_filter, effects, equalizer, microphone, writes};
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use log::{info, warn};
@@ -99,6 +99,22 @@ impl G6DeviceManager {
         self.send_confirmed(
             writes::build_set_microphone_boost(db_value),
             &format!("mic boost {db_value} dB"),
+        )
+    }
+
+    pub fn set_mic_switch(&self, switch: MicSwitch, enabled: bool) -> Result<()> {
+        self.send_confirmed(
+            microphone::build_set_mic_switch(switch, enabled),
+            &format!("{switch:?} {}", on_off(enabled)),
+        )
+    }
+
+    /// `level` is 0-100.
+    pub fn set_noise_reduction_level(&self, level: u8) -> Result<()> {
+        let level = validate_effect_level(level)?;
+        self.send_confirmed(
+            microphone::build_set_noise_reduction_level(level),
+            &format!("noise reduction level {level}"),
         )
     }
 

@@ -52,6 +52,8 @@ pub fn run(launch: LaunchOptions, second_launch_shows_window: fn(&[String]) -> b
             set_effect_enabled,
             set_effect_level,
             set_microphone_boost,
+            set_mic_switch,
+            set_noise_reduction_level,
             set_dac_filter,
             set_eq_enabled,
             set_eq_preamp,

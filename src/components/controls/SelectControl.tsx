@@ -1,4 +1,5 @@
 import { Tooltip } from "../ui/Tooltip";
+import { Dropdown } from "./Dropdown";
 
 interface SelectControlProps<T extends string> {
   label: string;
@@ -24,23 +25,14 @@ export function SelectControl<T extends string>({
   return (
     <div class="control-row">
       <span class="control-label">{tooltip ? <Tooltip text={tooltip}>{label}</Tooltip> : label}</span>
-      <select
-        class="select-control"
-        value={value ?? ""}
+      <Dropdown
+        value={value}
+        placeholder={placeholder}
+        options={options}
+        onChange={onChange}
         disabled={disabled}
-        onChange={(event) => onChange((event.currentTarget as HTMLSelectElement).value as T)}
-      >
-        {value === null && (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        )}
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
+        ariaLabel={label}
+      />
     </div>
   );
 }

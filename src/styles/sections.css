@@ -58,15 +58,15 @@
   background: var(--brand-gradient-hover);
 }
 
+/* Ghost buttons: transparent with a clear white outline. */
 .btn-compact.btn-secondary {
-  background: var(--control-muted-bg);
+  background: transparent;
   color: var(--text-main);
-  border: 1px solid var(--control-muted-border);
+  border: 1px solid var(--outline-clear);
 }
 
 .btn-compact.btn-secondary:hover {
-  background: var(--control-muted-bg-hover);
-  border-color: var(--control-muted-border-hover);
+  background: var(--line-subtle);
 }
 
 .btn-compact.btn-warning {
@@ -194,14 +194,14 @@
   padding: 5px 10px;
   background: transparent;
   color: var(--text-main);
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--outline-clear);
   border-radius: var(--border-radius);
   font: inherit;
   font-size: 0.85rem;
 }
 
 .ghost-input:hover {
-  border-color: var(--line-strong);
+  background: var(--line-subtle);
 }
 
 .ghost-input:focus-visible {

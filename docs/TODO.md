@@ -207,11 +207,12 @@ command, UI):
    start-up), not yet tested on hardware. Bytes confirmed against
    linuxblaster's `set_filter_*` captures; NOS (`0x03`) is listed by the
    device but its write is not captured, so check NOS first.
-4. **Recording controls.** Noise reduction `95:04` and level `95:05` (device
-   scale 0–0.5). Echo cancellation `95:00`. Mic smart volume `95:2c`. Mic EQ
-   toggle `95:13` and presets on `95:14`–`95:1b`. Captures:
-   `set_noise_reduction_*`, `set_mic_noise_reduction_level-*`,
-   `set_voice_clarity_*`.
+4. **Recording controls.** Built on the Mic tab, not yet tested on hardware:
+   noise reduction and level (captured), echo cancellation `95:00`, mic smart
+   volume `95:2c` and the mic EQ switch `95:13` (decoded by linuxblaster and
+   Creative's table, not captured). Still to do: mic EQ presets on
+   `95:14`-`95:1b` (captured), and a mic level slider for the ALSA
+   `External Mic` capture volume (-48 to +9 dB, PipeWire never drives it).
 5. **Smaller items:**
    - `96:17` (10–300, step 0.5): linuxblaster calls it surround distance,
      but Creative's own parameter table names it the **XBass crossover**.

@@ -3,7 +3,7 @@
 use crate::app::commands::device::notify_device_changed;
 use crate::app::state::AppState;
 use crate::g6_device::G6DeviceManager;
-use crate::g6_spec::{DigitalFilter, SbxEffect};
+use crate::g6_spec::{DigitalFilter, MicSwitch, SbxEffect};
 use tauri::{AppHandle, Manager};
 
 /// Run one setting change: log it, report a failure as the command's error
@@ -65,6 +65,22 @@ pub fn set_microphone_boost(app: AppHandle, db_value: u8) -> Result<(), String> 
     change_device_setting(&app, &format!("Mic boost = {db_value} dB"), |device| {
         device.set_microphone_boost(db_value)
     })
+}
+
+#[tauri::command(async)]
+pub fn set_mic_switch(app: AppHandle, switch: MicSwitch, enabled: bool) -> Result<(), String> {
+    change_device_setting(&app, &format!("{switch:?} enabled = {enabled}"), |device| {
+        device.set_mic_switch(switch, enabled)
+    })
+}
+
+#[tauri::command(async)]
+pub fn set_noise_reduction_level(app: AppHandle, level: u8) -> Result<(), String> {
+    change_device_setting(
+        &app,
+        &format!("Noise reduction level = {level}"),
+        |device| device.set_noise_reduction_level(level),
+    )
 }
 
 #[tauri::command(async)]

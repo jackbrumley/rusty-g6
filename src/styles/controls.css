@@ -179,7 +179,7 @@ input:checked + .toggle-slider:before {
   min-width: 28px;
   text-align: right;
   font-weight: bold;
-  color: var(--brand-primary);
+  color: var(--text-main);
   font-size: 0.85rem;
 }
 
@@ -294,42 +294,100 @@ input:checked + .toggle-slider:before {
 /* =================================================================== */
 /* DROPDOWN inside a control row (EQ preset, recording source)         */
 /* =================================================================== */
-/* Ghost style: transparent with a faint outline, so the page shows through. */
-.select-control {
+/* Dropdown: a ghost button with our own list (a native select list is drawn
+   by the system and cannot be styled). */
+.dropdown {
+  position: relative;
   margin-left: auto;
+  max-width: 100%;
+}
+
+.dropdown-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   max-width: 100%;
   padding: 4px 10px;
   background: transparent;
   color: var(--text-main);
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--outline-clear);
   border-radius: var(--border-radius);
   font: inherit;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-  /* The open list is drawn by the system; ask it for its dark theme. */
-  color-scheme: dark;
+  transition: background-color 0.15s ease;
 }
 
-.select-control:hover {
-  border-color: var(--line-strong);
-  background: var(--line-highlight);
+.dropdown-button:hover {
+  background: var(--line-subtle);
 }
 
-.select-control:disabled {
+.dropdown-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.dropdown-button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.select-control:focus-visible {
-  outline: none;
-  border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px var(--focus-ring);
+.dropdown-placeholder {
+  color: var(--text-muted);
 }
 
-.select-control option {
-  background: var(--bg-elevated);
+.dropdown-chevron {
+  flex: none;
+  width: 10px;
+  height: 6px;
+  background: var(--dropdown-chevron) center / contain no-repeat;
+  transition: transform 0.15s ease;
+}
+
+.dropdown-chevron.open {
+  transform: rotate(180deg);
+}
+
+.dropdown-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 100%;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  white-space: nowrap;
+  background: var(--bg-popover);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: var(--popover-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dropdown-list.upwards {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.dropdown-option {
+  padding: 7px 12px;
+  border-radius: 5px;
   color: var(--text-main);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dropdown-option.highlighted {
+  background: var(--bg-selected);
+}
+
+.dropdown-option.selected {
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--brand-primary);
 }
 
 /* =================================================================== */

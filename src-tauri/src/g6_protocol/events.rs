@@ -6,9 +6,10 @@ use super::dac_filter::filter_from_byte;
 use super::effects::{level_from_device, parameter_for_id, EffectParameter};
 use super::equalizer::{band_index, FEATURE_EQ_PREAMP, FEATURE_EQ_TOGGLE};
 use super::firmware::parse_firmware_response;
-use super::{PLAYBACK_DSP, PREFIX};
+use super::microphone::{self, noise_reduction_level_from_device, MicParameter};
+use super::{DspFamily, PREFIX};
 use crate::g6_spec::{
-    DigitalFilter, G6Settings, OutputDevice, SbxEffect, MICROPHONE_BOOST_STEPS_DB,
+    DigitalFilter, G6Settings, MicSwitch, OutputDevice, SbxEffect, MICROPHONE_BOOST_STEPS_DB,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +25,8 @@ pub enum DeviceEvent {
     EqBandChanged { band: usize, gain_db: f32 },
     DigitalFilterChanged(DigitalFilter),
     MicrophoneBoostChanged(u8),
+    MicSwitchChanged(MicSwitch, bool),
+    NoiseReductionLevelChanged(u8),
 }
 
 impl DeviceEvent {
@@ -50,6 +53,12 @@ impl DeviceEvent {
             DeviceEvent::DigitalFilterChanged(filter) => settings.digital_filter = Some(filter),
             DeviceEvent::MicrophoneBoostChanged(db_value) => {
                 settings.microphone_boost_db = Some(db_value)
+            }
+            DeviceEvent::MicSwitchChanged(switch, enabled) => {
+                *settings.mic_processing.switch_mut(switch) = enabled
+            }
+            DeviceEvent::NoiseReductionLevelChanged(level) => {
+                settings.mic_processing.noise_reduction_level = level
             }
         }
     }
@@ -125,8 +134,8 @@ fn parse_dac_filter_report(packet: &[u8]) -> Option<DeviceEvent> {
 /// DSP status reports: `5a 11 [len] [count] 00` followed by `count` blocks
 /// of `[family] [id] [f32 LE]`, with len = 2 + count * 6. A single value has
 /// count 1; on an output switch the G6 pushes the new output's profile, up to
-/// eight blocks per packet. Only the playback family (0x96) is mapped:
-/// recording (0x95) and decoder (0x97) reuse the same ids for other settings.
+/// eight blocks per packet. Each family has its own ids: playback (0x96) and
+/// recording (0x95) are mapped; the decoder (0x97) is not yet.
 fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
     let (Some(&length), Some(&count)) = (packet.get(2), packet.get(3)) else {
         return Vec::new();
@@ -139,12 +148,29 @@ fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
     let (blocks, _) = packet[5..blocks_end].as_chunks::<6>();
     blocks
         .iter()
-        .filter(|block| block[0] == PLAYBACK_DSP)
         .filter_map(|block| {
             let value = f32::from_le_bytes([block[2], block[3], block[4], block[5]]);
-            playback_dsp_event(block[1], value)
+            match block[0] {
+                family if family == DspFamily::Playback as u8 => {
+                    playback_dsp_event(block[1], value)
+                }
+                family if family == DspFamily::Recording as u8 => {
+                    recording_dsp_event(block[1], value)
+                }
+                _ => None,
+            }
         })
         .collect()
+}
+
+/// One recording DSP value as an event.
+fn recording_dsp_event(id: u8, value: f32) -> Option<DeviceEvent> {
+    Some(match microphone::parameter_for_id(id)? {
+        MicParameter::Switch(switch) => DeviceEvent::MicSwitchChanged(switch, value > 0.0001),
+        MicParameter::NoiseReductionLevel => {
+            DeviceEvent::NoiseReductionLevelChanged(noise_reduction_level_from_device(value))
+        }
+    })
 }
 
 /// One playback DSP value as an event.
@@ -190,7 +216,13 @@ mod tests {
     #[test]
     fn recording_family_is_not_read_as_playback() {
         // 95:04 is noise reduction, not Smart Volume (96:04).
-        assert!(parse_device_packet(&hex("5a 11 08 01 00 95 04 00 00 80 3f")).is_empty());
+        assert_eq!(
+            parse_device_packet(&hex("5a 11 08 01 00 95 04 00 00 80 3f")),
+            vec![DeviceEvent::MicSwitchChanged(
+                MicSwitch::NoiseReduction,
+                true
+            )]
+        );
     }
 
     #[test]

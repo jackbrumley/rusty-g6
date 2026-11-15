@@ -26,6 +26,8 @@
   --bg-page-art: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 340'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff5a4f' stop-opacity='0.55'/%3E%3Cstop offset='1' stop-color='%23ff8a3d' stop-opacity='0.08'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff8a3d' stop-opacity='0.45'/%3E%3Cstop offset='1' stop-color='%23e5483f' stop-opacity='0.04'/%3E%3C/linearGradient%3E%3ClinearGradient id='c' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23c2185b' stop-opacity='0.04'/%3E%3Cstop offset='1' stop-color='%23e5483f' stop-opacity='0.3'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpolygon points='250,40 362.6,105 362.6,235 250,300 137.4,235 137.4,105' fill='url%28%23c%29'/%3E%3Cpolygon points='150,150 219.3,190 219.3,270 150,310 80.7,270 80.7,190' fill='url%28%23a%29'/%3E%3Cpolygon points='350,30 402,60 402,120 350,150 298,120 298,60' fill='url%28%23b%29'/%3E%3Cpolyline points='137.4,105 250,40 362.6,105' fill='none' stroke='%23ffffff' stroke-opacity='0.25' stroke-width='1'/%3E%3C/svg%3E");
   --bg-card: rgba(33, 27, 32, 0.88);
   --bg-elevated: #261d22;
+  /* Open dropdown lists: raised and slightly see-through. */
+  --bg-popover: rgba(38, 29, 34, 0.94);
   --bg-inset: #100c0f;
   --bg-selected: rgba(255, 68, 68, 0.14);
   --bg-disabled: rgba(0, 0, 0, 0.2);
@@ -35,7 +37,9 @@
   --line-subtle: rgba(255, 255, 255, 0.06);
   --line-highlight: rgba(255, 255, 255, 0.04);
 
-  --text-main: #f4f3f6;
+  /* Anything that must read clearly is pure white. */
+  --text-main: #ffffff;
+  --outline-clear: #ffffff;
   --text-muted: #b1a2aa;
   --text-faint: #8a7c83;
 
@@ -61,10 +65,6 @@
   --window-close-bg-hover: #d93a52;
 
   /* Secondary buttons: the site's manual download button. */
-  --control-muted-bg: #241c21;
-  --control-muted-bg-hover: #2c2228;
-  --control-muted-border: #3b2e34;
-  --control-muted-border-hover: rgba(255, 68, 68, 0.5);
   --focus-ring: rgba(255, 68, 68, 0.4);
 
   --field-bg: #100c0f;
@@ -91,6 +91,9 @@
   --on-warning: #1a1206;
   --danger: #f0647f;
   --info: #5b8cff;
+
+  /* Dropdown chevron in --outline-clear. */
+  --dropdown-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   --eq-grid-line: rgba(255, 255, 255, 0.06);
   --eq-grid-zero: rgba(255, 255, 255, 0.2);

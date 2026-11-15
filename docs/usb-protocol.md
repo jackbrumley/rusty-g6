@@ -60,6 +60,15 @@ Rusty G6 uses the playback family `0x96`:
 
 Levels are shown as 0-100.
 
+And the recording family `0x95` (mic processing, `g6_protocol/microphone.rs`):
+
+| Id | Setting | Value | Source |
+|---|---|---|---|
+| `04` / `05` | Noise reduction on / level | 0.0 or 1.0 / 0.0-0.5 (shown 0-100) | captured |
+| `00` | Echo cancellation | 0.0 or 1.0 | decoded, not captured |
+| `2c` | Mic smart volume | 0.0 or 1.0 | decoded, not captured |
+| `13` | Mic EQ on | 0.0 or 1.0 | decoded, not captured |
+
 ### Status Reports
 
 The G6 reports DSP values as `5a 11 [len] [count] 00` followed by `count`

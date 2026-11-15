@@ -32,6 +32,35 @@ export const SBX_EFFECTS: { id: SbxEffect; name: string; tooltip: string }[] = [
   },
 ];
 
+/// `g6_spec::MicSwitch`: also the keys of `MicProcessing`.
+export type MicSwitch = "noise_reduction" | "echo_cancellation" | "smart_volume" | "equalizer";
+
+/// `g6_spec::MicProcessing`.
+export interface MicProcessing {
+  noise_reduction: boolean;
+  /// 0-100.
+  noise_reduction_level: number;
+  echo_cancellation: boolean;
+  smart_volume: boolean;
+  equalizer: boolean;
+}
+
+/// The on/off mic features shown as plain switches (noise reduction has a
+/// level too and is shown separately).
+export const MIC_SWITCHES: { id: Exclude<MicSwitch, "noise_reduction">; name: string; tooltip: string }[] = [
+  {
+    id: "echo_cancellation",
+    name: "Echo cancellation",
+    tooltip: "Removes speaker sound that the mic picks up, for calls without headphones.",
+  },
+  {
+    id: "smart_volume",
+    name: "Smart volume",
+    tooltip: "Evens out your voice level, so quiet and loud speech come through alike.",
+  },
+  { id: "equalizer", name: "Mic EQ", tooltip: "The mic's own 8-band EQ, as last set on the G6." },
+];
+
 /// `g6_spec::MICROPHONE_BOOST_STEPS_DB`.
 export const MICROPHONE_BOOST_STEPS_DB = [0, 10, 20, 30];
 
@@ -77,6 +106,7 @@ export interface G6Settings {
   digital_filter: DigitalFilter | null;
   /// `null` until read from the device.
   microphone_boost_db: number | null;
+  mic_processing: MicProcessing;
   firmware_version: string | null;
   last_read_time: number | null;
 }

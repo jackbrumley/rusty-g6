@@ -1,5 +1,5 @@
 //! State queries, and the set a full state read sends.
-use super::{dac_filter, effects, equalizer, firmware, packet, CommandFamily};
+use super::{dac_filter, effects, equalizer, firmware, microphone, packet, CommandFamily};
 
 /// SBX master and Scout Mode: `5a 26 03 08 ff ff`, answered with a bitmask
 /// (`events.rs`).
@@ -27,6 +27,7 @@ pub fn build_read_all_state_commands() -> Vec<Vec<u8>> {
     ];
     commands.extend(effects::build_effect_read_commands());
     commands.extend(equalizer::build_eq_read_commands());
+    commands.extend(microphone::build_mic_read_commands());
     commands.push(dac_filter::build_dac_filter_read());
     commands
 }

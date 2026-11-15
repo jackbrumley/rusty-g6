@@ -6,14 +6,22 @@ pub mod effects;
 pub mod equalizer;
 pub mod events;
 pub mod firmware;
+pub mod microphone;
 pub mod reads;
 pub mod writes;
 
 const PREFIX: u8 = 0x5a;
 const PACKET_SIZE: usize = 64;
 
-/// The DSP parameter family of playback settings (SBX effects, EQ).
-const PLAYBACK_DSP: u8 = 0x96;
+/// The DSP parameter families: settings are addressed as (family, id).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum DspFamily {
+    /// Mic processing: noise reduction, echo cancellation, mic EQ ...
+    Recording = 0x95,
+    /// Playback: SBX effects and the graphic EQ.
+    Playback = 0x96,
+}
 
 /// The packet families Rusty G6 sends. Others seen in captures (0x02 ack,
 /// 0x05, 0x10, 0x15, 0x20, 0x30, 0x3a) are only named in `describe_packet`.
@@ -43,21 +51,21 @@ pub fn packet(family: CommandFamily, payload: &[u8]) -> Vec<u8> {
     packet
 }
 
-/// Read playback DSP parameter `id`: `5a 11 03 01 96 [id]`.
-pub fn dsp_read(id: u8) -> Vec<u8> {
-    packet(CommandFamily::DspRead, &[0x03, 0x01, PLAYBACK_DSP, id])
+/// Read DSP parameter `id`: `5a 11 03 01 [family] [id]`.
+pub fn dsp_read(family: DspFamily, id: u8) -> Vec<u8> {
+    packet(CommandFamily::DspRead, &[0x03, 0x01, family as u8, id])
 }
 
-/// Write playback DSP parameter `id`: `5a 12 07 01 96 [id] [f32 LE]`.
-pub fn dsp_write(id: u8, value: f32) -> Vec<u8> {
-    let mut payload = vec![0x07, 0x01, PLAYBACK_DSP, id];
+/// Write DSP parameter `id`: `5a 12 07 01 [family] [id] [f32 LE]`.
+pub fn dsp_write(family: DspFamily, id: u8, value: f32) -> Vec<u8> {
+    let mut payload = vec![0x07, 0x01, family as u8, id];
     payload.extend_from_slice(&value.to_le_bytes());
     packet(CommandFamily::DspWrite, &payload)
 }
 
-/// Write playback DSP parameter `id`, then read it back.
-pub fn dsp_write_and_read(id: u8, value: f32) -> Vec<Vec<u8>> {
-    vec![dsp_write(id, value), dsp_read(id)]
+/// Write DSP parameter `id`, then read it back.
+pub fn dsp_write_and_read(family: DspFamily, id: u8, value: f32) -> Vec<Vec<u8>> {
+    vec![dsp_write(family, id, value), dsp_read(family, id)]
 }
 
 /// A short name for a packet's family, for logging.
@@ -92,12 +100,15 @@ mod tests {
     #[test]
     fn dsp_write_matches_capture_layout() {
         // Crystalizer on: 5a 12 07 01 96 07 00 00 80 3f
-        let write = dsp_write(0x07, 1.0);
+        let write = dsp_write(DspFamily::Playback, 0x07, 1.0);
         assert_eq!(write.len(), 64);
         assert_eq!(
             &write[..10],
             &[0x5a, 0x12, 0x07, 0x01, 0x96, 0x07, 0x00, 0x00, 0x80, 0x3f]
         );
-        assert_eq!(&dsp_read(0x07)[..6], &[0x5a, 0x11, 0x03, 0x01, 0x96, 0x07]);
+        assert_eq!(
+            &dsp_read(DspFamily::Playback, 0x07)[..6],
+            &[0x5a, 0x11, 0x03, 0x01, 0x96, 0x07]
+        );
     }
 }

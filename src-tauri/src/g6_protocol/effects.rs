@@ -1,7 +1,7 @@
 //! SBX effects: each has an on/off parameter and a level parameter in the
 //! playback DSP family. Toggles are f32 0.0 / 1.0; levels are 0.0-1.0,
 //! shown as 0-100.
-use super::{dsp_read, dsp_write_and_read};
+use super::{dsp_read, dsp_write_and_read, DspFamily};
 use crate::g6_spec::SbxEffect;
 
 pub const ALL_EFFECTS: [SbxEffect; 5] = [
@@ -61,18 +61,31 @@ pub fn level_from_device(value: f32) -> u8 {
 pub fn build_effect_read_commands() -> Vec<Vec<u8>> {
     ALL_EFFECTS
         .into_iter()
-        .flat_map(|effect| [dsp_read(toggle_id(effect)), dsp_read(level_id(effect))])
+        .flat_map(|effect| {
+            [
+                dsp_read(DspFamily::Playback, toggle_id(effect)),
+                dsp_read(DspFamily::Playback, level_id(effect)),
+            ]
+        })
         .collect()
 }
 
 /// Switch `effect` on or off, then read it back.
 pub fn build_set_effect_enabled(effect: SbxEffect, enabled: bool) -> Vec<Vec<u8>> {
-    dsp_write_and_read(toggle_id(effect), if enabled { 1.0 } else { 0.0 })
+    dsp_write_and_read(
+        DspFamily::Playback,
+        toggle_id(effect),
+        if enabled { 1.0 } else { 0.0 },
+    )
 }
 
 /// Set `effect`'s level (0-100), then read it back.
 pub fn build_set_effect_level(effect: SbxEffect, level: u8) -> Vec<Vec<u8>> {
-    dsp_write_and_read(level_id(effect), level_to_device(level))
+    dsp_write_and_read(
+        DspFamily::Playback,
+        level_id(effect),
+        level_to_device(level),
+    )
 }
 
 #[cfg(test)]

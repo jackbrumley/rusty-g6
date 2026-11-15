@@ -84,6 +84,38 @@ pub fn validate_effect_level(level: u8) -> anyhow::Result<u8> {
     }
 }
 
+/// The G6's mic processing switches (recording DSP).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MicSwitch {
+    NoiseReduction,
+    EchoCancellation,
+    SmartVolume,
+    Equalizer,
+}
+
+/// The G6's mic processing state.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MicProcessing {
+    pub noise_reduction: bool,
+    /// 0-100.
+    pub noise_reduction_level: u8,
+    pub echo_cancellation: bool,
+    pub smart_volume: bool,
+    pub equalizer: bool,
+}
+
+impl MicProcessing {
+    pub fn switch_mut(&mut self, switch: MicSwitch) -> &mut bool {
+        match switch {
+            MicSwitch::NoiseReduction => &mut self.noise_reduction,
+            MicSwitch::EchoCancellation => &mut self.echo_cancellation,
+            MicSwitch::SmartVolume => &mut self.smart_volume,
+            MicSwitch::Equalizer => &mut self.equalizer,
+        }
+    }
+}
+
 /// The DAC's digital reconstruction filter (CS43131). The G6 lists all five
 /// in its `0x6c` filter list; protocol bytes are in `g6_protocol::dac_filter`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -142,6 +174,7 @@ pub struct G6Settings {
     pub digital_filter: Option<DigitalFilter>,
     /// One of `MICROPHONE_BOOST_STEPS_DB`; `None` until read.
     pub microphone_boost_db: Option<u8>,
+    pub mic_processing: MicProcessing,
     pub firmware_version: Option<String>,
     /// Unix time of the last state read that got answers.
     pub last_read_time: Option<u64>,
@@ -157,6 +190,7 @@ impl Default for G6Settings {
             equalizer: EqualizerSettings::default(),
             digital_filter: None,
             microphone_boost_db: None,
+            mic_processing: MicProcessing::default(),
             firmware_version: None,
             last_read_time: None,
         }

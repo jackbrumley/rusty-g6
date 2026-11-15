@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { DigitalFilter, SbxEffect, ToastType } from "../types/g6";
+import type { DigitalFilter, MicSwitch, SbxEffect, ToastType } from "../types/g6";
 
 export type DeviceSettingsActions = ReturnType<typeof useDeviceSettings>;
 
@@ -37,6 +37,10 @@ export function useDeviceSettings({ showToast }: UseDeviceSettingsProps) {
     setEqBands: (gainsDb: number[]) => change("set_eq_bands", { gainsDb }, "Failed to apply the EQ preset"),
     setDacFilter: (filter: DigitalFilter) =>
       change("set_dac_filter", { filter }, "Failed to set the DAC filter"),
+    setMicSwitch: (micSwitch: MicSwitch, enabled: boolean) =>
+      change("set_mic_switch", { switch: micSwitch, enabled }, "Failed to switch the mic feature"),
+    setNoiseReductionLevel: (level: number) =>
+      change("set_noise_reduction_level", { level }, "Failed to set the noise reduction level"),
     setMicrophoneBoost: (dbValue: number) =>
       change("set_microphone_boost", { dbValue }, "Failed to set the mic boost"),
   };
