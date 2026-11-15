@@ -57,7 +57,6 @@ function App() {
             appVersion={preferences.appVersion}
             permissionError={connection.permissionError}
             settings={settings}
-            onReadDeviceState={connection.readDeviceState}
             onSetupPermissions={connection.setupUsbPermissions}
             showUpdatePill={updates.updateAvailable}
             onOpenUpdateModal={() => updates.setShowUpdateModal(true)}

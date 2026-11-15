@@ -51,17 +51,6 @@ export function useDeviceConnection(showToast: (message: string, type: ToastType
     }
   };
 
-  const readDeviceState = async () => {
-    try {
-      setSettings(await invoke<G6Settings>("read_device_state"));
-      showToast("Device state read: the controls now show the G6's own values.", "success");
-    } catch (error) {
-      console.error("Failed to read device state:", error);
-      await logUiEvent(`Read device state failed: ${String(error)}`);
-      showToast(`Failed to read device state: ${error}`, "error", 8000);
-    }
-  };
-
   const readDeviceStateSilently = async () => {
     try {
       setSettings(await withTimeout(invoke<G6Settings>("read_device_state"), READ_TIMEOUT_MS));
@@ -162,7 +151,6 @@ export function useDeviceConnection(showToast: (message: string, type: ToastType
     status,
     settings,
     permissionError,
-    readDeviceState,
     resetConnection,
     setupUsbPermissions,
   };

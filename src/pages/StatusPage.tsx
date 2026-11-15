@@ -7,7 +7,6 @@ interface StatusPageProps {
   appVersion: string;
   permissionError: boolean;
   settings: G6Settings | null;
-  onReadDeviceState: () => void;
   onSetupPermissions: () => void;
   showUpdatePill: boolean;
   onOpenUpdateModal: () => void;
@@ -22,7 +21,6 @@ export function StatusPage({
   appVersion,
   permissionError,
   settings,
-  onReadDeviceState,
   onSetupPermissions,
   showUpdatePill,
   onOpenUpdateModal,
@@ -84,13 +82,6 @@ export function StatusPage({
         </div>
       </dl>
 
-      {connected && (
-        <div class="status-actions">
-          <button onClick={onReadDeviceState} class="btn-compact">
-            Read Device State
-          </button>
-        </div>
-      )}
     </>
   );
 }

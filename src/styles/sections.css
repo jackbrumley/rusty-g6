@@ -120,11 +120,6 @@
   font-weight: 500;
 }
 
-.status-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-}
 
 /* Settings pages: titled groups of plain rows. A page flows its sections
    into two balanced columns when the window is wide enough. */
