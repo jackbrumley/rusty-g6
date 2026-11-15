@@ -165,7 +165,6 @@
 /* Buttons at the right end of a settings row. */
 .control-actions {
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
   margin-left: auto;

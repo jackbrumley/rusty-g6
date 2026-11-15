@@ -28,6 +28,13 @@
   font-weight: 500;
 }
 
+.control-value-muted {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
 .control-label {
   font-size: 0.85rem;
   min-width: 90px;
@@ -302,29 +309,35 @@ input:checked + .toggle-slider:before {
   max-width: 100%;
 }
 
+/* The closed dropdown looks like the selected item of its open list: a
+   soft accent tint with an accent edge. */
 .dropdown-button {
   display: flex;
   align-items: center;
   gap: 10px;
   max-width: 100%;
-  padding: 4px 10px;
-  background: transparent;
+  padding: 5px 10px 5px 12px;
+  background: var(--bg-selected);
   color: var(--text-main);
-  border: 1px solid var(--outline-clear);
-  border-radius: var(--border-radius);
+  border: none;
+  border-radius: 5px;
+  box-shadow: inset 2px 0 0 var(--brand-primary);
   font: inherit;
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 
 .dropdown-button:hover {
-  background: var(--line-subtle);
+  background: var(--bg-selected-hover);
 }
 
 .dropdown-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--focus-ring);
+  box-shadow:
+    inset 2px 0 0 var(--brand-primary),
+    0 0 0 3px var(--focus-ring);
 }
 
 .dropdown-button:disabled {

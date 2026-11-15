@@ -34,14 +34,14 @@ export function AppSettingsPage({ preferences, updates, connection, showToast }:
       </SettingsSection>
 
       <SettingsSection title="Updates">
-        <InfoRow label="Installed" value={`v${preferences.appVersion || "1.0.x"}`} />
-        {updates.updateAvailable && updates.updateResult && (
-          <InfoRow label="Available" value={`v${updates.updateResult.latestVersion}`} />
-        )}
-        <InfoRow label="Last checked" value={updates.lastCheckedLabel}>
-          {updates.updateAvailable && (
+        <InfoRow
+          label={`v${preferences.appVersion || "1.0.x"}`}
+          value={`Checked ${updates.lastCheckedLabel.toLowerCase()}`}
+          muted
+        >
+          {updates.updateAvailable && updates.updateResult && (
             <button onClick={() => updates.setShowUpdateModal(true)} class="btn-compact">
-              View update
+              Get v{updates.updateResult.latestVersion}
             </button>
           )}
           <button
@@ -49,7 +49,7 @@ export function AppSettingsPage({ preferences, updates, connection, showToast }:
             class="btn-compact btn-secondary"
             disabled={updates.checkingUpdates}
           >
-            {updates.checkingUpdates ? "Checking..." : "Check now"}
+            {updates.checkingUpdates ? "Checking..." : "Check"}
           </button>
         </InfoRow>
       </SettingsSection>

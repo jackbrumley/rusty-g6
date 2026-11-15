@@ -30,6 +30,7 @@
   --bg-popover: rgba(38, 29, 34, 0.94);
   --bg-inset: #100c0f;
   --bg-selected: rgba(255, 68, 68, 0.14);
+  --bg-selected-hover: rgba(255, 68, 68, 0.22);
   --bg-disabled: rgba(0, 0, 0, 0.2);
 
   --line-soft: #3b2e34;
