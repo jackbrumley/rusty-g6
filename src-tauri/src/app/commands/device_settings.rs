@@ -3,7 +3,7 @@
 use crate::app::commands::device::notify_device_changed;
 use crate::app::state::AppState;
 use crate::g6_device::G6DeviceManager;
-use crate::g6_spec::{DigitalFilter, MicSwitch, SbxEffect};
+use crate::g6_spec::{DecoderMode, DigitalFilter, MicSwitch, RgbColor, SbxEffect};
 use tauri::{AppHandle, Manager};
 
 /// Run one setting change: log it, report a failure as the command's error
@@ -81,6 +81,27 @@ pub fn set_noise_reduction_level(app: AppHandle, level: u8) -> Result<(), String
         &format!("Noise reduction level = {level}"),
         |device| device.set_noise_reduction_level(level),
     )
+}
+
+#[tauri::command(async)]
+pub fn set_decoder_mode(app: AppHandle, mode: DecoderMode) -> Result<(), String> {
+    change_device_setting(&app, &format!("Decoder mode = {mode:?}"), |device| {
+        device.set_decoder_mode(mode)
+    })
+}
+
+#[tauri::command(async)]
+pub fn set_lighting_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
+    change_device_setting(&app, &format!("Lighting enabled = {enabled}"), |device| {
+        device.set_lighting_enabled(enabled)
+    })
+}
+
+#[tauri::command(async)]
+pub fn set_lighting_color(app: AppHandle, color: RgbColor) -> Result<(), String> {
+    change_device_setting(&app, &format!("Lighting colour = {color:?}"), |device| {
+        device.set_lighting_color(color)
+    })
 }
 
 #[tauri::command(async)]

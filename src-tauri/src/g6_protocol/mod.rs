@@ -2,10 +2,12 @@
 //! padded. This module owns the framing and the DSP parameter read/write
 //! that most settings use; each area has its own module.
 pub mod dac_filter;
+pub mod decoder;
 pub mod effects;
 pub mod equalizer;
 pub mod events;
 pub mod firmware;
+pub mod lighting;
 pub mod microphone;
 pub mod reads;
 pub mod writes;
@@ -21,10 +23,12 @@ pub enum DspFamily {
     Recording = 0x95,
     /// Playback: SBX effects and the graphic EQ.
     Playback = 0x96,
+    /// The Dolby/DTS decoder.
+    Decoder = 0x97,
 }
 
 /// The packet families Rusty G6 sends. Others seen in captures (0x02 ack,
-/// 0x05, 0x10, 0x15, 0x20, 0x30, 0x3a) are only named in `describe_packet`.
+/// 0x05, 0x10, 0x15, 0x20, 0x30) are only named in `describe_packet`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CommandFamily {
@@ -37,6 +41,7 @@ pub enum CommandFamily {
     GlobalMode = 0x26,
     /// Speakers or headphones.
     Output = 0x2c,
+    Lighting = 0x3a,
     MicBoost = 0x3c,
     DacFilter = 0x6c,
 }

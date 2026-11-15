@@ -3,13 +3,16 @@
 //! device). `DeviceEvent::apply_to` is the one mapping from a report to
 //! `G6Settings`, used by both the state read and the event listener.
 use super::dac_filter::filter_from_byte;
+use super::decoder;
 use super::effects::{level_from_device, parameter_for_id, EffectParameter};
 use super::equalizer::{band_index, FEATURE_EQ_PREAMP, FEATURE_EQ_TOGGLE};
 use super::firmware::parse_firmware_response;
+use super::lighting::{parse_lighting_report, LightingReport};
 use super::microphone::{self, noise_reduction_level_from_device, MicParameter};
 use super::{DspFamily, PREFIX};
 use crate::g6_spec::{
-    DigitalFilter, G6Settings, MicSwitch, OutputDevice, SbxEffect, MICROPHONE_BOOST_STEPS_DB,
+    DecoderMode, DigitalFilter, G6Settings, MicSwitch, OutputDevice, RgbColor, SbxEffect,
+    MICROPHONE_BOOST_STEPS_DB,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +29,9 @@ pub enum DeviceEvent {
     DigitalFilterChanged(DigitalFilter),
     MicrophoneBoostChanged(u8),
     MicSwitchChanged(MicSwitch, bool),
+    DecoderModeChanged(DecoderMode),
+    LightingToggled(bool),
+    LightingColorChanged(RgbColor),
     NoiseReductionLevelChanged(u8),
 }
 
@@ -60,6 +66,9 @@ impl DeviceEvent {
             DeviceEvent::NoiseReductionLevelChanged(level) => {
                 settings.mic_processing.noise_reduction_level = level
             }
+            DeviceEvent::DecoderModeChanged(mode) => settings.decoder_mode = Some(mode),
+            DeviceEvent::LightingToggled(enabled) => settings.lighting.enabled = enabled,
+            DeviceEvent::LightingColorChanged(color) => settings.lighting.color = color,
         }
     }
 }
@@ -81,6 +90,13 @@ pub fn parse_device_packet(packet: &[u8]) -> Vec<DeviceEvent> {
             .flatten()
             .collect(),
         0x2c => parse_output_report(packet).into_iter().collect(),
+        0x3a => parse_lighting_report(packet)
+            .map(|report| match report {
+                LightingReport::Enabled(enabled) => DeviceEvent::LightingToggled(enabled),
+                LightingReport::Color(color) => DeviceEvent::LightingColorChanged(color),
+            })
+            .into_iter()
+            .collect(),
         0x3c => parse_microphone_boost_report(packet).into_iter().collect(),
         0x6c => parse_dac_filter_report(packet).into_iter().collect(),
         _ => Vec::new(),
@@ -135,7 +151,7 @@ fn parse_dac_filter_report(packet: &[u8]) -> Option<DeviceEvent> {
 /// of `[family] [id] [f32 LE]`, with len = 2 + count * 6. A single value has
 /// count 1; on an output switch the G6 pushes the new output's profile, up to
 /// eight blocks per packet. Each family has its own ids: playback (0x96) and
-/// recording (0x95) are mapped; the decoder (0x97) is not yet.
+/// recording (0x95) and decoder (0x97) are mapped.
 fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
     let (Some(&length), Some(&count)) = (packet.get(2), packet.get(3)) else {
         return Vec::new();
@@ -153,6 +169,9 @@ fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
             match block[0] {
                 family if family == DspFamily::Playback as u8 => {
                     playback_dsp_event(block[1], value)
+                }
+                family if family == DspFamily::Decoder as u8 => {
+                    decoder::mode_for_report(block[1], value).map(DeviceEvent::DecoderModeChanged)
                 }
                 family if family == DspFamily::Recording as u8 => {
                     recording_dsp_event(block[1], value)

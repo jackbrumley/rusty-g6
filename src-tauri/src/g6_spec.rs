@@ -125,6 +125,30 @@ impl MicProcessing {
     }
 }
 
+/// The decoder's dynamic range mode for Dolby/DTS content.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DecoderMode {
+    /// Full dynamic range.
+    Full,
+    Normal,
+    /// Compressed range, for quiet listening.
+    Night,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RgbColor {
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+}
+
+/// The G6's logo lighting: on/off and a static colour.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LightingSettings {
+    pub enabled: bool,
+    pub color: RgbColor,
+}
+
 /// The DAC's digital reconstruction filter (CS43131). The G6 lists all five
 /// in its `0x6c` filter list; protocol bytes are in `g6_protocol::dac_filter`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -181,6 +205,8 @@ pub struct G6Settings {
     pub effects: SbxEffects,
     pub equalizer: EqualizerSettings,
     pub digital_filter: Option<DigitalFilter>,
+    pub decoder_mode: Option<DecoderMode>,
+    pub lighting: LightingSettings,
     /// One of `MICROPHONE_BOOST_STEPS_DB`; `None` until read.
     pub microphone_boost_db: Option<u8>,
     pub mic_processing: MicProcessing,
@@ -198,6 +224,8 @@ impl Default for G6Settings {
             effects: SbxEffects::default(),
             equalizer: EqualizerSettings::default(),
             digital_filter: None,
+            decoder_mode: None,
+            lighting: LightingSettings::default(),
             microphone_boost_db: None,
             mic_processing: MicProcessing::default(),
             firmware_version: None,

@@ -10,6 +10,9 @@ broader command catalogue, see [rusty-g6-usb-spec.md](rusty-g6-usb-spec.md).
 - The hardware-verified protocol reference and USB captures of
   [linuxblaster_control](https://github.com/RizeCrime/linuxblaster_control)
   (graphic EQ, DAC filter, mic boost read, multi-feature status reports).
+- The USB captures of
+  [soundblaster-x-g6-cli](https://github.com/nils-skowasch/soundblaster-x-g6-cli)
+  (`payloads/raw`: mic processing, decoder, lighting, Direct mode).
 - Packet captures and session logs from Rusty G6 development.
 
 ## Where It Lives
@@ -65,9 +68,12 @@ And the recording family `0x95` (mic processing, `g6_protocol/microphone.rs`):
 | Id | Setting | Value | Source |
 |---|---|---|---|
 | `04` / `05` | Noise reduction on / level | 0.0 or 1.0 / 0.0-0.5 (shown 0-100) | captured |
-| `00` | Echo cancellation | 0.0 or 1.0 | decoded, not captured |
-| `2c` | Mic smart volume | 0.0 or 1.0 | decoded, not captured |
-| `13` | Mic EQ on | 0.0 or 1.0 | decoded, not captured |
+| `00` | Echo cancellation | 0.0 or 1.0 | captured |
+| `2c` | Mic smart volume | 0.0 or 1.0 | captured |
+| `13` | Mic EQ on | 0.0 or 1.0 | captured |
+
+And the decoder family `0x97` (`g6_protocol/decoder.rs`): `02` dynamic range,
+2.0 Normal, 1.0 Full, 3.0 Night (captured).
 
 ### Status Reports
 
@@ -86,6 +92,7 @@ settings.
 | `0x26` SBX / Scout | `5a 26 05 07 [01 SBX / 02 Scout] 00 [0/1] 00` | `5a 26 03 08 ff ff` | `5a 26 0b 08 ff ff [bitmask]`: bit 0 SBX, bit 1 Scout |
 | `0x3c` mic boost | `5a 3c 04 00 00 02 [dB]` (0, 10, 20, 30) | `5a 3c 02 01 00` | `5a 3c 04 01 00 02 [dB]` |
 | `0x6c` DAC filter | `5a 6c 03 00 [filter] 00` | `5a 6c 01 01` | `5a 6c 03 01 [filter] 00` |
+| `0x3a` lighting | on/off `5a 3a 02 06 [0/1]`; colour `5a 3a 06 04 00 03 01 00 01` then `5a 3a 09 0a 00 03 01 01 ff [B G R]` | `5a 3a 01 07`; `5a 3a 06 0b 01 00 01 01 01` | `5a 3a 02 07 [0/1]`; `5a 3a 09 0b 01 00 01 01 [A B G R]` |
 | `0x07` firmware | | `5a 07 01 02` | `5a 07 [len] [ASCII version]` |
 
 DAC filters: `01` fast roll-off minimum phase, `02` slow roll-off minimum

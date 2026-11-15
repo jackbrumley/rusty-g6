@@ -86,7 +86,7 @@ export function StatusPage({
 
       {connected && (
         <div class="status-actions">
-          <button onClick={onReadDeviceState} class="btn-compact btn-secondary">
+          <button onClick={onReadDeviceState} class="btn-compact">
             Read Device State
           </button>
         </div>

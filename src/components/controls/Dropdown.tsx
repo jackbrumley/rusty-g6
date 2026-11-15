@@ -138,7 +138,7 @@ export function Dropdown<T extends string>({
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={handleKeyDown}
       >
-        <span class={selectedIndex >= 0 ? "" : "dropdown-placeholder"}>{selectedName}</span>
+        <span>{selectedName}</span>
         <span class={`dropdown-chevron ${open ? "open" : ""}`} aria-hidden="true" />
       </button>
       {open && (

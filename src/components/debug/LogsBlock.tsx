@@ -80,14 +80,14 @@ export function LogsBlock({ showToast }: LogsBlockProps) {
         <InfoRow label="Session log">
           <button
             onClick={() => run("copy the log", "copy_session_log", "Session log copied to clipboard.")}
-            class="btn-compact btn-secondary"
+            class="btn-compact"
           >
             Copy
           </button>
-          <button onClick={() => run("open the log", "open_session_log")} class="btn-compact btn-secondary">
+          <button onClick={() => run("open the log", "open_session_log")} class="btn-compact">
             Open
           </button>
-          <button onClick={() => run("open the log folder", "open_log_folder")} class="btn-compact btn-secondary">
+          <button onClick={() => run("open the log folder", "open_log_folder")} class="btn-compact">
             Folder
           </button>
         </InfoRow>
@@ -96,7 +96,7 @@ export function LogsBlock({ showToast }: LogsBlockProps) {
       <SettingsSection title="System info">
         <pre class="system-info-text">{systemInfo ? systemInfoText(systemInfo) : "Loading..."}</pre>
         <InfoRow label="For bug reports">
-          <button onClick={copySystemInfo} class="btn-compact btn-secondary" disabled={!systemInfo}>
+          <button onClick={copySystemInfo} class="btn-compact" disabled={!systemInfo}>
             Copy system info
           </button>
         </InfoRow>

@@ -15,7 +15,7 @@ export function DeviceRequired({ connected, onGoToStatus, children }: DeviceRequ
   return (
     <div class="info-panel">
       <p>Connect your Sound BlasterX G6 to use these controls.</p>
-      <button class="btn-compact btn-secondary" onClick={onGoToStatus}>
+      <button class="btn-compact" onClick={onGoToStatus}>
         Go to Status
       </button>
     </div>

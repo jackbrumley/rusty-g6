@@ -35,36 +35,41 @@
   color: var(--text-muted);
 }
 
-/* Compact Buttons */
+/* Buttons share the closed dropdown's look: an accent tint with an accent
+   edge and white text. */
 .btn-compact {
-  padding: 6px 16px;
+  padding: 5px 14px 5px 16px;
   border: none;
-  border-radius: var(--border-radius);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: var(--transition);
+  border-radius: 5px;
+  background: var(--bg-selected);
+  box-shadow: inset 2px 0 0 var(--brand-primary);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.85rem;
   font-weight: 600;
-  background: var(--brand-gradient);
-  color: var(--brand-on-color);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .btn-compact:hover {
-  background: var(--brand-gradient-hover);
+  background: var(--bg-selected-hover);
 }
 
-/* Ghost buttons: transparent with a clear white outline. */
-.btn-compact.btn-secondary {
-  background: transparent;
-  color: var(--text-main);
-  border: 1px solid var(--outline-clear);
+.btn-compact:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 2px 0 0 var(--brand-primary),
+    0 0 0 3px var(--focus-ring);
 }
 
-.btn-compact.btn-secondary:hover {
-  background: var(--line-subtle);
+.btn-compact:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .btn-compact.btn-warning {
   background: var(--warning);
+  box-shadow: none;
   color: var(--on-warning);
 }
 

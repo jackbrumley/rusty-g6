@@ -46,7 +46,7 @@ export function AppSettingsPage({ preferences, updates, connection, showToast }:
           )}
           <button
             onClick={() => updates.checkForUpdates(true)}
-            class="btn-compact btn-secondary"
+            class="btn-compact"
             disabled={updates.checkingUpdates}
           >
             {updates.checkingUpdates ? "Checking..." : "Check"}
@@ -58,7 +58,7 @@ export function AppSettingsPage({ preferences, updates, connection, showToast }:
 
       <SettingsSection title="Device">
         <InfoRow label="Connection">
-          <button onClick={connection.resetConnection} class="btn-compact btn-secondary">
+          <button onClick={connection.resetConnection} class="btn-compact">
             Reconnect
           </button>
         </InfoRow>

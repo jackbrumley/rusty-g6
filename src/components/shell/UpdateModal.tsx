@@ -17,12 +17,12 @@ export function UpdateModal({ updates }: { updates: Updates }) {
         {updateError && <p class="info-note">Last check error: {updateError}</p>}
         <p class="update-last-checked">Last checked: {lastCheckedLabel}</p>
         <div class="update-modal-actions">
-          <button class="btn-compact btn-secondary" onClick={close}>
+          <button class="btn-compact" onClick={close}>
             Later
           </button>
           {updates.updateAvailable ? (
             <>
-              <button class="btn-compact btn-secondary" onClick={updates.openLatestReleasePage}>
+              <button class="btn-compact" onClick={updates.openLatestReleasePage}>
                 View Release Notes
               </button>
               <button class="btn-compact" onClick={updates.installUpdate} disabled={installingUpdate}>

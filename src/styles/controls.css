@@ -318,7 +318,7 @@ input:checked + .toggle-slider:before {
   max-width: 100%;
   padding: 5px 10px 5px 12px;
   background: var(--bg-selected);
-  color: var(--text-main);
+  color: #ffffff;
   border: none;
   border-radius: 5px;
   box-shadow: inset 2px 0 0 var(--brand-primary);
@@ -345,9 +345,6 @@ input:checked + .toggle-slider:before {
   cursor: default;
 }
 
-.dropdown-placeholder {
-  color: var(--text-muted);
-}
 
 .dropdown-chevron {
   flex: none;
@@ -389,7 +386,7 @@ input:checked + .toggle-slider:before {
 .dropdown-option {
   padding: 7px 12px;
   border-radius: 5px;
-  color: var(--text-main);
+  color: #ffffff;
   font-size: 0.85rem;
   cursor: pointer;
 }
@@ -476,4 +473,44 @@ input:checked + .toggle-slider:before {
 .control-row .btn-compact {
   flex: none;
   white-space: nowrap;
+}
+
+/* Lighting colour: swatches and a custom picker. */
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.color-swatch {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.color-swatch.selected {
+  box-shadow:
+    0 0 0 2px var(--bg-page),
+    0 0 0 4px #ffffff;
+}
+
+.color-swatch-custom {
+  overflow: hidden;
+  background: conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+}
+
+.color-swatch-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }

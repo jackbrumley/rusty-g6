@@ -2,7 +2,7 @@
 //! commands; the G6's answers update the cached settings (`send_commands`),
 //! so the cache holds what the device took.
 use super::G6DeviceManager;
-use crate::g6_protocol::{dac_filter, effects, equalizer, microphone, writes};
+use crate::g6_protocol::{dac_filter, decoder, effects, equalizer, lighting, microphone, writes};
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
 use log::{info, warn};
@@ -155,6 +155,27 @@ impl G6DeviceManager {
         self.send_confirmed(
             equalizer::build_set_eq_bands(&snapped),
             &format!("EQ bands {snapped:?} dB"),
+        )
+    }
+
+    pub fn set_decoder_mode(&self, mode: DecoderMode) -> Result<()> {
+        self.send_confirmed(
+            decoder::build_set_decoder_mode(mode),
+            &format!("decoder mode {mode:?}"),
+        )
+    }
+
+    pub fn set_lighting_enabled(&self, enabled: bool) -> Result<()> {
+        self.send_confirmed(
+            lighting::build_set_lighting_enabled(enabled),
+            &format!("lighting {}", on_off(enabled)),
+        )
+    }
+
+    pub fn set_lighting_color(&self, color: RgbColor) -> Result<()> {
+        self.send_confirmed(
+            lighting::build_set_lighting_color(color),
+            &format!("lighting colour {color:?}"),
         )
     }
 

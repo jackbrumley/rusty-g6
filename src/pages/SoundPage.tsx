@@ -1,11 +1,12 @@
 import { EffectControl } from "../components/controls/EffectControl";
+import { SelectControl } from "../components/controls/SelectControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
 import { DeviceRequired } from "../components/ui/DeviceRequired";
 import { SettingsPage } from "../components/ui/SettingsPage";
 import { SettingsSection } from "../components/ui/SettingsSection";
 import { Tooltip } from "../components/ui/Tooltip";
 import type { DeviceSettingsActions } from "../hooks/useDeviceSettings";
-import { SBX_EFFECTS, type G6Settings } from "../types/g6";
+import { DECODER_MODES, SBX_EFFECTS, type G6Settings } from "../types/g6";
 
 interface SoundPageProps {
   settings: G6Settings | null;
@@ -29,6 +30,16 @@ export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
                   </button>
                 </Tooltip>
               </div>
+            </SettingsSection>
+
+            <SettingsSection title="Decoder">
+              <SelectControl
+                label="Dynamic range"
+                tooltip="How the G6 decodes Dolby and DTS sound: full range, normal, or compressed for quiet late-night listening."
+                value={settings.decoder_mode}
+                options={DECODER_MODES}
+                onChange={actions.setDecoderMode}
+              />
             </SettingsSection>
 
             <SettingsSection title="SBX">

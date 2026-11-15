@@ -208,19 +208,19 @@ command, UI):
    linuxblaster's `set_filter_*` captures; NOS (`0x03`) is listed by the
    device but its write is not captured, so check NOS first.
 4. **Recording controls.** Built on the Mic tab, not yet tested on hardware:
-   noise reduction and level (captured), echo cancellation `95:00`, mic smart
-   volume `95:2c` and the mic EQ switch `95:13` (decoded by linuxblaster and
-   Creative's table, not captured). Still to do: mic EQ presets on
-   `95:14`-`95:1b` (captured), and a mic level slider for the ALSA
-   `External Mic` capture volume (-48 to +9 dB, PipeWire never drives it).
+   noise reduction and level, echo cancellation `95:00`, mic smart volume
+   `95:2c` and the mic EQ switch `95:13` (all captured: linuxblaster and
+   soundblaster-x-g6-cli `payloads/raw`). The mic level slider is built too. Still to do: mic EQ presets on
+   `95:14`-`95:1b` (captured).
 5. **Smaller items:**
    - `96:17` (10–300, step 0.5): linuxblaster calls it surround distance,
      but Creative's own parameter table names it the **XBass crossover**.
      Check on hardware which one it is before labelling it.
-   - Decoder mode `97:02` (2 = Normal, 1 = Full, 3 = Night).
+   - ~~Decoder mode `97:02`~~ built (Sound tab).
    - Smart Volume mode `96:06` (0 = Normal, 1 = Loud, 2 = Night). The
      `SmartVolumePreset` enum exists, but nothing reads or writes it yet.
-6. **Lighting.** On/off `5a 3a 02 06 [0|1]`; colour `5a 3a 06 04 00 03 01 00 01`
+6. **Lighting.** On/off and static colour built (Device tab). Still to do:
+   effects (pulsate, cycle, music reactive), not captured. Original notes: On/off `5a 3a 02 06 [0|1]`; colour `5a 3a 06 04 00 03 01 00 01`
    then `5a 3a 09 0a 00 03 01 01 ff B G R`. Read with `5a 3a 01 07` and
    `5a 3a 06 0b 01 00 01 01 01`.
 7. **Mixer and recording source.** These are standard USB Audio Class

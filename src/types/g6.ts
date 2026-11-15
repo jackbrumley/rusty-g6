@@ -80,6 +80,28 @@ export const EQ_PREAMP_LIMIT_DB = 6;
 export const EQ_BAND_LIMIT_DB = 12;
 export const EQ_GAIN_STEP_DB = 0.5;
 
+/// `g6_spec::DecoderMode`: the decoder's dynamic range for Dolby/DTS.
+export type DecoderMode = "Full" | "Normal" | "Night";
+
+export const DECODER_MODES: { id: DecoderMode; name: string }[] = [
+  { id: "Full", name: "Full range" },
+  { id: "Normal", name: "Normal" },
+  { id: "Night", name: "Night (compressed)" },
+];
+
+/// `g6_spec::RgbColor`.
+export interface RgbColor {
+  red: number;
+  green: number;
+  blue: number;
+}
+
+/// `g6_spec::LightingSettings`: the logo lighting.
+export interface LightingSettings {
+  enabled: boolean;
+  color: RgbColor;
+}
+
 /// `g6_spec::DigitalFilter`: the DAC's reconstruction filter.
 export type DigitalFilter =
   | "FastRollOffMinimumPhase"
@@ -104,6 +126,8 @@ export interface G6Settings {
   effects: Record<SbxEffect, EffectSettings>;
   equalizer: EqualizerSettings;
   digital_filter: DigitalFilter | null;
+  decoder_mode: DecoderMode | null;
+  lighting: LightingSettings;
   /// `null` until read from the device.
   microphone_boost_db: number | null;
   mic_processing: MicProcessing;
