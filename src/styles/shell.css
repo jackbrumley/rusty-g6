@@ -335,13 +335,6 @@ body {
   gap: 10px;
 }
 
-.title-bar-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-  pointer-events: none;
-}
-
 .tooltip-anchor {
   position: relative;
   display: inline-flex;

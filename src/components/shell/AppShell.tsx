@@ -17,8 +17,10 @@ interface AppShellProps {
 
 const TABS: { route: AppRoute; label: string }[] = [
   { route: "status", label: "Status" },
-  { route: "output", label: "Output" },
-  { route: "input", label: "Input" },
+  { route: "sound", label: "Sound" },
+  { route: "eq", label: "EQ" },
+  { route: "mic", label: "Mic" },
+  { route: "device", label: "Device" },
   { route: "debug", label: "Settings" },
 ];
 

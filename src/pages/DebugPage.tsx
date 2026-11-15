@@ -1,13 +1,13 @@
-import { CollapsibleCardSection } from "../components/ui/CollapsibleCardSection";
 import { ToggleControl } from "../components/controls/ToggleControl";
+import { LogsBlock } from "../components/debug/LogsBlock";
+import { InfoRow } from "../components/ui/InfoRow";
+import { SettingsSection } from "../components/ui/SettingsSection";
 import { TabPageHeader } from "../components/ui/TabPageHeader";
 import { Tooltip } from "../components/ui/Tooltip";
-import { LogsBlock } from "../components/debug/LogsBlock";
 import type { AppPreferences } from "../hooks/useAppPreferences";
 import type { DeviceConnection } from "../hooks/useDeviceConnection";
 import type { Updates } from "../hooks/useUpdates";
 import type { ToastType } from "../types/g6";
-import { useState } from "preact/hooks";
 
 interface DebugPageProps {
   preferences: AppPreferences;
@@ -18,144 +18,88 @@ interface DebugPageProps {
 }
 
 export function DebugPage({ preferences, updates, connection, onNavigateUiLab, showToast }: DebugPageProps) {
-  const [activeSection, setActiveSection] = useState<string | null>(null);
-  const toggleSection = (section: string) => {
-    setActiveSection((current) => (current === section ? null : section));
-  };
+  const logSeparator = (
+    <div class="control-row">
+      <input
+        type="text"
+        class="ghost-input"
+        placeholder="Note for a log separator (optional)"
+        value={preferences.logSeparatorMessage}
+        onInput={(e) => preferences.setLogSeparatorMessage(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            preferences.insertLogSeparator();
+          }
+        }}
+      />
+      <Tooltip text="Writes a visible separator line, with your note, into the session log.">
+        <button onClick={preferences.insertLogSeparator} class="btn-compact btn-secondary">
+          Add separator
+        </button>
+      </Tooltip>
+    </div>
+  );
 
   return (
     <>
-      <TabPageHeader
-        title="Settings"
-        subtitle="Application controls and update preferences, with advanced debug tools grouped separately below."
-      />
+      <TabPageHeader title="Settings" subtitle="How Rusty G6 starts and updates, and tools for bug reports." />
 
-      <div class="settings-accordion">
-      <CollapsibleCardSection
-        title="General Settings"
-        isOpen={activeSection === "general"}
-        onToggle={() => toggleSection("general")}
-      >
-        <div class="debug-log-tools">
-          <div class="debug-log-card">
-            <div class="debug-toggle-grid">
-              <ToggleControl
-                label="Auto-start with system"
-                checked={preferences.autostartEnabled}
-                onChange={preferences.toggleAutostart}
-              />
-              <ToggleControl
-                label="Close to tray"
-                checked={preferences.closeToTray}
-                onChange={preferences.toggleCloseToTray}
-                tooltip="Closing the window keeps Rusty G6 running in the system tray. Use Quit in the tray menu to exit."
-              />
-            </div>
-          </div>
-        </div>
-      </CollapsibleCardSection>
+      <SettingsSection title="General">
+        <ToggleControl
+          label="Start with the system"
+          checked={preferences.autostartEnabled}
+          onChange={preferences.toggleAutostart}
+        />
+        <ToggleControl
+          label="Close to tray"
+          checked={preferences.closeToTray}
+          onChange={preferences.toggleCloseToTray}
+          tooltip="Closing the window keeps Rusty G6 running in the system tray. Use Quit in the tray menu to exit."
+        />
+      </SettingsSection>
 
-      <CollapsibleCardSection
-        title="Updates"
-        isOpen={activeSection === "updates"}
-        onToggle={() => toggleSection("updates")}
-      >
-        <div class="debug-log-tools">
-          <div class="debug-log-card">
-            <div class="device-details">
-              <div class="read-only-item">
-                <span class="readonly-label">Current Version:</span>
-                <span class="readonly-value">v{preferences.appVersion || "1.0.x"}</span>
-              </div>
-              <div class="read-only-item">
-                <span class="readonly-label">Latest Version:</span>
-                <span class="readonly-value">{updates.updateResult ? `v${updates.updateResult.latestVersion}` : "Unknown"}</span>
-              </div>
-              <div class="read-only-item">
-                <span class="readonly-label">Last Checked:</span>
-                <span class="readonly-value">{updates.lastCheckedLabel}</span>
-              </div>
-            </div>
-            <div class="debug-log-actions">
-              <button onClick={() => updates.checkForUpdates(true)} class="btn-compact btn-secondary" disabled={updates.checkingUpdates}>
-                {updates.checkingUpdates ? "Checking..." : "Check for Updates"}
-              </button>
-              {updates.updateAvailable && (
-                <button onClick={() => updates.setShowUpdateModal(true)} class="btn-compact btn-secondary">
-                  View Update
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </CollapsibleCardSection>
+      <SettingsSection title="Updates">
+        <InfoRow label="Installed" value={`v${preferences.appVersion || "1.0.x"}`} />
+        <InfoRow
+          label="Latest"
+          value={updates.updateResult ? `v${updates.updateResult.latestVersion}` : "Unknown"}
+        />
+        <InfoRow label="Last checked" value={updates.lastCheckedLabel}>
+          {updates.updateAvailable && (
+            <button onClick={() => updates.setShowUpdateModal(true)} class="btn-compact">
+              View update
+            </button>
+          )}
+          <button
+            onClick={() => updates.checkForUpdates(true)}
+            class="btn-compact btn-secondary"
+            disabled={updates.checkingUpdates}
+          >
+            {updates.checkingUpdates ? "Checking..." : "Check now"}
+          </button>
+        </InfoRow>
+      </SettingsSection>
 
-      <CollapsibleCardSection
-        title="Logs"
-        isOpen={activeSection === "logging"}
-        onToggle={() => toggleSection("logging")}
-      >
-        <div class="debug-log-tools">
-          <LogsBlock showToast={showToast} />
-          <div class="debug-log-card">
-            <div class="debug-log-row">
-              <input
-                type="text"
-                class="log-message-input"
-                placeholder="Optional: Add a note to the log separator..."
-                value={preferences.logSeparatorMessage}
-                onInput={(e) => preferences.setLogSeparatorMessage(e.currentTarget.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    preferences.insertLogSeparator();
-                  }
-                }}
-              />
-              <Tooltip text="Inserts a visible separator marker in terminal logs using your optional note.">
-                <button onClick={preferences.insertLogSeparator} class="btn-compact btn-secondary debug-log-button">
-                  Add Log Separator
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-        </div>
-      </CollapsibleCardSection>
+      <LogsBlock showToast={showToast} separator={logSeparator} />
 
-      <CollapsibleCardSection
-        title="Device Debug"
-        isOpen={activeSection === "device-debug"}
-        onToggle={() => toggleSection("device-debug")}
-      >
-        <div class="debug-log-tools">
-          <div class="debug-log-card">
-            <div class="debug-action-grid">
-              <button onClick={connection.readDeviceState} class="btn-compact btn-secondary">
-                Read Device State
-              </button>
-              <button onClick={connection.resetConnection} class="btn-compact btn-secondary">
-                Reset Connection
-              </button>
-            </div>
-          </div>
-        </div>
-      </CollapsibleCardSection>
+      <SettingsSection title="Device">
+        <InfoRow label="Connection">
+          <button onClick={connection.readDeviceState} class="btn-compact btn-secondary">
+            Read device state
+          </button>
+          <button onClick={connection.resetConnection} class="btn-compact btn-secondary">
+            Reconnect
+          </button>
+        </InfoRow>
+      </SettingsSection>
 
-      <CollapsibleCardSection
-        title="UI Debug"
-        isOpen={activeSection === "ui-debug"}
-        onToggle={() => toggleSection("ui-debug")}
-      >
-        <div class="debug-log-tools">
-          <div class="debug-log-card">
-            <div class="debug-action-grid">
-              <button onClick={onNavigateUiLab} class="btn-compact btn-secondary">
-                Open UI Lab
-              </button>
-            </div>
-          </div>
-        </div>
-      </CollapsibleCardSection>
-      </div>
+      <SettingsSection title="Developer">
+        <InfoRow label="UI Lab">
+          <button onClick={onNavigateUiLab} class="btn-compact btn-secondary">
+            Open
+          </button>
+        </InfoRow>
+      </SettingsSection>
     </>
   );
 }

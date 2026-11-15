@@ -13,13 +13,4 @@
   .tab-nav-shell {
     padding: 8px 10px 0;
   }
-
-  .debug-toggle-grid,
-  .output-controls-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .debug-action-grid .btn-compact {
-    max-width: none;
-  }
 }

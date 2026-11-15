@@ -6,30 +6,26 @@
 .control-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  margin-top: 8px; /* Spacing from section-line above */
-  margin-bottom: 6px;
-  background: var(--bg-inset);
-  border-radius: var(--border-radius);
-  box-shadow: inset 0 0 0 1px var(--line-highlight);
-  transition: var(--transition);
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line-subtle);
 }
 
-.control-row:hover {
-  box-shadow: var(--control-hover-shadow), inset 0 0 0 1px var(--line-subtle);
+.control-row:last-child {
+  border-bottom: none;
 }
 
-/* Disabled state (for effect controls when SBX Mode is off) */
+/* Disabled state (effect controls while SBX is off) */
 .control-row.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.45;
   pointer-events: none;
-  background: var(--bg-disabled);
 }
 
-.control-row.disabled:hover {
-  border-color: var(--line-soft);
+.control-value {
+  flex: 1;
+  color: var(--text-main);
+  font-weight: 500;
 }
 
 .control-label {
@@ -295,37 +291,34 @@ input:checked + .toggle-slider:before {
   background: var(--line-strong);
 }
 
-/* App Version */
-.app-version {
-  position: fixed;
-  bottom: 8px;
-  right: 12px;
-  font-size: 10px;
-  color: var(--text-faint);
-  user-select: none;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  pointer-events: none;
-}
-
 /* =================================================================== */
 /* DROPDOWN inside a control row (EQ preset, recording source)         */
 /* =================================================================== */
+/* Ghost style: transparent with a faint outline, so the page shows through. */
 .select-control {
-  flex: 1;
-  padding: 4px 8px;
-  background: var(--field-bg);
+  margin-left: auto;
+  max-width: 100%;
+  padding: 4px 10px;
+  background: transparent;
   color: var(--text-main);
-  border: 1px solid var(--field-border);
+  border: 1px solid var(--line-soft);
   border-radius: var(--border-radius);
   font: inherit;
   font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
   /* The open list is drawn by the system; ask it for its dark theme. */
   color-scheme: dark;
 }
 
 .select-control:hover {
-  border-color: var(--field-border-hover);
+  border-color: var(--line-strong);
+  background: var(--line-highlight);
+}
+
+.select-control:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .select-control:focus-visible {
@@ -346,6 +339,9 @@ input:checked + .toggle-slider:before {
 .eq-graph {
   display: block;
   width: 100%;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
   height: auto;
   margin-top: 8px;
   background: var(--bg-inset);
@@ -403,3 +399,8 @@ input:checked + .toggle-slider:before {
   font-weight: 600;
 }
 
+.eq-hint {
+  max-width: 560px;
+  margin: 6px auto 0;
+  text-align: center;
+}

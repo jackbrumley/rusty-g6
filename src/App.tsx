@@ -3,7 +3,6 @@ import "./styles/tokens.css";
 import "./styles/shell.css";
 import "./styles/sections.css";
 import "./styles/controls.css";
-import "./styles/diagnostics.css";
 import "./styles/responsive.css";
 import { AppShell } from "./components/shell/AppShell";
 import { ToastHost } from "./components/toast/ToastHost";
@@ -18,8 +17,10 @@ import { useToastManager } from "./hooks/useToastManager";
 import { useUpdates } from "./hooks/useUpdates";
 import { useWindowControls } from "./hooks/useWindowControls";
 import { DebugPage } from "./pages/DebugPage";
-import { InputPage } from "./pages/InputPage";
-import { OutputPage } from "./pages/OutputPage";
+import { DevicePage } from "./pages/DevicePage";
+import { EqPage } from "./pages/EqPage";
+import { MicPage } from "./pages/MicPage";
+import { SoundPage } from "./pages/SoundPage";
 import { StatusPage } from "./pages/StatusPage";
 import { UiLabPage } from "./pages/UiLabPage";
 
@@ -64,24 +65,26 @@ function App() {
           />
         )}
 
-        {activeTab === "output" && (
-          <OutputPage
-            connected={connected}
-            settings={settings}
-            actions={deviceSettings}
-            onGoToStatus={goToStatus}
-          />
+        {activeTab === "sound" && (
+          <SoundPage settings={settings} actions={deviceSettings} onGoToStatus={goToStatus} />
         )}
 
-        {activeTab === "input" && (
-          <InputPage
-            connected={connected}
+        {activeTab === "eq" && (
+          <EqPage settings={settings} actions={deviceSettings} onGoToStatus={goToStatus} />
+        )}
+
+        {activeTab === "mic" && (
+          <MicPage
             settings={settings}
             recordingSource={recordingSource}
             onSetRecordingSource={setRecordingSource}
             actions={deviceSettings}
             onGoToStatus={goToStatus}
           />
+        )}
+
+        {activeTab === "device" && (
+          <DevicePage settings={settings} actions={deviceSettings} onGoToStatus={goToStatus} />
         )}
 
         {activeTab === "debug" && (

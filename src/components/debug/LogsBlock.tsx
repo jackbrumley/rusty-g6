@@ -1,14 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
+import { SelectControl } from "../controls/SelectControl";
+import { InfoRow } from "../ui/InfoRow";
+import { SettingsSection } from "../ui/SettingsSection";
 import type { SystemInfo, ToastType } from "../../types/g6";
 
-// The Logs block in Settings -> Debug (App Standard section 4). Bug reports
+// The Logs and System info sections in Settings (App Standard section 4). Bug reports
 // ask for "Copy log" plus "System info".
 
 const LOG_LEVELS = ["error", "warn", "info", "debug", "trace"] as const;
 
 interface LogsBlockProps {
   showToast: (message: string, type: ToastType) => void;
+  /// The log separator row, shown in the Logs section.
+  separator: ComponentChildren;
 }
 
 const systemInfoText = (info: SystemInfo) =>
@@ -21,7 +27,7 @@ const systemInfoText = (info: SystemInfo) =>
     `Executable: ${info.executable}`,
   ].join("\n");
 
-export function LogsBlock({ showToast }: LogsBlockProps) {
+export function LogsBlock({ showToast, separator }: LogsBlockProps) {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [logLevel, setLogLevel] = useState("info");
 
@@ -66,48 +72,39 @@ export function LogsBlock({ showToast }: LogsBlockProps) {
   };
 
   return (
-    <div class="debug-log-card">
-      <h3>Logs</h3>
-      <div class="debug-log-actions">
-        <button
-          onClick={() => run("copy the log", "copy_session_log", "Session log copied to clipboard.")}
-          class="btn-compact btn-secondary"
-        >
-          Copy log
-        </button>
-        <button onClick={() => run("open the log", "open_session_log")} class="btn-compact btn-secondary">
-          Open log
-        </button>
-        <button onClick={() => run("open the log folder", "open_log_folder")} class="btn-compact btn-secondary">
-          Open log folder
-        </button>
-      </div>
-
-      <div class="debug-log-row">
-        <label class="readonly-label" for="log-level-select">
-          Log level:
-        </label>
-        <select
-          id="log-level-select"
-          class="log-message-input log-level-select"
+    <>
+      <SettingsSection title="Logs">
+        <SelectControl
+          label="Log level"
           value={logLevel}
-          onChange={(event) => changeLogLevel(event.currentTarget.value)}
-        >
-          {LOG_LEVELS.map((level) => (
-            <option key={level} value={level}>
-              {level}
-            </option>
-          ))}
-        </select>
-      </div>
+          options={LOG_LEVELS.map((level) => ({ id: level, name: level }))}
+          onChange={changeLogLevel}
+        />
+        <InfoRow label="Session log">
+          <button
+            onClick={() => run("copy the log", "copy_session_log", "Session log copied to clipboard.")}
+            class="btn-compact btn-secondary"
+          >
+            Copy
+          </button>
+          <button onClick={() => run("open the log", "open_session_log")} class="btn-compact btn-secondary">
+            Open
+          </button>
+          <button onClick={() => run("open the log folder", "open_log_folder")} class="btn-compact btn-secondary">
+            Folder
+          </button>
+        </InfoRow>
+        {separator}
+      </SettingsSection>
 
-      <h3>System info</h3>
-      <pre class="system-info-text">{systemInfo ? systemInfoText(systemInfo) : "Loading..."}</pre>
-      <div class="debug-log-actions">
-        <button onClick={copySystemInfo} class="btn-compact btn-secondary" disabled={!systemInfo}>
-          Copy system info
-        </button>
-      </div>
-    </div>
+      <SettingsSection title="System info">
+        <pre class="system-info-text">{systemInfo ? systemInfoText(systemInfo) : "Loading..."}</pre>
+        <InfoRow label="For bug reports">
+          <button onClick={copySystemInfo} class="btn-compact btn-secondary" disabled={!systemInfo}>
+            Copy system info
+          </button>
+        </InfoRow>
+      </SettingsSection>
+    </>
   );
 }

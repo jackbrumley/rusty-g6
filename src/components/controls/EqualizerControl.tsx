@@ -1,6 +1,8 @@
 import { EQ_GAIN_STEP_DB, EQ_PREAMP_LIMIT_DB, type EqualizerSettings } from "../../types/g6";
 import { EqualizerGraph } from "./EqualizerGraph";
 import { EQ_PRESETS, matchingPreset } from "./eqPresets";
+import { SettingsSection } from "../ui/SettingsSection";
+import { SelectControl } from "./SelectControl";
 import { SliderControl } from "./SliderControl";
 import { ToggleControl } from "./ToggleControl";
 
@@ -26,47 +28,29 @@ export function EqualizerControl({
   const enabled = equalizer.enabled;
   const preset = matchingPreset(equalizer.band_gains_db);
 
-  const handlePresetChange = (event: Event) => {
-    const chosen = EQ_PRESETS.find(
-      (candidate) => candidate.id === (event.currentTarget as HTMLSelectElement).value
-    );
+  const choosePreset = (id: string) => {
+    const chosen = EQ_PRESETS.find((candidate) => candidate.id === id);
     if (chosen) {
       onSetBands(chosen.gainsDb);
     }
   };
 
   return (
-    <div class="effects-list">
-      <h3>Equalizer</h3>
-      <div class="output-controls-grid">
+    <>
+      <SettingsSection title="Settings">
         <ToggleControl
           label="Equalizer"
           checked={enabled}
           tooltip="10-band graphic EQ, stored on the G6 for the current output."
           onChange={onSetEnabled}
         />
-
-        <div class="control-row">
-          <span class="control-label">Preset</span>
-          <select class="select-control" value={preset?.id ?? "custom"} onChange={handlePresetChange}>
-            {!preset && (
-              <option value="custom" disabled>
-                Custom
-              </option>
-            )}
-            {EQ_PRESETS.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <EqualizerGraph gainsDb={equalizer.band_gains_db} dimmed={!enabled} onSetBand={onSetBand} />
-      <p class="info-note">Drag a point to change that band. Double-click a point to reset it.</p>
-
-      <div class="output-controls-grid">
+        <SelectControl
+          label="Preset"
+          value={preset?.id ?? null}
+          placeholder="Custom"
+          options={EQ_PRESETS.map(({ id, name }) => ({ id, name }))}
+          onChange={choosePreset}
+        />
         <SliderControl
           label="Preamp"
           value={equalizer.preamp_db}
@@ -77,7 +61,10 @@ export function EqualizerControl({
           tooltip="Lowers or raises the level before the EQ, to avoid clipping when bands are boosted."
           onChange={onSetPreamp}
         />
-      </div>
-    </div>
+      </SettingsSection>
+
+      <EqualizerGraph gainsDb={equalizer.band_gains_db} dimmed={!enabled} onSetBand={onSetBand} />
+      <p class="info-note eq-hint">Drag a point to change that band. Double-click a point to reset it.</p>
+    </>
   );
 }
