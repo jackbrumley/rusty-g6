@@ -10,7 +10,24 @@ import { SettingsSection } from "../components/ui/SettingsSection";
 import { IS_LINUX } from "../app/platform";
 import type { DeviceSettingsActions } from "../hooks/useDeviceSettings";
 import type { Mixer } from "../hooks/useMixer";
-import { MIC_SWITCHES, RECORDING_SOURCES, type G6Settings } from "../types/g6";
+import { MIC_SWITCHES, RECORDING_SOURCES, type G6Settings, type VoiceMorph } from "../types/g6";
+
+const VOICE_MORPH_OFF = "off";
+
+/// The Voice dropdown: Off, then every preset.
+const VOICE_MORPH_CHOICES = [
+  { id: VOICE_MORPH_OFF, name: "Off", description: "Your own voice." },
+  ...VOICE_MORPH_PRESETS,
+];
+
+/// The dropdown's value for the G6's voice morph: Off, a preset, or `null`
+/// (shown as Custom) when its values match no preset.
+function voiceMorphChoice(voiceMorph: VoiceMorph): string | null {
+  if (!voiceMorph.enabled) {
+    return VOICE_MORPH_OFF;
+  }
+  return matchingVoiceMorphPreset(voiceMorph.values)?.id ?? null;
+}
 
 interface MicPageProps {
   settings: G6Settings | null;
@@ -135,24 +152,23 @@ export function MicPage({
             </SettingsSection>
 
             <SettingsSection title="Voice morph">
-              <ToggleControl
-                label="Voice morph"
-                description="Changes how others hear you. Turn on Hear yourself to try it."
-                checked={settings.mic_processing.voice_morph.enabled}
-                onChange={actions.setVoiceMorphEnabled}
-              />
               <SelectControl
                 label="Voice"
-                value={matchingVoiceMorphPreset(settings.mic_processing.voice_morph.values)?.id ?? null}
+                description="Changes how others hear you. Turn on Hear yourself to try it."
+                value={voiceMorphChoice(settings.mic_processing.voice_morph)}
                 placeholder="Custom"
-                options={VOICE_MORPH_PRESETS}
-                onChange={(id) => {
+                options={VOICE_MORPH_CHOICES}
+                onChange={async (id) => {
                   const preset = VOICE_MORPH_PRESETS.find((candidate) => candidate.id === id);
-                  if (preset) {
-                    actions.setVoiceMorphValues(preset.values);
+                  if (!preset) {
+                    await actions.setVoiceMorphEnabled(false);
+                    return;
+                  }
+                  // The voice first, so switching on never plays the old one.
+                  if ((await actions.setVoiceMorphValues(preset.values)) && !settings.mic_processing.voice_morph.enabled) {
+                    await actions.setVoiceMorphEnabled(true);
                   }
                 }}
-                disabled={!settings.mic_processing.voice_morph.enabled}
               />
             </SettingsSection>
           </SettingsPage>

@@ -1,7 +1,8 @@
 /// Voice morph presets: the eight values in `g6_spec::VoiceMorphValue`
 /// order (formants 1-3 in Hz, pitch, envelope, pitch variability, quiver,
 /// contour). The values are Creative's (G6 `PresetConfig.json`); the names
-/// and descriptions are ours.
+/// and descriptions are ours. Creative's "Neutral" is left out: it sounds
+/// the same as voice morph off.
 export interface VoiceMorphPreset {
   id: string;
   name: string;
@@ -10,7 +11,6 @@ export interface VoiceMorphPreset {
 }
 
 export const VOICE_MORPH_PRESETS: VoiceMorphPreset[] = [
-  { id: "neutral", name: "Neutral", description: "Your own voice, unchanged.", values: [400, 1400, 2000, 1, 1, 1, 0, 0] },
   { id: "male", name: "Male", description: "Lower and deeper.", values: [400, 1400, 2000, 0.6, 1.05, 1, 0, 0] },
   { id: "female", name: "Female", description: "Higher and lighter.", values: [400, 1400, 2220, 2.37, 0.92, 1, 0, 0] },
   { id: "kid", name: "Kid", description: "Much higher, like a child.", values: [400, 1400, 2000, 3, 0.66, 1, 0, 0] },
