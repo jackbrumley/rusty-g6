@@ -55,6 +55,8 @@ pub fn run(launch: LaunchOptions, second_launch_shows_window: fn(&[String]) -> b
             set_mic_switch,
             set_noise_reduction_level,
             set_mic_eq_bands,
+            set_voice_morph_enabled,
+            set_voice_morph_values,
             set_device_flag,
             set_decoder_mode,
             set_lighting_enabled,

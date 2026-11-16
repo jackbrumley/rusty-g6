@@ -10,10 +10,11 @@ use super::equalizer::{band_index, FEATURE_EQ_PREAMP, FEATURE_EQ_TOGGLE};
 use super::firmware::parse_firmware_response;
 use super::lighting::{parse_lighting_report, LightingReport};
 use super::microphone::{self, noise_reduction_level_from_device, MicParameter};
+use super::voice_morph::{self, VoiceMorphParameter};
 use super::{DspFamily, PREFIX};
 use crate::g6_spec::{
     DecoderMode, DeviceFlag, DigitalFilter, G6Settings, MicSwitch, OutputDevice, RgbColor,
-    SbxEffect, MICROPHONE_BOOST_STEPS_DB,
+    SbxEffect, VoiceMorphValue, MICROPHONE_BOOST_STEPS_DB,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +27,10 @@ pub enum DeviceEvent {
     EffectLevelChanged(SbxEffect, u8),
     EqToggled(bool),
     EqPreampChanged(f32),
-    EqBandChanged { band: usize, gain_db: f32 },
+    EqBandChanged {
+        band: usize,
+        gain_db: f32,
+    },
     DigitalFilterChanged(DigitalFilter),
     MicrophoneBoostChanged(u8),
     MicSwitchChanged(MicSwitch, bool),
@@ -35,7 +39,15 @@ pub enum DeviceEvent {
     LightingToggled(bool),
     LightingColorChanged(RgbColor),
     NoiseReductionLevelChanged(u8),
-    MicEqBandChanged { band: usize, gain_db: f32 },
+    MicEqBandChanged {
+        band: usize,
+        gain_db: f32,
+    },
+    VoiceMorphToggled(bool),
+    VoiceMorphValueChanged {
+        value: VoiceMorphValue,
+        reported: f32,
+    },
 }
 
 impl DeviceEvent {
@@ -71,6 +83,12 @@ impl DeviceEvent {
             }
             DeviceEvent::MicEqBandChanged { band, gain_db } => {
                 settings.mic_processing.equalizer_gains_db[band] = gain_db
+            }
+            DeviceEvent::VoiceMorphToggled(enabled) => {
+                settings.mic_processing.voice_morph.enabled = enabled
+            }
+            DeviceEvent::VoiceMorphValueChanged { value, reported } => {
+                settings.mic_processing.voice_morph.values[value as usize] = reported
             }
             DeviceEvent::DecoderModeChanged(mode) => settings.decoder_mode = Some(mode),
             DeviceEvent::DeviceFlagsReported(flags) => {
@@ -198,6 +216,15 @@ fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
 
 /// One recording DSP value as an event.
 fn recording_dsp_event(id: u8, value: f32) -> Option<DeviceEvent> {
+    if let Some(parameter) = voice_morph::parameter_for_id(id) {
+        return Some(match parameter {
+            VoiceMorphParameter::Enable => DeviceEvent::VoiceMorphToggled(value > 0.0001),
+            VoiceMorphParameter::Value(which) => DeviceEvent::VoiceMorphValueChanged {
+                value: which,
+                reported: value,
+            },
+        });
+    }
     Some(match microphone::parameter_for_id(id)? {
         MicParameter::Switch(switch) => DeviceEvent::MicSwitchChanged(switch, value > 0.0001),
         MicParameter::NoiseReductionLevel => {
@@ -248,6 +275,23 @@ mod tests {
             events,
             vec![DeviceEvent::EffectToggled(SbxEffect::Crystalizer, true)]
         );
+    }
+
+    #[test]
+    fn voice_morph_reports_map_to_settings() {
+        // Answers from a G6 (firmware 2.1.250903.1324) to reads of 95:0a and 95:12.
+        let mut settings = G6Settings::default();
+        for report in [
+            "5a 11 08 01 00 95 0a 00 00 80 3f",
+            "5a 11 08 01 00 95 12 6f 67 87 3e",
+        ] {
+            for event in parse_device_packet(&hex(report)) {
+                event.apply_to(&mut settings);
+            }
+        }
+        let voice_morph = &settings.mic_processing.voice_morph;
+        assert!(voice_morph.enabled);
+        assert!((voice_morph.values[7] - 0.2645).abs() < 0.0001);
     }
 
     #[test]

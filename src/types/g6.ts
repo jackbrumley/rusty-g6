@@ -29,6 +29,14 @@ export interface MicProcessing {
   equalizer: boolean;
   /// The mic EQ's band gains in dB, lowest band first.
   equalizer_gains_db: number[];
+  voice_morph: VoiceMorph;
+}
+
+/// `g6_spec::VoiceMorph`.
+export interface VoiceMorph {
+  enabled: boolean;
+  /// In `g6_spec::VoiceMorphValue` order.
+  values: number[];
 }
 
 /// The on/off mic features shown as plain switches (noise reduction has a

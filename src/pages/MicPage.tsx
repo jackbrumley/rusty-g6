@@ -3,6 +3,7 @@ import { MIC_EQ_PRESETS, matchingMicPreset } from "../components/controls/eqPres
 import { SelectControl } from "../components/controls/SelectControl";
 import { SliderControl } from "../components/controls/SliderControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
+import { VOICE_MORPH_PRESETS, matchingVoiceMorphPreset } from "../components/controls/voiceMorphPresets";
 import { DeviceRequired } from "../components/ui/DeviceRequired";
 import { SettingsPage } from "../components/ui/SettingsPage";
 import { SettingsSection } from "../components/ui/SettingsSection";
@@ -130,6 +131,28 @@ export function MicPage({
                   }
                 }}
                 disabled={!settings.mic_processing.equalizer}
+              />
+            </SettingsSection>
+
+            <SettingsSection title="Voice morph">
+              <ToggleControl
+                label="Voice morph"
+                description="Changes how others hear you. Turn on Hear yourself to try it."
+                checked={settings.mic_processing.voice_morph.enabled}
+                onChange={actions.setVoiceMorphEnabled}
+              />
+              <SelectControl
+                label="Voice"
+                value={matchingVoiceMorphPreset(settings.mic_processing.voice_morph.values)?.id ?? null}
+                placeholder="Custom"
+                options={VOICE_MORPH_PRESETS}
+                onChange={(id) => {
+                  const preset = VOICE_MORPH_PRESETS.find((candidate) => candidate.id === id);
+                  if (preset) {
+                    actions.setVoiceMorphValues(preset.values);
+                  }
+                }}
+                disabled={!settings.mic_processing.voice_morph.enabled}
               />
             </SettingsSection>
           </SettingsPage>

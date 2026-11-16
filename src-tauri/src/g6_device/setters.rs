@@ -3,7 +3,8 @@
 //! so the cache holds what the device took.
 use super::G6DeviceManager;
 use crate::g6_protocol::{
-    dac_filter, decoder, device_flags, effects, equalizer, lighting, microphone, writes,
+    dac_filter, decoder, device_flags, effects, equalizer, lighting, microphone, voice_morph,
+    writes,
 };
 use crate::g6_spec::*;
 use anyhow::{Context, Result};
@@ -122,6 +123,30 @@ impl G6DeviceManager {
         self.send_confirmed(
             microphone::build_set_mic_eq_bands(&snapped),
             &format!("mic EQ bands {snapped:?} dB"),
+        )
+    }
+
+    pub fn set_voice_morph_enabled(&self, enabled: bool) -> Result<()> {
+        self.send_confirmed(
+            voice_morph::build_set_voice_morph_enabled(enabled),
+            &format!("voice morph {}", on_off(enabled)),
+        )
+    }
+
+    /// Set all eight voice morph values (a preset). Every value is checked
+    /// against its range before anything is sent.
+    pub fn set_voice_morph_values(&self, values: [f32; VOICE_MORPH_VALUE_COUNT]) -> Result<()> {
+        for (which, value) in VoiceMorphValue::ALL.into_iter().zip(values) {
+            let (min, max) = which.range();
+            if !(min..=max).contains(&value) {
+                return Err(anyhow::anyhow!(
+                    "Voice morph {which:?} must be {min} to {max}, got {value}"
+                ));
+            }
+        }
+        self.send_confirmed(
+            voice_morph::build_set_voice_morph_values(&values),
+            &format!("voice morph values {values:?}"),
         )
     }
 

@@ -131,6 +131,58 @@ pub struct MicProcessing {
     pub equalizer: bool,
     /// The mic EQ's band gains in dB, lowest band first.
     pub equalizer_gains_db: [f32; 8],
+    pub voice_morph: VoiceMorph,
+}
+
+pub const VOICE_MORPH_VALUE_COUNT: usize = 8;
+
+/// Voice morph: changes how your voice sounds (deeper, higher, robotic...).
+/// A preset is a set of the eight values.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct VoiceMorph {
+    pub enabled: bool,
+    /// In `VoiceMorphValue` order.
+    pub values: [f32; VOICE_MORPH_VALUE_COUNT],
+}
+
+/// The eight voice morph values, in the G6's id order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VoiceMorphValue {
+    Formant1Hz,
+    Formant2Hz,
+    Formant3Hz,
+    Pitch,
+    Envelope,
+    PitchVariability,
+    QuiverDepth,
+    ContourDepth,
+}
+
+impl VoiceMorphValue {
+    pub const ALL: [VoiceMorphValue; VOICE_MORPH_VALUE_COUNT] = [
+        VoiceMorphValue::Formant1Hz,
+        VoiceMorphValue::Formant2Hz,
+        VoiceMorphValue::Formant3Hz,
+        VoiceMorphValue::Pitch,
+        VoiceMorphValue::Envelope,
+        VoiceMorphValue::PitchVariability,
+        VoiceMorphValue::QuiverDepth,
+        VoiceMorphValue::ContourDepth,
+    ];
+
+    /// The range the G6 takes (Creative's parameter table).
+    pub fn range(self) -> (f32, f32) {
+        match self {
+            VoiceMorphValue::Formant1Hz => (200.0, 800.0),
+            VoiceMorphValue::Formant2Hz => (800.0, 1800.0),
+            VoiceMorphValue::Formant3Hz => (1600.0, 2750.0),
+            VoiceMorphValue::Pitch => (0.25, 4.0),
+            VoiceMorphValue::Envelope => (0.5, 2.0),
+            VoiceMorphValue::PitchVariability => (-1.0, 5.0),
+            VoiceMorphValue::QuiverDepth => (0.0, 0.2),
+            VoiceMorphValue::ContourDepth => (0.0, 0.4),
+        }
+    }
 }
 
 impl MicProcessing {

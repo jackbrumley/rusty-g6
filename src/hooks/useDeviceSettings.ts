@@ -52,6 +52,10 @@ export function useDeviceSettings({ showToast }: UseDeviceSettingsProps) {
       change("set_mic_switch", { switch: micSwitch, enabled }, "Failed to switch the mic feature"),
     setMicEqBands: (gainsDb: number[]) =>
       change("set_mic_eq_bands", { gainsDb }, "Failed to apply the mic EQ preset"),
+    setVoiceMorphEnabled: (enabled: boolean) =>
+      change("set_voice_morph_enabled", { enabled }, "Failed to switch voice morph"),
+    setVoiceMorphValues: (values: number[]) =>
+      change("set_voice_morph_values", { values }, "Failed to apply the voice"),
     setNoiseReductionLevel: (level: number) =>
       change("set_noise_reduction_level", { level }, "Failed to set the noise reduction level"),
     setMicrophoneBoost: (dbValue: number) =>

@@ -11,6 +11,7 @@ pub mod firmware;
 pub mod lighting;
 pub mod microphone;
 pub mod reads;
+pub mod voice_morph;
 pub mod writes;
 
 const PREFIX: u8 = 0x5a;

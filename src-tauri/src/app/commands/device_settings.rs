@@ -83,6 +83,25 @@ pub fn set_mic_eq_bands(app: AppHandle, gains_db: [f32; 8]) -> Result<(), String
 }
 
 #[tauri::command(async)]
+pub fn set_voice_morph_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
+    change_device_setting(
+        &app,
+        &format!("Voice morph enabled = {enabled}"),
+        |device| device.set_voice_morph_enabled(enabled),
+    )
+}
+
+/// All eight voice morph values at once (a preset), in the G6's id order.
+#[tauri::command(async)]
+pub fn set_voice_morph_values(app: AppHandle, values: [f32; 8]) -> Result<(), String> {
+    change_device_setting(
+        &app,
+        &format!("Voice morph values = {values:?}"),
+        |device| device.set_voice_morph_values(values),
+    )
+}
+
+#[tauri::command(async)]
 pub fn set_noise_reduction_level(app: AppHandle, level: u8) -> Result<(), String> {
     change_device_setting(
         &app,

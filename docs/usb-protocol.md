@@ -71,6 +71,12 @@ And the recording family `0x95` (mic processing, `g6_protocol/microphone.rs`):
 | `00` | Echo cancellation | 0.0 or 1.0 | captured |
 | `2c` | Mic smart volume | 0.0 or 1.0 | captured |
 | `13` | Mic EQ on | 0.0 or 1.0 | captured |
+| `0a` | Voice morph on (`g6_protocol/voice_morph.rs`) | 0.0 or 1.0 | decoded, read on a G6 |
+| `0b`-`0d` | Voice morph formants 1-3 | 200-800, 800-1800, 1600-2750 Hz | decoded, read on a G6 |
+| `0e`-`12` | Pitch, envelope, pitch variability, quiver, contour | 0.25-4, 0.5-2, -1-5, 0-0.2, 0-0.4 | decoded, read on a G6 |
+
+The G6 has no voice morph preset command: a preset is its eight values,
+written one by one (values from Creative's G6 `PresetConfig.json`).
 
 And the decoder family `0x97` (`g6_protocol/decoder.rs`): `02` dynamic range,
 2.0 Normal, 1.0 Full, 3.0 Night (captured).

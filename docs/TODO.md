@@ -231,12 +231,11 @@ command, UI):
    frames; `SndCrUSB.DLL` only passes parameter indexes to it. Raw dumps are
    in `temp/sbc-decode/` (untracked). Each one still needs a capture or a
    reversible hardware test before it ships.
-   - **Voice morph:** enable `95:0a`. Formants F1–F3 `95:0b`–`0d` (200–800,
-     800–1800, 1600–2750 Hz), pitch `0e` (0.25–4), envelope `0f` (0.5–2),
-     pitch variability `10` (-1 to 5), quiver `11` (0–0.2), contour `12`
-     (0–0.4). There is no HID preset command: apply presets by writing the
-     values. Preset values are in Creative's `PresetConfig.json`; write our
-     own presets.
+   - ~~**Voice morph**~~: shipped on the Mic tab (switch and 18 presets).
+     A read on a G6 (2026-11-16) answered all of `95:0a`–`12` inside the
+     table's ranges. Still to confirm by ear: switching it on changes the
+     voice. Not built yet: sliders for the eight values (see
+     `docs/usb-protocol.md`).
    - **Mic reverb:** `95:2e`–`35` plus family `9f` ids `01`–`1f`. This is the
      only "EAX" on the G6: there is no playback reverb.
    - **Mic EQ band frequency and width:** `95:1c`–`23` and `95:24`–`2b`.
