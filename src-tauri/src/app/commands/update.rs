@@ -264,11 +264,16 @@ fn spawn_update_process() -> Result<(), String> {
     Ok(())
 }
 
+/// Runs the updater in its own hidden console. It must not be
+/// `DETACHED_PROCESS`: Windows PowerShell started without any console exits
+/// at once without running a line, which made every in-app update on Windows
+/// close the app and do nothing. A console of its own (hidden) also keeps the
+/// updater alive after Rusty G6 exits.
 #[cfg(target_os = "windows")]
 fn spawn_update_process() -> Result<(), String> {
     use std::os::windows::process::CommandExt;
 
-    const DETACHED_PROCESS: u32 = 0x00000008;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
 
     let script = windows_update_script();
@@ -287,7 +292,7 @@ fn spawn_update_process() -> Result<(), String> {
         .stdin(Stdio::null())
         .stdout(stdout)
         .stderr(stderr)
-        .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
 
     command
         .spawn()

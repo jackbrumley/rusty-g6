@@ -66,8 +66,10 @@ function Uninstall-Existing {
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
   )
   foreach ($path in $RegistryPaths) {
+    # Exactly Rusty G6's own entry ("rusty-g6", the productName): other apps
+    # share the publisher, so never match on publisher or a name prefix.
     $entries = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue | Where-Object {
-      $_.DisplayName -and ($_.DisplayName -like "rusty-g6*" -or $_.DisplayName -like "Rusty G6*")
+      $_.DisplayName -eq "rusty-g6"
     }
     foreach ($entry in $entries) {
       Log "Removing previous version: $($entry.DisplayName) $($entry.DisplayVersion)"
