@@ -3,7 +3,6 @@ import { EQ_BAND_FREQUENCIES, EQ_BAND_LIMIT_DB, EQ_GAIN_STEP_DB } from "../../ty
 
 interface EqualizerGraphProps {
   gainsDb: number[];
-  dimmed: boolean;
   onSetBand: (band: number, gainDb: number) => void;
 }
 
@@ -51,7 +50,7 @@ function curvePath(points: [number, number][]): string {
 /// The EQ curve. Drag a band's handle up or down to set its gain; the gain
 /// is sent when the drag ends. Handles also take arrow keys (0.5 dB),
 /// Page Up/Down (3 dB) and a double-click (reset to 0 dB).
-export function EqualizerGraph({ gainsDb, dimmed, onSetBand }: EqualizerGraphProps) {
+export function EqualizerGraph({ gainsDb, onSetBand }: EqualizerGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [localGains, setLocalGains] = useState(gainsDb);
   const [dragBand, setDragBand] = useState<number | null>(null);
@@ -167,7 +166,7 @@ export function EqualizerGraph({ gainsDb, dimmed, onSetBand }: EqualizerGraphPro
   return (
     <svg
       ref={svgRef}
-      class={`eq-graph ${dimmed ? "eq-graph-dimmed" : ""}`}
+      class="eq-graph"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="group"
       aria-label="Equalizer curve"

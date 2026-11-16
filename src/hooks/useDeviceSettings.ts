@@ -9,14 +9,17 @@ interface UseDeviceSettingsProps {
 
 /// Every device setting change. The backend logs each request, applies the
 /// device's answer to its cached settings and emits "device-update", which
-/// reloads `settings`; this hook only reports failures.
+/// reloads `settings`; this hook only reports failures. Each action resolves
+/// to whether the change succeeded.
 export function useDeviceSettings({ showToast }: UseDeviceSettingsProps) {
-  const change = async (command: string, args: Record<string, unknown>, failure: string) => {
+  const change = async (command: string, args: Record<string, unknown>, failure: string): Promise<boolean> => {
     try {
       await invoke(command, args);
+      return true;
     } catch (error) {
       console.error(`${failure}:`, error);
       showToast(`${failure}: ${error}`, "error", 4000);
+      return false;
     }
   };
 

@@ -64,7 +64,7 @@ export function EqualizerControl({
       </SettingsSection>
 
       <SettingsSection title="Curve">
-        <EqualizerGraph gainsDb={equalizer.band_gains_db} dimmed={!enabled} onSetBand={onSetBand} />
+        <EqualizerGraph gainsDb={equalizer.band_gains_db} onSetBand={onSetBand} />
         <p class="info-note eq-hint">Drag a point to change that band. Double-click a point to reset it.</p>
       </SettingsSection>
     </SettingsPage>

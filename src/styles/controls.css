@@ -448,11 +448,6 @@ input:checked + .toggle-slider:before {
   touch-action: none;
 }
 
-.eq-graph-dimmed .eq-curve,
-.eq-graph-dimmed .eq-curve-fill {
-  opacity: 0.4;
-}
-
 .eq-grid {
   stroke: var(--eq-grid-line);
   stroke-width: 1;

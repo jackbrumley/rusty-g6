@@ -1,11 +1,12 @@
 import { ControlLabel } from "./ControlLabel";
 import { RangeSlider } from "./RangeSlider";
+import { type ToggleRequest, useRequestedToggle } from "./useRequestedToggle";
 
 interface EffectControlProps {
   name: string;
   enabled: boolean;
   level: number;
-  onToggle: (enabled: boolean) => void;
+  onToggle: ToggleRequest;
   onLevelChange: (level: number) => void;
   disabled?: boolean;
   tooltip?: string;
@@ -23,14 +24,15 @@ export function EffectControl({
   tooltip,
   description,
 }: EffectControlProps) {
+  const { shown, toggle } = useRequestedToggle(enabled, onToggle);
   return (
     <div class={`control-row ${disabled ? "disabled" : ""}`}>
       <ControlLabel label={name} tooltip={tooltip} description={description} />
       <label class="toggle-switch">
         <input
           type="checkbox"
-          checked={enabled}
-          onChange={(e) => onToggle((e.currentTarget as HTMLInputElement).checked)}
+          checked={shown}
+          onChange={(e) => toggle((e.currentTarget as HTMLInputElement).checked)}
           disabled={disabled}
         />
         <span class="toggle-slider"></span>
@@ -40,7 +42,7 @@ export function EffectControl({
         min={0}
         max={100}
         step={1}
-        disabled={!enabled || disabled}
+        disabled={!shown || disabled}
         formatValue={(current) => String(current)}
         onCommit={onLevelChange}
       />

@@ -26,6 +26,9 @@ export function useDeviceConnection(showToast: (message: string, type: ToastType
   const isConnectingRef = useRef(false);
   const connectedRef = useRef(false);
   const connectAttemptRef = useRef(0);
+  // Reloads overlap when changes come fast; only the newest may land, or an
+  // older answer would overwrite a newer one.
+  const loadRequestRef = useRef(0);
 
   useEffect(() => {
     connectedRef.current = connected;
@@ -38,14 +41,22 @@ export function useDeviceConnection(showToast: (message: string, type: ToastType
   };
 
   const loadSettings = async () => {
+    const requestId = ++loadRequestRef.current;
     try {
-      if (!(await invoke<boolean>("is_device_connected"))) {
+      const deviceConnected = await invoke<boolean>("is_device_connected");
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+      if (!deviceConnected) {
         showDisconnected();
         return;
       }
       setConnected(true);
       setStatus("Connected");
-      setSettings(await invoke<G6Settings>("get_device_settings"));
+      const loaded = await invoke<G6Settings>("get_device_settings");
+      if (requestId === loadRequestRef.current) {
+        setSettings(loaded);
+      }
     } catch (error) {
       console.error("Error loading settings:", error);
     }
