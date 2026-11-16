@@ -2,6 +2,14 @@
 
 ## Now
 
+### The G6 switched noise reduction off with voice morph
+
+Seen once, 2026-11-16 18:43:28: the answer to "voice morph off" (`95:0a`)
+also reported noise reduction (`95:04`) off. Rusty G6 sent no noise
+reduction write. Five hardware tests did not reproduce it. A write's answer
+that changes another setting now logs a `SIDE EFFECT` line, so the next
+occurrence shows which write caused it.
+
 ### Device "connected" after reboot but controls are dead until replug
 
 Reported 2026-11-03. Happens often after a reboot; unplugging and replugging

@@ -77,6 +77,37 @@ pub fn dsp_write_and_read(family: DspFamily, id: u8, value: f32) -> Vec<Vec<u8>>
     vec![dsp_write(family, id, value), dsp_read(family, id)]
 }
 
+/// Which setting a packet is about: a DSP parameter, or (for the other
+/// families, whose writes and reports share a family byte) the family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettingAddress {
+    Dsp { family: u8, id: u8 },
+    Family(u8),
+}
+
+impl std::fmt::Display for SettingAddress {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            SettingAddress::Dsp { family, id } => write!(formatter, "{family:02x}:{id:02x}"),
+            SettingAddress::Family(family) => write!(formatter, "family 0x{family:02x}"),
+        }
+    }
+}
+
+/// The setting a command writes or reads: DSP writes `5a 12 07 01 [family]
+/// [id]` and reads `5a 11 03 01 [family] [id]` address one parameter.
+pub fn command_address(command: &[u8]) -> Option<SettingAddress> {
+    let family = *command.get(1)?;
+    if family == CommandFamily::DspWrite as u8 || family == CommandFamily::DspRead as u8 {
+        let (&dsp_family, &id) = (command.get(4)?, command.get(5)?);
+        return Some(SettingAddress::Dsp {
+            family: dsp_family,
+            id,
+        });
+    }
+    Some(SettingAddress::Family(family))
+}
+
 /// A short name for a packet's family, for logging.
 pub fn describe_packet(packet: &[u8]) -> String {
     let Some(&family) = packet.get(1) else {
@@ -119,5 +150,26 @@ mod tests {
             &dsp_read(DspFamily::Playback, 0x07)[..6],
             &[0x5a, 0x11, 0x03, 0x01, 0x96, 0x07]
         );
+    }
+
+    #[test]
+    fn commands_address_their_setting() {
+        let dsp = SettingAddress::Dsp {
+            family: 0x95,
+            id: 0x0a,
+        };
+        assert_eq!(
+            command_address(&dsp_write(DspFamily::Recording, 0x0a, 0.0)),
+            Some(dsp)
+        );
+        assert_eq!(
+            command_address(&dsp_read(DspFamily::Recording, 0x0a)),
+            Some(dsp)
+        );
+        assert_eq!(
+            command_address(&packet(CommandFamily::Output, &[0x05, 0x00, 0x02])),
+            Some(SettingAddress::Family(0x2c))
+        );
+        assert_eq!(dsp.to_string(), "95:0a");
     }
 }

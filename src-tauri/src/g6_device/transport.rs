@@ -1,7 +1,12 @@
 //! Sending packets to the G6 and collecting its answers. While a batch runs
 //! the event listener is paused, so every answer is read here.
 use super::{DeviceUnresponsive, G6DeviceManager};
-use crate::g6_protocol::{describe_packet, events::parse_device_packet};
+use crate::g6_protocol::{
+    command_address, describe_packet,
+    events::{parse_addressed_packet, DeviceEvent},
+    SettingAddress,
+};
+use crate::g6_spec::G6Settings;
 use anyhow::{Context, Result};
 use hidapi::HidDevice;
 use log::{error, info, warn};
@@ -38,7 +43,8 @@ impl G6DeviceManager {
     /// G6 answers with to the cached settings, so they hold what the device
     /// took, not what was asked for. Returns whether any packet came back.
     /// A batch with no answer at all is logged as `UNCONFIRMED WRITE` and
-    /// marks the cached state as unconfirmed.
+    /// marks the cached state as unconfirmed. A change the G6 reports to a
+    /// setting the batch didn't address is logged as `SIDE EFFECT`.
     pub(super) fn send_commands(&self, commands: Vec<Vec<u8>>) -> Result<bool> {
         let answers = self.with_device(|device| {
             let mut answers = Vec::new();
@@ -51,13 +57,30 @@ impl G6DeviceManager {
             Ok(answers)
         })?;
 
-        let mut settings = self.current_settings.lock().unwrap();
-        for answer in &answers {
-            for event in parse_device_packet(answer) {
-                event.apply_to(&mut settings);
+        let mut addressed: Vec<SettingAddress> = Vec::new();
+        for address in commands
+            .iter()
+            .filter_map(|command| command_address(command))
+        {
+            if !addressed.contains(&address) {
+                addressed.push(address);
             }
         }
+        let mut settings = self.current_settings.lock().unwrap();
+        let side_effects: Vec<_> = answers
+            .iter()
+            .flat_map(|answer| apply_answer(&mut settings, answer, &addressed))
+            .collect();
         drop(settings);
+        if !side_effects.is_empty() {
+            let written: Vec<String> = addressed.iter().map(ToString::to_string).collect();
+            for (address, event) in side_effects {
+                warn!(
+                    "SIDE EFFECT: writing {} made the G6 change {address}: {event:?}",
+                    written.join(", ")
+                );
+            }
+        }
 
         if answers.is_empty() {
             warn!(
@@ -130,6 +153,25 @@ impl G6DeviceManager {
     }
 }
 
+/// Apply a write's answer to `settings`. Returns the changes the G6 made
+/// to settings outside `addressed` (its firmware sometimes switches one mic
+/// feature when another is written).
+fn apply_answer(
+    settings: &mut G6Settings,
+    answer: &[u8],
+    addressed: &[SettingAddress],
+) -> Vec<(SettingAddress, DeviceEvent)> {
+    let mut side_effects = Vec::new();
+    for (address, event) in parse_addressed_packet(answer) {
+        let before = settings.clone();
+        event.apply_to(settings);
+        if !addressed.contains(&address) && *settings != before {
+            side_effects.push((address, event));
+        }
+    }
+    side_effects
+}
+
 /// Wait up to `QUERY_TIMEOUT` for a packet of `family`. Returns it, and
 /// whether any packet arrived at all.
 fn await_answer(device: &HidDevice, family: u8) -> Result<(Option<Vec<u8>>, bool)> {
@@ -185,4 +227,62 @@ fn hex(bytes: &[u8]) -> String {
         .map(|byte| format!("{byte:02x}"))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::g6_protocol::{dsp_write_and_read, DspFamily};
+
+    fn hex(text: &str) -> Vec<u8> {
+        text.split_whitespace()
+            .map(|byte| u8::from_str_radix(byte, 16).unwrap())
+            .collect()
+    }
+
+    fn addressed(commands: &[Vec<u8>]) -> Vec<SettingAddress> {
+        commands
+            .iter()
+            .filter_map(|command| command_address(command))
+            .collect()
+    }
+
+    // The G6's answer to "voice morph off" on 2026-11-16 at 18:43:28: it
+    // also reported noise reduction (95:04) off.
+    const VOICE_MORPH_OFF_ANSWER: &str = "5a 11 14 03 00 95 04 00 00 00 00 \
+        95 0a 00 00 00 00 95 0a 00 00 00 00";
+
+    #[test]
+    fn a_change_to_another_setting_is_a_side_effect() {
+        let mut settings = G6Settings::default();
+        settings.mic_processing.noise_reduction = true;
+        settings.mic_processing.voice_morph.enabled = true;
+        let commands = dsp_write_and_read(DspFamily::Recording, 0x0a, 0.0);
+
+        let side_effects = apply_answer(
+            &mut settings,
+            &hex(VOICE_MORPH_OFF_ANSWER),
+            &addressed(&commands),
+        );
+
+        assert_eq!(side_effects.len(), 1);
+        assert_eq!(side_effects[0].0.to_string(), "95:04");
+        assert!(!settings.mic_processing.noise_reduction);
+        assert!(!settings.mic_processing.voice_morph.enabled);
+    }
+
+    #[test]
+    fn an_unchanged_setting_is_not_a_side_effect() {
+        let mut settings = G6Settings::default();
+        settings.mic_processing.voice_morph.enabled = true;
+        let commands = dsp_write_and_read(DspFamily::Recording, 0x0a, 0.0);
+
+        let side_effects = apply_answer(
+            &mut settings,
+            &hex(VOICE_MORPH_OFF_ANSWER),
+            &addressed(&commands),
+        );
+
+        assert!(side_effects.is_empty());
+    }
 }

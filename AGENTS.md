@@ -172,7 +172,8 @@ Rusty G6's variations from the standard:
   `last-session.log` at start-up; `app/system_info.rs` builds its header and
   the System info block in Settings -> Debug. The device code logs
   `SELF-HEAL` and `UNCONFIRMED WRITE` lines for the cold-boot bug in
-  `docs/TODO.md`.
+  `docs/TODO.md`, and a `SIDE EFFECT` line when a write's answer changes a
+  setting the write didn't address.
 - `app/settings.rs` + `app/json_store.rs`: `settings.json`.
 - `g6_device/`: the device manager (`mod.rs`), opening the HID interface
   (`connection.rs`), sending packets and applying every answer

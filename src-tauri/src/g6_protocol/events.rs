@@ -11,7 +11,7 @@ use super::firmware::parse_firmware_response;
 use super::lighting::{parse_lighting_report, LightingReport};
 use super::microphone::{self, noise_reduction_level_from_device, MicParameter};
 use super::voice_morph::{self, VoiceMorphParameter};
-use super::{DspFamily, PREFIX};
+use super::{DspFamily, SettingAddress, PREFIX};
 use crate::g6_spec::{
     DecoderMode, DeviceFlag, DigitalFilter, G6Settings, MicSwitch, OutputDevice, RgbColor,
     SbxEffect, VoiceMorphValue, MICROPHONE_BOOST_STEPS_DB,
@@ -104,15 +104,35 @@ impl DeviceEvent {
 /// The events a packet from the G6 reports. Other packets (acks, echoes of
 /// requests) report none.
 pub fn parse_device_packet(packet: &[u8]) -> Vec<DeviceEvent> {
+    parse_addressed_packet(packet)
+        .into_iter()
+        .map(|(_, event)| event)
+        .collect()
+}
+
+/// Like `parse_device_packet`, with the setting each event is about: a DSP
+/// report's blocks each address their own parameter.
+pub fn parse_addressed_packet(packet: &[u8]) -> Vec<(SettingAddress, DeviceEvent)> {
     if packet.len() < 3 || packet[0] != PREFIX {
         return Vec::new();
     }
+    if packet[1] == 0x11 {
+        return parse_dsp_report(packet);
+    }
+    let address = SettingAddress::Family(packet[1]);
+    parse_family_packet(packet)
+        .into_iter()
+        .map(|event| (address, event))
+        .collect()
+}
+
+/// The events of a report outside the DSP families.
+fn parse_family_packet(packet: &[u8]) -> Vec<DeviceEvent> {
     match packet[1] {
         0x07 => parse_firmware_response(packet)
             .map(DeviceEvent::FirmwareReported)
             .into_iter()
             .collect(),
-        0x11 => parse_dsp_report(packet),
         0x26 => parse_global_mode_report(packet)
             .into_iter()
             .flatten()
@@ -184,7 +204,7 @@ fn parse_dac_filter_report(packet: &[u8]) -> Option<DeviceEvent> {
 /// count 1; on an output switch the G6 pushes the new output's profile, up to
 /// eight blocks per packet. Each family has its own ids: playback (0x96) and
 /// recording (0x95) and decoder (0x97) are mapped.
-fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
+fn parse_dsp_report(packet: &[u8]) -> Vec<(SettingAddress, DeviceEvent)> {
     let (Some(&length), Some(&count)) = (packet.get(2), packet.get(3)) else {
         return Vec::new();
     };
@@ -198,7 +218,7 @@ fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
         .iter()
         .filter_map(|block| {
             let value = f32::from_le_bytes([block[2], block[3], block[4], block[5]]);
-            match block[0] {
+            let event = match block[0] {
                 family if family == DspFamily::Playback as u8 => {
                     playback_dsp_event(block[1], value)
                 }
@@ -209,7 +229,12 @@ fn parse_dsp_report(packet: &[u8]) -> Vec<DeviceEvent> {
                     recording_dsp_event(block[1], value)
                 }
                 _ => None,
-            }
+            }?;
+            let address = SettingAddress::Dsp {
+                family: block[0],
+                id: block[1],
+            };
+            Some((address, event))
         })
         .collect()
 }
