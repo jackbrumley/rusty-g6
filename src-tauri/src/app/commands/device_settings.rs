@@ -74,6 +74,14 @@ pub fn set_mic_switch(app: AppHandle, switch: MicSwitch, enabled: bool) -> Resul
     })
 }
 
+/// All eight mic EQ bands at once (a preset), lowest band first.
+#[tauri::command(async)]
+pub fn set_mic_eq_bands(app: AppHandle, gains_db: [f32; 8]) -> Result<(), String> {
+    change_device_setting(&app, &format!("Mic EQ bands = {gains_db:?} dB"), |device| {
+        device.set_mic_eq_bands(gains_db)
+    })
+}
+
 #[tauri::command(async)]
 pub fn set_noise_reduction_level(app: AppHandle, level: u8) -> Result<(), String> {
     change_device_setting(

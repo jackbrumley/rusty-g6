@@ -1,4 +1,6 @@
-//! Mic processing in the recording DSP family (0x95).
+//! Mic processing in the recording DSP family (0x95), including the mic EQ's
+//! eight band gains `95:14`-`95:1b` (dB, captured with each of Creative's
+//! mic EQ presets by soundblaster-x-g6-cli and linuxblaster_control).
 //!
 //! Captured (linuxblaster_control `set_noise_reduction_*`,
 //! `set_mic_noise_reduction_level-*`): noise reduction `95:04` and its level
@@ -6,7 +8,7 @@
 //! smart volume `95:2c` and the mic EQ switch `95:13`. linuxblaster's
 //! protocol reference and Creative's own parameter table (CTHIDRpA.dll) agree
 //! on all three; they are on/off switches, so a hardware test confirms them.
-use super::{dsp_read, dsp_write_and_read, DspFamily};
+use super::{dsp_read, dsp_write, dsp_write_and_read, DspFamily};
 use crate::g6_spec::MicSwitch;
 
 pub const ALL_MIC_SWITCHES: [MicSwitch; 4] = [
@@ -15,6 +17,9 @@ pub const ALL_MIC_SWITCHES: [MicSwitch; 4] = [
     MicSwitch::SmartVolume,
     MicSwitch::Equalizer,
 ];
+
+const MIC_EQ_FIRST_BAND: u8 = 0x14;
+pub const MIC_EQ_BAND_COUNT: usize = 8;
 
 /// Noise reduction strength: the device takes 0.0-0.5.
 const NOISE_REDUCTION_LEVEL: u8 = 0x05;
@@ -34,11 +39,18 @@ fn switch_id(switch: MicSwitch) -> u8 {
 pub enum MicParameter {
     Switch(MicSwitch),
     NoiseReductionLevel,
+    /// Mic EQ band 0 (lowest) to 7.
+    EqBand(usize),
 }
 
 pub fn parameter_for_id(id: u8) -> Option<MicParameter> {
     if id == NOISE_REDUCTION_LEVEL {
         return Some(MicParameter::NoiseReductionLevel);
+    }
+    if let Some(band) = id.checked_sub(MIC_EQ_FIRST_BAND).map(usize::from) {
+        if band < MIC_EQ_BAND_COUNT {
+            return Some(MicParameter::EqBand(band));
+        }
     }
     ALL_MIC_SWITCHES
         .into_iter()
@@ -63,7 +75,21 @@ pub fn build_mic_read_commands() -> Vec<Vec<u8>> {
         .into_iter()
         .map(switch_id)
         .chain([NOISE_REDUCTION_LEVEL])
+        .chain(mic_eq_band_ids())
         .map(|id| dsp_read(DspFamily::Recording, id))
+        .collect()
+}
+
+fn mic_eq_band_ids() -> impl Iterator<Item = u8> {
+    (0..MIC_EQ_BAND_COUNT as u8).map(|band| MIC_EQ_FIRST_BAND + band)
+}
+
+/// Set all eight mic EQ bands (a preset): one write per band; the G6
+/// confirms each with a status report.
+pub fn build_set_mic_eq_bands(gains_db: &[f32; MIC_EQ_BAND_COUNT]) -> Vec<Vec<u8>> {
+    mic_eq_band_ids()
+        .zip(gains_db)
+        .map(|(id, gain_db)| dsp_write(DspFamily::Recording, id, *gain_db))
         .collect()
 }
 
@@ -108,6 +134,18 @@ mod tests {
     }
 
     #[test]
+    fn mic_eq_preset_matches_capture() {
+        // Preset 1, band 1: 5a 12 07 01 95 14 00 00 40 c0 (-3.0 dB)
+        let commands = build_set_mic_eq_bands(&[-3.0, -4.0, 0.0, 2.0, 3.0, -3.0, 4.0, 5.0]);
+        assert_eq!(commands.len(), 8);
+        assert_eq!(
+            &commands[0][..10],
+            &[0x5a, 0x12, 0x07, 0x01, 0x95, 0x14, 0x00, 0x00, 0x40, 0xc0]
+        );
+        assert_eq!(commands[7][5], 0x1b);
+    }
+
+    #[test]
     fn ids_map_back_to_parameters() {
         assert_eq!(
             parameter_for_id(0x2c),
@@ -117,6 +155,8 @@ mod tests {
             parameter_for_id(0x05),
             Some(MicParameter::NoiseReductionLevel)
         );
-        assert_eq!(parameter_for_id(0x14), None);
+        assert_eq!(parameter_for_id(0x14), Some(MicParameter::EqBand(0)));
+        assert_eq!(parameter_for_id(0x1b), Some(MicParameter::EqBand(7)));
+        assert_eq!(parameter_for_id(0x1c), None);
     }
 }

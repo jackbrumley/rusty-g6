@@ -2,8 +2,8 @@
 //! the G6's ALSA card appears and whenever another program changes it, the
 //! mic level whenever the card appears.
 use super::recording_source::{alsa_item, apply};
-use super::{mic_level, open_mixer};
-use crate::g6_spec::{MicLevel, RecordingSource};
+use super::{mic_level, mic_monitoring, open_mixer};
+use crate::g6_spec::{MicLevel, MicMonitoring, MicMonitoringChoice, RecordingSource};
 use alsa::mixer::Mixer;
 use alsa::poll::{Descriptors, Flags};
 use log::{error, info, warn};
@@ -37,6 +37,8 @@ struct WatchState {
     desired: RecordingSource,
     /// `None` until the user sets a mic level: the kernel's level is kept.
     mic_level_db: Option<f32>,
+    /// `None` until the user changes monitoring: the kernel's state is kept.
+    mic_monitoring: Option<MicMonitoringChoice>,
     /// Set when another program kept switching the source back.
     paused: bool,
     reapplies: VecDeque<Instant>,
@@ -50,11 +52,16 @@ pub struct MixerWatch {
 }
 
 impl MixerWatch {
-    pub fn new(desired: RecordingSource, mic_level_db: Option<f32>) -> Self {
+    pub fn new(
+        desired: RecordingSource,
+        mic_level_db: Option<f32>,
+        mic_monitoring: Option<MicMonitoringChoice>,
+    ) -> Self {
         Self {
             state: Arc::new(Mutex::new(WatchState {
                 desired,
                 mic_level_db,
+                mic_monitoring,
                 paused: false,
                 reapplies: VecDeque::new(),
                 last_error: None,
@@ -94,6 +101,27 @@ impl MixerWatch {
             None => info!("RECORDING_SOURCE {} already selected", alsa_item(source)),
         }
         Ok(())
+    }
+
+    /// The G6's current mic monitoring state (read from the card).
+    pub fn mic_monitoring(&self) -> Result<MicMonitoring, String> {
+        mic_monitoring::read(&open_mixer()?)
+    }
+
+    /// Keep mic monitoring at `choice` from now on and apply it now. Returns
+    /// what the controls took.
+    pub fn set_mic_monitoring(&self, choice: MicMonitoringChoice) -> Result<MicMonitoring, String> {
+        let monitoring = mic_monitoring::apply(&open_mixer()?, choice.enabled, choice.level_db)?;
+        self.state.lock().unwrap().mic_monitoring = Some(MicMonitoringChoice {
+            enabled: monitoring.enabled,
+            level_db: monitoring.level_db,
+        });
+        info!(
+            "MIC_MONITORING {} at {} dB (chosen by the user)",
+            if monitoring.enabled { "on" } else { "off" },
+            monitoring.level_db
+        );
+        Ok(monitoring)
     }
 
     /// The G6's current mic level and range (read from the card).
@@ -136,6 +164,7 @@ fn run(state: &Mutex<WatchState>, app: &AppHandle) {
 
         enforce(state, &mixer, app, Reason::CardAppeared);
         apply_stored_mic_level(state, &mixer, app);
+        apply_stored_mic_monitoring(state, &mixer, app);
         if let Err(error) = follow_changes(state, &mixer, app) {
             info!("RECORDING_SOURCE stopped following the card: {error}");
         }
@@ -225,6 +254,28 @@ fn apply_stored_mic_level(state: &Mutex<WatchState>, mixer: &Mixer, app: &AppHan
                 state,
                 app,
                 format!("Could not set the G6 mic level: {message}"),
+            );
+        }
+    }
+}
+
+/// Apply the stored mic monitoring choice, if the user made one.
+fn apply_stored_mic_monitoring(state: &Mutex<WatchState>, mixer: &Mixer, app: &AppHandle) {
+    let Some(choice) = state.lock().unwrap().mic_monitoring else {
+        return;
+    };
+    match mic_monitoring::apply(mixer, choice.enabled, choice.level_db) {
+        Ok(monitoring) => info!(
+            "MIC_MONITORING {} at {} dB (the G6 sound card appeared)",
+            if monitoring.enabled { "on" } else { "off" },
+            monitoring.level_db
+        ),
+        Err(message) => {
+            error!("MIC_MONITORING {message}");
+            report_once(
+                state,
+                app,
+                format!("Could not set the G6 mic monitoring: {message}"),
             );
         }
     }

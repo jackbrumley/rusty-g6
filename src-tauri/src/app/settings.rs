@@ -2,7 +2,7 @@
 //! webview's localStorage). Stored as `~/.config/rusty-g6/settings.json`.
 
 use crate::app::json_store;
-use crate::g6_spec::RecordingSource;
+use crate::g6_spec::{MicMonitoringChoice, RecordingSource};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -20,6 +20,9 @@ pub struct AppSettings {
     pub recording_source: RecordingSource,
     /// The G6 mic level in dB (Linux); `None` keeps the kernel's level.
     pub mic_level_db: Option<f32>,
+    /// Mic monitoring on/off and level in dB (Linux); `None` keeps the
+    /// kernel's state.
+    pub mic_monitoring: Option<MicMonitoringChoice>,
 }
 
 impl Default for AppSettings {
@@ -29,6 +32,7 @@ impl Default for AppSettings {
             log_level: "info".to_string(),
             recording_source: RecordingSource::ExternalMic,
             mic_level_db: None,
+            mic_monitoring: None,
         }
     }
 }
@@ -75,6 +79,10 @@ mod tests {
             log_level: "debug".to_string(),
             recording_source: RecordingSource::LineIn,
             mic_level_db: Some(4.5),
+            mic_monitoring: Some(MicMonitoringChoice {
+                enabled: true,
+                level_db: -10.0,
+            }),
         };
         let text = serde_json::to_string(&settings).unwrap();
         assert_eq!(parse(&text).unwrap(), settings);

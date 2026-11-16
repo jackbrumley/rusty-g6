@@ -12,7 +12,7 @@ interface EqPageProps {
 export function EqPage({ settings, actions, onGoToStatus }: EqPageProps) {
   return (
     <>
-      <DeviceRequired connected={settings !== null} onGoToStatus={onGoToStatus}>
+      <DeviceRequired settings={settings} onGoToStatus={onGoToStatus}>
         {settings && (
           <EqualizerControl
             equalizer={settings.equalizer}

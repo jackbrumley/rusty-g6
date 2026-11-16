@@ -32,6 +32,23 @@ pub struct MicLevel {
     pub max_db: f32,
 }
 
+/// Mic monitoring (hearing yourself, Linux): on/off and level in dB, with
+/// the level's range.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct MicMonitoring {
+    pub enabled: bool,
+    pub level_db: f32,
+    pub min_db: f32,
+    pub max_db: f32,
+}
+
+/// The user's mic monitoring choice, stored and re-applied (Linux).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct MicMonitoringChoice {
+    pub enabled: bool,
+    pub level_db: f32,
+}
+
 /// The SBX effects that each have an on/off switch and a 0-100 level. The
 /// serialized names are the keys of `SbxEffects`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -104,7 +121,7 @@ pub enum MicSwitch {
 }
 
 /// The G6's mic processing state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MicProcessing {
     pub noise_reduction: bool,
     /// 0-100.
@@ -112,6 +129,8 @@ pub struct MicProcessing {
     pub echo_cancellation: bool,
     pub smart_volume: bool,
     pub equalizer: bool,
+    /// The mic EQ's band gains in dB, lowest band first.
+    pub equalizer_gains_db: [f32; 8],
 }
 
 impl MicProcessing {

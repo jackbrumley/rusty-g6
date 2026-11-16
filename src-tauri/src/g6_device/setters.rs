@@ -111,6 +111,20 @@ impl G6DeviceManager {
         )
     }
 
+    /// Set the mic EQ's eight bands (a preset). Every gain is checked
+    /// before anything is sent.
+    pub fn set_mic_eq_bands(&self, gains_db: [f32; 8]) -> Result<()> {
+        let mut snapped = [0.0; 8];
+        for (band, gain_db) in gains_db.iter().enumerate() {
+            snapped[band] = validate_eq_gain(*gain_db, EQ_BAND_LIMIT_DB)
+                .with_context(|| format!("mic EQ band {band}"))?;
+        }
+        self.send_confirmed(
+            microphone::build_set_mic_eq_bands(&snapped),
+            &format!("mic EQ bands {snapped:?} dB"),
+        )
+    }
+
     /// `level` is 0-100.
     pub fn set_noise_reduction_level(&self, level: u8) -> Result<()> {
         let level = validate_effect_level(level)?;

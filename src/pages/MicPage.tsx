@@ -1,4 +1,5 @@
 import { EffectControl } from "../components/controls/EffectControl";
+import { MIC_EQ_PRESETS, matchingMicPreset } from "../components/controls/eqPresets";
 import { SelectControl } from "../components/controls/SelectControl";
 import { SliderControl } from "../components/controls/SliderControl";
 import { ToggleControl } from "../components/controls/ToggleControl";
@@ -25,7 +26,7 @@ export function MicPage({
 }: MicPageProps) {
   return (
     <>
-      <DeviceRequired connected={settings !== null} onGoToStatus={onGoToStatus}>
+      <DeviceRequired settings={settings} onGoToStatus={onGoToStatus}>
         {settings && (
           <SettingsPage>
             <SettingsSection title="Input">
@@ -59,6 +60,7 @@ export function MicPage({
               <SliderControl
                 label="Mic boost"
                 value={settings.microphone_boost_db ?? 0}
+                disabled={settings.microphone_boost_db === null}
                 description="Extra gain for quiet mics. Also raises background noise."
                 min={0}
                 max={30}
@@ -71,6 +73,27 @@ export function MicPage({
                 }
               />
             </SettingsSection>
+
+            {IS_LINUX && mixer.micMonitoring && (
+              <SettingsSection title="Monitoring">
+                <ToggleControl
+                  label="Hear yourself"
+                  description="Plays your mic in your headphones or speakers."
+                  checked={mixer.micMonitoring.enabled}
+                  onChange={(enabled) => mixer.setMicMonitoring(enabled, mixer.micMonitoring!.level_db)}
+                />
+                <SliderControl
+                  label="Level"
+                  value={mixer.micMonitoring.level_db}
+                  min={mixer.micMonitoring.min_db}
+                  max={mixer.micMonitoring.max_db}
+                  step={1}
+                  disabled={!mixer.micMonitoring.enabled}
+                  onChange={(levelDb) => mixer.setMicMonitoring(true, levelDb)}
+                  formatValue={(levelDb) => `${levelDb > 0 ? "+" : ""}${levelDb.toFixed(1)} dB`}
+                />
+              </SettingsSection>
+            )}
 
             <SettingsSection title="Processing">
               <EffectControl
@@ -94,6 +117,20 @@ export function MicPage({
                   }
                 />
               ))}
+              <SelectControl
+                label="Mic EQ preset"
+                description="Creative's voice presets for the mic EQ."
+                value={matchingMicPreset(settings.mic_processing.equalizer_gains_db)?.id ?? null}
+                placeholder="Custom"
+                options={MIC_EQ_PRESETS}
+                onChange={(id) => {
+                  const preset = MIC_EQ_PRESETS.find((candidate) => candidate.id === id);
+                  if (preset) {
+                    actions.setMicEqBands(preset.gainsDb);
+                  }
+                }}
+                disabled={!settings.mic_processing.equalizer}
+              />
             </SettingsSection>
           </SettingsPage>
         )}

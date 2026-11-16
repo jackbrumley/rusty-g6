@@ -71,7 +71,7 @@ impl G6DeviceManager {
             let mut target_path: Option<std::ffi::CString> = None;
 
             for device_info in api.device_list() {
-                info!(
+                log::debug!(
                     "Found device: VID={:04x}, PID={:04x}, Interface={}",
                     device_info.vendor_id(),
                     device_info.product_id(),
@@ -131,6 +131,10 @@ impl G6DeviceManager {
                     info!("Device: {} {}", manufacturer, product);
 
                     *self.device.lock().unwrap() = Some(device);
+                    // A new handle starts from nothing: what the G6 held
+                    // before (e.g. before it re-enumerated) is not shown as
+                    // current until the next state read answers.
+                    *self.current_settings.lock().unwrap() = G6Settings::default();
                     self.state_confirmed.store(false, Ordering::SeqCst);
                     return Ok(());
                 }

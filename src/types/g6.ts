@@ -27,6 +27,8 @@ export interface MicProcessing {
   echo_cancellation: boolean;
   smart_volume: boolean;
   equalizer: boolean;
+  /// The mic EQ's band gains in dB, lowest band first.
+  equalizer_gains_db: number[];
 }
 
 /// The on/off mic features shown as plain switches (noise reduction has a
@@ -164,6 +166,14 @@ export interface AppSettings {
   log_level: string;
   recording_source: RecordingSource;
   mic_level_db: number | null;
+}
+
+/// `g6_spec::MicMonitoring`: hearing yourself (Linux).
+export interface MicMonitoring {
+  enabled: boolean;
+  level_db: number;
+  min_db: number;
+  max_db: number;
 }
 
 /// `g6_spec::MicLevel`: the G6's mic level (Linux) and its range, in dB.

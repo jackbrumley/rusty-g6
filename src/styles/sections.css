@@ -121,30 +121,17 @@
 }
 
 
-/* Settings pages: titled groups of plain rows. A page flows its sections
-   into two balanced columns when the window is wide enough. */
+/* Settings pages: titled groups of plain rows in one centred column. */
 .settings-page {
-  columns: 2 300px;
-  column-gap: 32px;
-  max-width: 980px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
 .settings-section {
-  break-inside: avoid;
-  max-width: 560px;
-  margin: 0 auto 18px;
+  margin: 0 0 18px;
 }
 
-.settings-page .settings-section {
-  max-width: none;
-}
-
-.settings-section-wide {
-  column-span: all;
-}
-
-.settings-page .settings-section:last-child {
+.settings-section:last-child {
   margin-bottom: 0;
 }
 

@@ -47,6 +47,8 @@ export function useDeviceSettings({ showToast }: UseDeviceSettingsProps) {
       change("set_dac_filter", { filter }, "Failed to set the DAC filter"),
     setMicSwitch: (micSwitch: MicSwitch, enabled: boolean) =>
       change("set_mic_switch", { switch: micSwitch, enabled }, "Failed to switch the mic feature"),
+    setMicEqBands: (gainsDb: number[]) =>
+      change("set_mic_eq_bands", { gainsDb }, "Failed to apply the mic EQ preset"),
     setNoiseReductionLevel: (level: number) =>
       change("set_noise_reduction_level", { level }, "Failed to set the noise reduction level"),
     setMicrophoneBoost: (dbValue: number) =>

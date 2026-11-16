@@ -16,7 +16,7 @@ interface DevicePageProps {
 export function DevicePage({ settings, actions, onGoToStatus }: DevicePageProps) {
   return (
     <>
-      <DeviceRequired connected={settings !== null} onGoToStatus={onGoToStatus}>
+      <DeviceRequired settings={settings} onGoToStatus={onGoToStatus}>
         {settings && (
           <SettingsPage>
             <SettingsSection title="Playback">

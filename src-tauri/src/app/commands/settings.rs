@@ -1,6 +1,6 @@
 use crate::app::settings::{self, AppSettings};
 use crate::app::state::AppState;
-use crate::g6_spec::{MicLevel, RecordingSource};
+use crate::g6_spec::{MicLevel, MicMonitoring, MicMonitoringChoice, RecordingSource};
 use tauri::State;
 
 #[tauri::command]
@@ -86,5 +86,49 @@ pub fn set_mic_level(state: State<AppState>, level_db: f32) -> Result<MicLevel, 
         *current = updated;
         log::info!("Setting changed: mic_level_db={}", level.level_db);
         Ok(level)
+    }
+}
+
+/// The G6's current mic monitoring state (Linux).
+#[tauri::command(async)]
+pub fn get_mic_monitoring(state: State<AppState>) -> Result<MicMonitoring, String> {
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = &state;
+        Err("Mic monitoring is set in Windows sound settings on this platform".to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    state.mixer.mic_monitoring()
+}
+
+/// Switch mic monitoring and set its level, and keep the choice (Linux).
+#[tauri::command(async)]
+pub fn set_mic_monitoring(
+    state: State<AppState>,
+    choice: MicMonitoringChoice,
+) -> Result<MicMonitoring, String> {
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (&state, choice);
+        Err("Mic monitoring is set in Windows sound settings on this platform".to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let monitoring = state.mixer.set_mic_monitoring(choice)?;
+        let mut current = state.settings.lock().unwrap();
+        let mut updated = current.clone();
+        updated.mic_monitoring = Some(MicMonitoringChoice {
+            enabled: monitoring.enabled,
+            level_db: monitoring.level_db,
+        });
+        settings::save(&updated)?;
+        *current = updated;
+        log::info!(
+            "Setting changed: mic_monitoring={:?}",
+            current.mic_monitoring
+        );
+        Ok(monitoring)
     }
 }

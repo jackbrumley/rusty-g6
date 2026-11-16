@@ -17,7 +17,7 @@ interface SoundPageProps {
 export function SoundPage({ settings, actions, onGoToStatus }: SoundPageProps) {
   return (
     <>
-      <DeviceRequired connected={settings !== null} onGoToStatus={onGoToStatus}>
+      <DeviceRequired settings={settings} onGoToStatus={onGoToStatus}>
         {settings && (
           <SettingsPage>
             <SettingsSection title="Output">

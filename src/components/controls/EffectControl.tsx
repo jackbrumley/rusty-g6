@@ -1,5 +1,5 @@
 import { ControlLabel } from "./ControlLabel";
-import { useEffect, useState } from "preact/hooks";
+import { RangeSlider } from "./RangeSlider";
 
 interface EffectControlProps {
   name: string;
@@ -23,15 +23,6 @@ export function EffectControl({
   tooltip,
   description,
 }: EffectControlProps) {
-  // The slider shows its position while dragging; the level is sent on release.
-  const [localLevel, setLocalLevel] = useState(level);
-
-  useEffect(() => {
-    setLocalLevel(level);
-  }, [level]);
-
-  const sliderLevel = (e: Event) => parseInt((e.currentTarget as HTMLInputElement).value, 10);
-
   return (
     <div class={`control-row ${disabled ? "disabled" : ""}`}>
       <ControlLabel label={name} tooltip={tooltip} description={description} />
@@ -44,17 +35,15 @@ export function EffectControl({
         />
         <span class="toggle-slider"></span>
       </label>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={localLevel}
-        onInput={(e) => setLocalLevel(sliderLevel(e))}
-        onChange={(e) => onLevelChange(sliderLevel(e))}
+      <RangeSlider
+        value={level}
+        min={0}
+        max={100}
+        step={1}
         disabled={!enabled || disabled}
-        class="slider"
+        formatValue={(current) => String(current)}
+        onCommit={onLevelChange}
       />
-      <span class="slider-value">{localLevel}</span>
     </div>
   );
 }

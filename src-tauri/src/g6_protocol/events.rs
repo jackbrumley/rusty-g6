@@ -35,6 +35,7 @@ pub enum DeviceEvent {
     LightingToggled(bool),
     LightingColorChanged(RgbColor),
     NoiseReductionLevelChanged(u8),
+    MicEqBandChanged { band: usize, gain_db: f32 },
 }
 
 impl DeviceEvent {
@@ -67,6 +68,9 @@ impl DeviceEvent {
             }
             DeviceEvent::NoiseReductionLevelChanged(level) => {
                 settings.mic_processing.noise_reduction_level = level
+            }
+            DeviceEvent::MicEqBandChanged { band, gain_db } => {
+                settings.mic_processing.equalizer_gains_db[band] = gain_db
             }
             DeviceEvent::DecoderModeChanged(mode) => settings.decoder_mode = Some(mode),
             DeviceEvent::DeviceFlagsReported(flags) => {
@@ -199,6 +203,10 @@ fn recording_dsp_event(id: u8, value: f32) -> Option<DeviceEvent> {
         MicParameter::NoiseReductionLevel => {
             DeviceEvent::NoiseReductionLevelChanged(noise_reduction_level_from_device(value))
         }
+        MicParameter::EqBand(band) => DeviceEvent::MicEqBandChanged {
+            band,
+            gain_db: value,
+        },
     })
 }
 
